@@ -1,0 +1,21 @@
+{
+  "name": "build-sprint-app",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "tsc --noEmit && vite build",
+    "check": "tsc --noEmit",
+    "deploy": "static-hosting deploy"
+  },
+  "dependencies": {
+    "@convex-dev/static-hosting": "0.2.1",
+    "convex": "^1.46.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.4",
+    "typescript": "^5.9.0",
+    "vite": "^7.0.0"
+  }
+}

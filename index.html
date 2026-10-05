@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light" />
+    <title>Checkout test evidence · Build Sprint</title>
+    <script src="https://cdn.shopify.com/shopifycloud/polaris-1.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#evidence">Skip to checkout evidence</a>
+    <main class="page">
+      <s-page heading="Checkout overview" inline-size="large">
+        <s-button id="refresh" slot="primary-action" variant="primary">Refresh test data</s-button>
+        <div class="store-line"><span>build-sprint-demo.myshopify.com</span><s-badge>Test store</s-badge></div>
+        <p class="test-notice">Browser test sessions only. These results do not prove a previously unknown problem at a live merchant.</p>
+        <div class="tabs" role="tablist" aria-label="Checkout evidence views">
+          <button id="overview-tab" role="tab" aria-selected="true" aria-controls="overview" tabindex="0">Overview</button>
+          <button id="journeys-tab" role="tab" aria-selected="false" aria-controls="journeys" tabindex="-1">Checkout drill-down</button>
+        </div>
+        <p id="request-status" class="request-status" role="status" aria-live="polite">Loading checkout evidence…</p>
+        <p id="request-error" class="error" role="alert" hidden></p>
+        <div id="overview" role="tabpanel" aria-labelledby="overview-tab">
+          <section class="summary" aria-labelledby="summary-title">
+            <div>
+              <h2 id="summary-title">Checking test collection</h2>
+              <p id="summary-description">Reading the events saved in Convex.</p>
+              <s-button id="open-journeys" variant="secondary" disabled>View checkout evidence</s-button>
+            </div>
+            <dl class="summary-stats">
+              <div><dt>Checkout sessions</dt><dd id="session-count">—</dd></div>
+              <div><dt>Completion observed</dt><dd id="completed-count">—</dd></div>
+              <div><dt>No completion observed</dt><dd id="incomplete-count">—</dd></div>
+            </dl>
+          </section>
+          <div class="content-grid" id="evidence">
+            <s-section heading="What the evidence shows">
+              <div id="observation" class="observation"><p>Waiting for data.</p></div>
+            </s-section>
+            <s-section heading="Collection coverage">
+              <dl class="coverage">
+                <div><dt>Events in this view</dt><dd id="event-count">—</dd></div>
+                <div><dt>Events stored</dt><dd id="stored-count">—</dd></div>
+                <div><dt>Collection</dt><dd id="collection-state">Checking</dd></div>
+                <div><dt>Revenue impact</dt><dd>Not measured</dd></div>
+              </dl>
+              <p class="small" id="coverage-note">The view is limited to the latest 500 events.</p>
+            </s-section>
+          </div>
+        </div>
+        <div id="journeys" role="tabpanel" aria-labelledby="journeys-tab" hidden>
+          <s-section heading="Observed checkout journeys">
+            <p class="section-description">Open a test checkout to see the events Shopify reported, in time order.</p>
+            <div id="journey-list"><p>No test checkouts collected yet.</p></div>
+          </s-section>
+        </div>
+        <footer>
+          <p>Source: anonymous browser events from Shopify Customer events. Event origin is not server-verified. Missing events can reflect consent, browser limits, or an unfinished test.</p>
+          <p>Milestone 1: test collection in progress. Live-merchant validation is pending.</p>
+        </footer>
+      </s-page>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

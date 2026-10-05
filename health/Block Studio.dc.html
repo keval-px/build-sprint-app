@@ -1,0 +1,1396 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="_ds/ShopifyPolarisDesignSystem_019df8/colors_and_type.css">
+  <script src="_ds/ShopifyPolarisDesignSystem_019df8/polaris-web-components.js"></script>
+  <script src="_ds/ShopifyPolarisDesignSystem_019df8/polaris-web-components-forms.js"></script>
+  <style>
+    body { margin: 0; background: #F1F1F1; }
+    ::selection { background: #B3D7FF; }
+  </style>
+</helmet>
+
+<div style="min-height:100vh;background:#F1F1F1;font-family:var(--p-font-family-sans);color:#303030;">
+
+  <!-- ================= LIBRARY ================= -->
+  <sc-if value="{{ isLibrary }}" hint-placeholder-val="{{ true }}">
+    <div data-screen-label="Block library" style="max-width:1080px;margin:0 auto;padding:20px 24px 80px;display:flex;flex-direction:column;gap:16px;">
+
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;">
+        <div style="display:flex;flex-direction:column;gap:2px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            
+            
+          </div>
+          
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-top:4px;">
+        <div style="display:flex;flex-direction:column;gap:2px;min-width:0;">
+          <h2 style="margin:0;font-size:13px;line-height:20px;font-weight:650;">You pick where these go</h2>
+          <span style="font-size:12px;line-height:16px;color:#616161;text-wrap:pretty;">Drop these anywhere in the checkout, or hide them behind a link or button.</span>
+        </div>
+        <span style="flex-shrink:0;font-size:11px;line-height:16px;font-weight:550;color:#8A8A8A;font-variant-numeric:tabular-nums;white-space:nowrap;">Figures: last 30 days</span>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;align-items:stretch;">
+        <sc-for list="{{ dynamicCats }}" as="cat" hint-placeholder-count="3">
+          <div style="min-width:0;box-sizing:border-box;display:flex;flex-direction:column;gap:12px;background:#FFFFFF;border-radius:12px;padding:16px;box-shadow:var(--p-shadow-100), var(--p-shadow-bevel-100);">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+              <h3 style="margin:0;font-size:13px;line-height:20px;font-weight:650;min-width:0;text-wrap:pretty;">{{ cat.name }}</h3>
+              <s-badge>{{ cat.count }}</s-badge>
+            </div>
+            <sc-if value="{{ cat.hasCaption }}" hint-placeholder-val="{{ false }}">
+              <span style="display:block;font-size:12px;line-height:16px;color:#616161;text-wrap:pretty;">{{ cat.caption }}</span>
+            </sc-if>
+            <div style="flex:1;display:flex;flex-direction:column;gap:8px;">
+              <sc-for list="{{ cat.blocks }}" as="blk" hint-placeholder-count="3">
+                <div onClick="{{ blk.onOpen }}" style="display:flex;flex-direction:column;gap:6px;padding:12px;border-radius:10px;border:1px solid #E3E3E3;cursor:pointer;background:#FFFFFF;" style-hover="background:#F7F7F7;border-color:#B5B5B5;">
+                  <div style="display:flex;align-items:center;gap:8px;">
+                    <div style="width:28px;height:28px;border-radius:8px;background:#F1F1F1;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                      <s-icon icon="{{ blk.icon }}" tone="subdued" size="base" style="display:flex;align-items:center;justify-content:center;"></s-icon>
+                    </div>
+                    <span style="flex:1;font-size:13px;line-height:18px;font-weight:650;min-width:0;text-wrap:pretty;">{{ blk.name }}</span>
+                    <s-badge tone="{{ blk.statusTone }}">{{ blk.statusLabel }}</s-badge>
+                  </div>
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+                    <span style="font-size:12px;line-height:16px;color:#616161;font-variant-numeric:tabular-nums;">{{ blk.metric }}</span>
+                    <span style="font-size:11px;line-height:14px;color:#8A8A8A;">{{ blk.condLabel }}</span>
+                  </div>
+                </div>
+              </sc-for>
+              </div>
+              <button onClick="{{ cat.onAdd }}" style="display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;border-radius:10px;border:1px dashed #B5B5B5;background:transparent;cursor:pointer;font-family:var(--p-font-family-sans);font-size:12px;color:#616161;flex-shrink:0;" style-hover="background:#F7F7F7;">
+                <s-icon icon="plus" tone="subdued" size="small"></s-icon>
+                Add {{ cat.short }}
+              </button>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:2px;margin-top:12px;">
+        <h2 style="margin:0;font-size:13px;line-height:20px;font-weight:650;">These follow the order</h2>
+        <span style="font-size:12px;line-height:16px;color:#616161;text-wrap:pretty;">Each one attaches to a part of the checkout — a product, a shipping option — and repeats for every one. If the order doesn't have it, nothing shows.</span>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;align-items:stretch;">
+        <sc-for list="{{ staticCats }}" as="cat" hint-placeholder-count="3">
+          <div style="position:relative;min-width:0;box-sizing:border-box;display:flex;flex-direction:column;background:#FFFFFF;border-radius:12px;padding:16px;gap:12px;box-shadow:var(--p-shadow-100), var(--p-shadow-bevel-100);">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+              <div style="display:flex;align-items:center;gap:6px;min-width:0;">
+                <h3 style="margin:0;font-size:13px;line-height:20px;font-weight:650;">{{ cat.name }}</h3>
+                <sc-if value="{{ cat.hasTip }}" hint-placeholder-val="{{ false }}">
+                  <button type="button" onMouseEnter="{{ cat.tipOn }}" onMouseLeave="{{ cat.tipOff }}" onFocus="{{ cat.tipOn }}" onBlur="{{ cat.tipOff }}" aria-label="Where this renders" style="display:flex;align-items:center;justify-content:center;width:20px;height:20px;padding:0;border:none;border-radius:6px;background:transparent;cursor:help;color:#8A8A8A;flex-shrink:0;" style-hover="background:#F1F1F1;color:#303030;" style-focus="outline:2px solid #005BD3;outline-offset:1px;">
+                    <s-icon icon="info" size="small" style="display:flex;"></s-icon>
+                  </button>
+                </sc-if>
+              </div>
+              <s-badge>{{ cat.count }}</s-badge>
+            </div>
+            <div style="{{ cat.bodyStyle }}">
+
+              <sc-if value="{{ cat.showDiagram }}" hint-placeholder-val="{{ true }}">
+              <div style="{{ cat.diagramWrapStyle }}">
+                <sc-if value="{{ cat.isCartline }}" hint-placeholder-val="{{ true }}">
+                  <div style="padding:10px;border-radius:8px;background:#F1F1F1;display:flex;flex-direction:column;gap:6px;height:157px;box-sizing:border-box;">
+                    <span style="font-size:11px;line-height:12px;font-weight:650;color:#8A8A8A;letter-spacing:0.4px;text-transform:uppercase;">Order summary</span>
+                    <div style="background:#FFFFFF;border-radius:6px;padding:8px;display:flex;flex-direction:column;gap:7px;flex:1;box-sizing:border-box;">
+                      <div style="display:flex;align-items:center;gap:7px;">
+                        <div style="width:22px;height:22px;border-radius:4px;background:#E3E3E3;flex-shrink:0;"></div>
+                        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;">
+                          <div style="height:5px;width:72%;border-radius:3px;background:#E3E3E3;"></div>
+                          <div style="height:5px;width:38%;border-radius:3px;background:#EBEBEB;"></div>
+                        </div>
+                      </div>
+                      <div style="margin-left:29px;height:18px;border-radius:5px;border:1px dashed #005BD3;background:#F0F2FF;display:flex;align-items:center;padding:0 6px;">
+                        <span style="font-size:11px;line-height:12px;font-weight:650;color:#005BD3;">Your block</span>
+                      </div>
+                      <div style="display:flex;align-items:center;gap:7px;">
+                        <div style="width:22px;height:22px;border-radius:4px;background:#E3E3E3;flex-shrink:0;"></div>
+                        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;">
+                          <div style="height:5px;width:56%;border-radius:3px;background:#E3E3E3;"></div>
+                          <div style="height:5px;width:30%;border-radius:3px;background:#EBEBEB;"></div>
+                        </div>
+                      </div>
+                      <div style="margin-left:29px;height:18px;border-radius:5px;border:1px dashed #005BD3;background:#F0F2FF;display:flex;align-items:center;padding:0 6px;">
+                        <span style="font-size:11px;line-height:12px;font-weight:650;color:#005BD3;">Your block</span>
+                      </div>
+                    </div>
+                  </div>
+                </sc-if>
+                <sc-if value="{{ cat.isShipping }}" hint-placeholder-val="{{ false }}">
+                  <div style="padding:10px;border-radius:8px;background:#F1F1F1;display:flex;flex-direction:column;gap:6px;height:157px;box-sizing:border-box;">
+                    <span style="font-size:11px;line-height:12px;font-weight:650;color:#8A8A8A;letter-spacing:0.4px;text-transform:uppercase;">Shipping method</span>
+                    <div style="background: #FFFFFF; border-radius: 6px; padding: 10px; display: flex; flex-direction: column; gap: 7px; flex: 1; box-sizing: border-box">
+                      <div style="display:flex;align-items:center;gap:7px;">
+                        <div style="width:11px;height:11px;border-radius:50%;border:3px solid #303030;background:#FFFFFF;box-sizing:border-box;flex-shrink:0;"></div>
+                        <div style="flex:1;height:5px;border-radius:3px;background:#E3E3E3;"></div>
+                        <div style="width:22px;height:5px;border-radius:3px;background:#EBEBEB;flex-shrink:0;"></div>
+                      </div>
+                      <div style="margin-left:18px;height:18px;border-radius:5px;border:1px dashed #005BD3;background:#F0F2FF;display:flex;align-items:center;padding:0 6px;">
+                        <span style="font-size:11px;line-height:12px;font-weight:650;color:#005BD3;">Your block</span>
+                      </div>
+                      <div style="display:flex;align-items:center;gap:7px;">
+                        <div style="width:11px;height:11px;border-radius:50%;border:1px solid #B5B5B5;background:#FFFFFF;box-sizing:border-box;flex-shrink:0;"></div>
+                        <div style="flex:1;height:5px;border-radius:3px;background:#E3E3E3;"></div>
+                        <div style="width:22px;height:5px;border-radius:3px;background:#EBEBEB;flex-shrink:0;"></div>
+                      </div>
+                      <div style="margin-left:18px;height:18px;border-radius:5px;border:1px dashed #005BD3;background:#F0F2FF;display:flex;align-items:center;padding:0 6px;">
+                        <span style="font-size:11px;line-height:12px;font-weight:650;color:#005BD3;">Your block</span>
+                      </div>
+                    </div>
+                  </div>
+                </sc-if>
+                <sc-if value="{{ cat.isAnnounce }}" hint-placeholder-val="{{ false }}">
+                  <div style="padding: 10px; border-radius: 8px; background: #F1F1F1; display: flex; flex-direction: column; gap: 6px; padding-right: 2px; padding-bottom: 0px; padding-left: 2px; height: 157px; box-sizing: border-box">
+                    
+                    <div style="height: 18px; border-radius: 5px; border: 1px dashed #005BD3; background: #F0F2FF; display: flex; align-items: center; justify-content: space-between; padding: 0 6px; margin-left: 5px; margin-right: 5px">
+                      <span style="font-size:11px;line-height:12px;font-weight:650;color:#005BD3;">Your block</span>
+                      <span style="font-size:11px;line-height:12px;color:#005BD3;">×</span>
+                    </div>
+                    <div style="background: #FFFFFF; border-radius: 6px; padding: 8px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 -4px 6px -3px rgba(26,26,26,0.22); padding: 10px; flex: 1; box-sizing: border-box">
+                      <div style="display:flex;flex-direction:column;gap:5px;">
+                        <div style="height:7px;width:64%;border-radius:3px;background:#E3E3E3;"></div>
+                        <div style="height:5px;width:44%;border-radius:3px;background:#EBEBEB;"></div>
+                      </div>
+                      <div style="display:flex;align-items:center;gap:5px;">
+                        <svg viewBox="0 0 20 20" style="width:12px;height:12px;flex-shrink:0;display:block;fill:#8A8A8A;"><path fill-rule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm3.857-9.809a.75.75 0 0 0-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 1 0-1.06 1.061l2.5 2.5a.75.75 0 0 0 1.137-.089l4-5.5Z"></path></svg>
+                        <span style="font-size:11px;line-height:12px;font-weight:650;color:#8A8A8A;letter-spacing:0.4px;text-transform:uppercase;">Thank you John</span>
+                      </div>
+                      <div style="flex:1;border-radius:5px;background:#F7F7F7;"></div>
+                    </div>
+                  </div>
+                </sc-if>
+              </div>
+              </sc-if>
+
+              <div style="flex:1;display:flex;flex-direction:column;gap:8px;">
+                <sc-if value="{{ cat.isEmpty }}" hint-placeholder-val="{{ false }}">
+                  <span style="font-size:12px;line-height:16px;color:#616161;text-wrap:pretty;">{{ cat.caption }}</span>
+                </sc-if>
+                <sc-for list="{{ cat.blocks }}" as="blk" hint-placeholder-count="2">
+                  <div onClick="{{ blk.onOpen }}" style="display:flex;flex-direction:column;gap:6px;padding:12px;border-radius:10px;border:1px solid #E3E3E3;cursor:pointer;background:#FFFFFF;" style-hover="background:#F7F7F7;border-color:#B5B5B5;">
+                    <div style="display:flex;align-items:center;gap:8px;">
+                      <div style="width:28px;height:28px;border-radius:8px;background:#F1F1F1;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                        <s-icon icon="{{ blk.icon }}" tone="subdued" size="base" style="display:flex;align-items:center;justify-content:center;"></s-icon>
+                      </div>
+                      <span style="flex:1;font-size:13px;line-height:18px;font-weight:650;min-width:0;text-wrap:pretty;">{{ blk.name }}</span>
+                      <s-badge tone="{{ blk.statusTone }}">{{ blk.statusLabel }}</s-badge>
+                    </div>
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+                      <span style="font-size:12px;line-height:16px;color:#616161;font-variant-numeric:tabular-nums;">{{ blk.metric }}</span>
+                      <span style="font-size:11px;line-height:14px;color:#8A8A8A;">{{ blk.condLabel }}</span>
+                    </div>
+                  </div>
+                </sc-for>
+                <button onClick="{{ cat.onAdd }}" style="margin-top:auto;display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;border-radius:10px;border:1px dashed #B5B5B5;background:transparent;cursor:pointer;font-family:var(--p-font-family-sans);font-size:12px;color:#616161;" style-hover="background:#F7F7F7;">
+                  <s-icon icon="plus" tone="subdued" size="small"></s-icon>
+                  Add {{ cat.short }}
+                </button>
+              </div>
+
+            </div>
+          </div>
+        </sc-for>
+      </div>
+
+      <sc-if value="{{ hasSuggestions }}" hint-placeholder-val="{{ true }}">
+      <s-section heading="Suggested for your industry">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:8px;margin-top:8px;">
+          <sc-for list="{{ suggestions }}" as="sug" hint-placeholder-count="3">
+            <div style="display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:10px;border:1px dashed #B5B5B5;background:#FAFAFA;">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <div style="width:28px;height:28px;border-radius:8px;background:#F1F1F1;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                  <s-icon icon="{{ sug.icon }}" tone="subdued" size="base" style="display:flex;align-items:center;justify-content:center;"></s-icon>
+                </div>
+                <span style="flex:1;font-size:13px;line-height:20px;font-weight:650;min-width:0;">{{ sug.name }}</span>
+              </div>
+              <div style="display:flex;">
+                <s-badge tone="info">{{ sug.benefit }}</s-badge>
+              </div>
+              <span style="font-size:12px;line-height:16px;color:#616161;text-wrap:pretty;">{{ sug.reason }}</span>
+              <div style="margin-top:auto;">
+                <s-button variant="tertiary" size="slim" icon="plus" onClick="{{ sug.onAdd }}">Add block</s-button>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </s-section>
+      </sc-if>
+
+      <div style="display:flex;justify-content:center;gap:6px;padding-top:8px;">
+        <span style="font-size:13px;line-height:20px;color:#616161;">Learn more about <a href="#" style="color:#005BD3;text-decoration:underline;">Checkout blocks</a></span>
+        <span style="font-size:13px;line-height:20px;color:#8A8A8A;">|</span>
+        <span style="font-size:13px;line-height:20px;color:#616161;">Need help? <a href="#" style="color:#005BD3;text-decoration:underline;">Contact support</a></span>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ================= STUDIO ================= -->
+  <sc-if value="{{ isStudio }}" hint-placeholder-val="{{ false }}">
+    <div data-screen-label="Block studio" style="display:flex;flex-direction:column;height:100vh;overflow:hidden;background:#FFFFFF;position:relative;">
+
+      <sc-if value="{{ confirmDeleteOpen }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;inset:0;z-index:200;background:rgba(0,0,0,0.71);display:flex;align-items:center;justify-content:center;padding:24px;">
+          <div style="width:100%;max-width:400px;background:#FFFFFF;border-radius:16px;box-shadow:var(--p-shadow-600);display:flex;flex-direction:column;">
+            <div style="padding:16px 16px 8px;display:flex;flex-direction:column;gap:8px;">
+              <h2 style="margin:0;font-size:14px;line-height:20px;font-weight:650;">Delete {{ studioName }}?</h2>
+              <p style="margin:0;font-size:13px;line-height:20px;color:#616161;text-wrap:pretty;">This can't be undone. The block stops rendering at checkout right away, and its 30-day figures are removed from the library.</p>
+            </div>
+            <div style="padding:12px 16px;border-top:1px solid #EBEBEB;display:flex;justify-content:flex-end;gap:8px;">
+              <s-button variant="secondary" onClick="{{ cancelDelete }}">Cancel</s-button>
+              <s-button variant="primary" tone="critical" onClick="{{ confirmDeleteBlock }}">Delete</s-button>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- Studio top bar -->
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid #E3E3E3;flex-shrink:0;position:relative;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <button onClick="{{ closeStudio }}" onMouseEnter="{{ tipOnExit }}" onMouseLeave="{{ tipOff }}" onFocus="{{ tipOnExit }}" onBlur="{{ tipOff }}" aria-label="Exit block studio" style="display:flex;align-items:center;justify-content:center;width:32px;height:32px;padding:0;border:none;border-radius:8px;background:transparent;color:#4A4A4A;cursor:pointer;" style-hover="background:#F1F1F1;color:#303030;">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11.5 3.75h2.75a2 2 0 0 1 2 2v8.5a2 2 0 0 1-2 2H11.5"></path><path d="M8.25 7.25 5.5 10l2.75 2.75"></path><path d="M5.75 10h6.5"></path></svg>
+          </button>
+          <sc-if value="{{ tipExit }}" hint-placeholder-val="{{ false }}">
+            <div style="position:absolute;top:44px;left:12px;z-index:80;white-space:nowrap;padding:6px 10px;border-radius:8px;background:#FFFFFF;color:#303030;font-size:13px;line-height:20px;box-shadow:0 4px 6px -2px rgba(26,26,26,0.20),0 0 0 1px rgba(0,0,0,0.08);pointer-events:none;">Exit block studio<span style="position:absolute;bottom:100%;left:14px;width:8px;height:8px;margin-bottom:-5px;transform:rotate(45deg);background:#FFFFFF;box-shadow:-1px -1px 0 rgba(0,0,0,0.08);"></span></div>
+          </sc-if>
+          <span style="width:1px;align-self:stretch;background:#E3E3E3;flex-shrink:0;margin:-10px 6px;"></span>
+          <span style="font-size:14px;line-height:20px;font-weight:650;">{{ studioName }}</span>
+          <div style="position:relative;">
+            <button onClick="{{ toggleStatusMenu }}" style="{{ statusCapsuleStyle }}">
+              <span>{{ studioStatusLabel }}</span>
+              <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M5.72 8.47a.75.75 0 0 1 1.06 0L10 11.69l3.22-3.22a.75.75 0 1 1 1.06 1.06l-3.75 3.75a.75.75 0 0 1-1.06 0L5.72 9.53a.75.75 0 0 1 0-1.06Z"></path></svg>
+            </button>
+            <sc-if value="{{ statusMenuOpen }}" hint-placeholder-val="{{ false }}">
+              <div style="position:absolute;top:calc(100% + 4px);left:0;z-index:50;min-width:140px;background:#FFFFFF;border-radius:8px;box-shadow:var(--p-shadow-300);border:1px solid #E3E3E3;padding:4px;display:flex;flex-direction:column;">
+                <button onClick="{{ setStatusActive }}" style="{{ statusOptActiveStyle }}" style-hover="background:#F7F7F7;">
+                  <span style="width:8px;height:8px;border-radius:50%;background:#047B5D;flex-shrink:0;"></span>
+                  <span style="flex:1;text-align:left;">Active</span>
+                  <sc-if value="{{ studioActive }}" hint-placeholder-val="{{ false }}"><svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M15.78 5.97a.75.75 0 0 1 0 1.06l-6.5 6.5a.75.75 0 0 1-1.06 0l-3-3a.75.75 0 1 1 1.06-1.06l2.47 2.47 5.97-5.97a.75.75 0 0 1 1.06 0Z"></path></svg></sc-if>
+                </button>
+                <button onClick="{{ setStatusInactive }}" style="{{ statusOptInactiveStyle }}" style-hover="background:#F7F7F7;">
+                  <span style="width:8px;height:8px;border-radius:50%;background:#B5B5B5;flex-shrink:0;"></span>
+                  <span style="flex:1;text-align:left;">Inactive</span>
+                  <sc-if value="{{ studioInactive }}" hint-placeholder-val="{{ false }}"><svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M15.78 5.97a.75.75 0 0 1 0 1.06l-6.5 6.5a.75.75 0 0 1-1.06 0l-3-3a.75.75 0 1 1 1.06-1.06l2.47 2.47 5.97-5.97a.75.75 0 0 1 1.06 0Z"></path></svg></sc-if>
+                </button>
+              </div>
+            </sc-if>
+          </div>
+        </div>
+        <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;align-items:center;gap:2px;padding:2px;border-radius:10px;background:#F1F1F1;">
+          <button onClick="{{ setDeviceDesktop }}" aria-label="Desktop view" title="Desktop view" style="{{ devSegDesktopStyle }}">
+            <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="3.25" width="15" height="10" rx="1.75"></rect><path d="M10 13.25v3.5"></path><path d="M6.75 16.75h6.5"></path></svg>
+          </button>
+          <button onClick="{{ setDeviceMobile }}" aria-label="Mobile view" title="Mobile view" style="{{ devSegMobileStyle }}">
+            <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5.75" y="2.25" width="8.5" height="15.5" rx="2"></rect><path d="M8.75 14.75h2.5"></path></svg>
+          </button>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="position:relative;display:flex;">
+            <button onClick="{{ toggleMoreMenu }}" aria-label="More actions" title="More actions" style="display:flex;align-items:center;justify-content:center;width:32px;height:32px;padding:0;border:none;border-radius:8px;background:transparent;color:#4A4A4A;cursor:pointer;" style-hover="background:#F1F1F1;color:#303030;">
+              <s-icon icon="menu-horizontal" size="base" style="display:flex;align-items:center;justify-content:center;"></s-icon>
+            </button>
+            <sc-if value="{{ moreMenuOpen }}" hint-placeholder-val="{{ false }}">
+              <div style="position:absolute;top:calc(100% + 4px);right:0;z-index:90;min-width:180px;background:#FFFFFF;border-radius:8px;box-shadow:var(--p-shadow-300);border:1px solid #E3E3E3;padding:4px;display:flex;flex-direction:column;">
+                <button onClick="{{ askDeleteBlock }}" style="display:flex;align-items:center;gap:8px;padding:6px 8px;border:none;border-radius:6px;background:transparent;cursor:pointer;font-family:var(--p-font-family-sans);font-size:13px;line-height:20px;color:#C70A24;text-align:left;" style-hover="background:#FEE8EB;">
+                  <s-icon icon="delete" size="small" style="display:flex;align-items:center;justify-content:center;color:#C70A24;"></s-icon>
+                  Delete block
+                </button>
+              </div>
+            </sc-if>
+          </div>
+          <sc-if value="{{ studioDirty }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <s-button variant="tertiary" onClick="{{ discardStudio }}">Discard</s-button>
+              <s-button variant="primary" onClick="{{ saveStudio }}">Save</s-button>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+
+      <div style="display:flex;flex:1;min-height:0;background:#F1F1F1;">
+
+        <!-- Left: config -->
+        <div style="width:360px;flex-shrink:0;margin:12px 12px 12px;display:flex;flex-direction:column;gap:12px;min-height:0;">
+        <div style="flex:1;min-height:0;background:#FFFFFF;border-radius:12px;box-shadow:var(--p-shadow-100), var(--p-shadow-bevel-100);overflow:hidden;display:flex;flex-direction:column;">
+          <div style="display:flex;gap:4px;padding:12px 16px 0;border-bottom:1px solid #EBEBEB;flex-shrink:0;">
+            <sc-for list="{{ studioTabs }}" as="tab" hint-placeholder-count="3">
+              <button onClick="{{ tab.onSelect }}" style="{{ tab.styleObj }}" style-hover="color:#303030;">{{ tab.label }}</button>
+            </sc-for>
+          </div>
+          <div style="flex:1;overflow-y:auto;padding:16px 16px 24px;display:flex;flex-direction:column;gap:16px;">
+
+            <!-- ===== CONTENT tab ===== -->
+            <sc-if value="{{ tabContent }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;flex-direction:column;gap:16px;">
+
+                <sc-if value="{{ isUpsell }}" hint-placeholder-val="{{ true }}">
+                  <div style="display:flex;flex-direction:column;gap:16px;">
+                    <s-text-field label="Heading" value="{{ upsellHeading }}" onInput="{{ onUpsellHeading }}" helpText="{remain_goal} inserts the remaining amount"></s-text-field>
+                    <s-select label="Offer items">
+                      <option>Manual products</option>
+                      <option>Best sellers</option>
+                      <option>Related products</option>
+                    </s-select>
+                    <div style="display:flex;flex-direction:column;gap:8px;padding:10px 12px;border-radius:8px;border:1px solid #E3E3E3;">
+                      <div style="display:flex;align-items:center;gap:12px;">
+                        <img src="assets/cap-nude.png" alt="Vichy Cap Blue — Nude" style="width:48px;height:48px;border-radius:8px;border:1px solid #E3E3E3;object-fit:cover;flex-shrink:0;">
+                        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;">
+                          <a href="#" style="font-size:13px;line-height:20px;font-weight:550;color:#005BD3;text-decoration:underline;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Vichy Cap Blue — Nude</a>
+                          <button onClick="{{ toggleMoreItems }}" style="display:flex;align-items:center;gap:4px;padding:0;border:none;background:transparent;cursor:pointer;font-family:inherit;font-size:13px;line-height:20px;font-weight:550;color:#005BD3;align-self:flex-start;">
+                            <span style="text-decoration:underline;">{{ moreItemsLabel }}</span>
+                            <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" style="{{ moreChevronStyle }}"><path fill-rule="evenodd" d="M5.72 8.47a.75.75 0 0 1 1.06 0L10 11.69l3.22-3.22a.75.75 0 1 1 1.06 1.06l-3.75 3.75a.75.75 0 0 1-1.06 0L5.72 9.53a.75.75 0 0 1 0-1.06Z"></path></svg>
+                          </button>
+                        </div>
+                        <button type="button" aria-label="Change offer items" style="width:28px;height:28px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:#F1F1F1;border:none;border-radius:8px;padding:0;cursor:pointer;color:#303030;" style-hover="background:#EBEBEB;" style-focus="outline:2px solid #005BD3;outline-offset:1px;"><svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M15.655 4.344a2.695 2.695 0 0 0-3.81 0l-.599.599-.009-.009-1.06 1.06.008.01-5.88 5.88a2.75 2.75 0 0 0-.805 1.944v1.922a.75.75 0 0 0 .75.75h1.922a2.75 2.75 0 0 0 1.944-.806l7.54-7.539a2.695 2.695 0 0 0 0-3.81Zm-4.409 2.72-5.88 5.88a1.25 1.25 0 0 0-.366.884v1.172h1.172c.331 0 .65-.132.883-.366l5.88-5.88-1.689-1.69Zm2.75.629.599-.599a1.195 1.195 0 1 0-1.69-1.689l-.598.599 1.69 1.689Z"></path></svg></button>
+                      </div>
+                      <sc-if value="{{ moreItemsOpen }}" hint-placeholder-val="{{ false }}">
+                        <div style="display:flex;align-items:center;gap:12px;padding-top:8px;border-top:1px solid #EBEBEB;">
+                          <img src="assets/cap-sand.png" alt="Vichy Cap Blue — Sand" style="width:48px;height:48px;border-radius:8px;border:1px solid #E3E3E3;object-fit:cover;flex-shrink:0;">
+                          <a href="#" style="flex:1;min-width:0;font-size:13px;line-height:20px;font-weight:550;color:#005BD3;text-decoration:underline;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Vichy Cap Blue — Sand</a>
+                        </div>
+                      </sc-if>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:6px;">
+                      <span style="font-size:13px;line-height:20px;font-weight:550;">Offer discount</span>
+                      <div style="display:grid;grid-template-columns:1fr 1fr;gap:2px;padding:2px;background:#F1F1F1;border-radius:8px;">
+                        <div onClick="{{ setDiscNone }}" style="{{ discNoneStyle }}">None</div>
+                        <div onClick="{{ setDiscPct }}" style="{{ discPctStyle }}">Discount</div>
+                      </div>
+                    </div>
+                    <s-text-field label="Button text" value="Add" required=""></s-text-field>
+                  </div>
+                </sc-if>
+
+                <sc-if value="{{ isBanner }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;flex-direction:column;gap:16px;">
+                    <s-text-field label="Heading" value="{{ bannerHeading }}" onInput="{{ onBannerHeading }}"></s-text-field>
+                    <s-text-area label="Description" value="{{ bannerDesc }}" onInput="{{ onBannerDesc }}"></s-text-area>
+                    <s-text-field label="Link text" placeholder="Optional"></s-text-field>
+                    <s-text-field label="Link URL" placeholder="https://" helpText="URL must start with &quot;https://&quot;"></s-text-field>
+                  </div>
+                </sc-if>
+
+                <sc-if value="{{ isTrust }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;flex-direction:column;gap:16px;">
+                    <s-text-field label="Heading" value="{{ trustHeading }}" onInput="{{ onTrustHeading }}"></s-text-field>
+                    <div style="display:flex;flex-direction:column;gap:6px;">
+                      <span style="font-size:13px;line-height:20px;font-weight:550;">Badges</span>
+                      <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;border:1px solid #E3E3E3;"><span style="display:flex;color:#8A8A8A;cursor:grab;flex-shrink:0;" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path d="M8 5a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm0 5a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm-1 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm7-11a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm-1 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm1 4a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"></path></svg></span><span style="flex:1;font-size:13px;">SSL secure payment</span><s-icon icon="view" tone="subdued" size="small"></s-icon></div>
+                      <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;border:1px solid #E3E3E3;"><span style="display:flex;color:#8A8A8A;cursor:grab;flex-shrink:0;" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path d="M8 5a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm0 5a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm-1 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm7-11a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm-1 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm1 4a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"></path></svg></span><span style="flex:1;font-size:13px;">Easy returns</span><s-icon icon="view" tone="subdued" size="small"></s-icon></div>
+                      <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;border:1px solid #E3E3E3;"><span style="display:flex;color:#8A8A8A;cursor:grab;flex-shrink:0;" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path d="M8 5a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm0 5a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm-1 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm7-11a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm-1 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm1 4a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"></path></svg></span><span style="flex:1;font-size:13px;">Worldwide shipping</span><s-icon icon="view" tone="subdued" size="small"></s-icon></div>
+                      <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;border:1px solid #E3E3E3;"><span style="display:flex;color:#8A8A8A;cursor:grab;flex-shrink:0;" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path d="M8 5a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm0 5a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm-1 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm7-11a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm-1 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm1 4a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"></path></svg></span><span style="flex:1;font-size:13px;">Premium quality</span><s-icon icon="view" tone="subdued" size="small"></s-icon></div>
+                      <s-button variant="tertiary" size="slim" icon="plus">Add badge</s-button>
+                    </div>
+                  </div>
+                </sc-if>
+
+                <sc-if value="{{ isAutoAdd }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;flex-direction:column;gap:16px;">
+                    <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:8px;border:1px solid #E3E3E3;">
+                      <img src="assets/pants-nude.png" alt="Crew Tracksuit Pants — Nude" style="width:48px;height:48px;border-radius:8px;border:1px solid #E3E3E3;object-fit:cover;flex-shrink:0;">
+                      <a href="#" style="flex:1;min-width:0;font-size:13px;line-height:20px;font-weight:550;color:#005BD3;text-decoration:underline;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Crew Tracksuit Pants — Nude</a>
+                      <button type="button" aria-label="Change product" style="width:28px;height:28px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:#F1F1F1;border:none;border-radius:8px;padding:0;cursor:pointer;color:#303030;" style-hover="background:#EBEBEB;" style-focus="outline:2px solid #005BD3;outline-offset:1px;"><svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M15.655 4.344a2.695 2.695 0 0 0-3.81 0l-.599.599-.009-.009-1.06 1.06.008.01-5.88 5.88a2.75 2.75 0 0 0-.805 1.944v1.922a.75.75 0 0 0 .75.75h1.922a2.75 2.75 0 0 0 1.944-.806l7.54-7.539a2.695 2.695 0 0 0 0-3.81Zm-4.409 2.72-5.88 5.88a1.25 1.25 0 0 0-.366.884v1.172h1.172c.331 0 .65-.132.883-.366l5.88-5.88-1.689-1.69Zm2.75.629.599-.599a1.195 1.195 0 1 0-1.69-1.689l-.598.599 1.69 1.689Z"></path></svg></button>
+                    </div>
+                    <s-number-field label="Quantity" value="1"></s-number-field>
+                    <s-checkbox label="Show as free (€0.00)" checked="" details="Displays the added item with a zero price in the order summary"></s-checkbox>
+                  </div>
+                </sc-if>
+
+                <sc-if value="{{ isClupsell }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;flex-direction:column;gap:16px;">
+                    <s-text-field label="Heading" value="{{ clHeading }}" onInput="{{ onClHeading }}"></s-text-field>
+                    <s-select label="Offer source">
+                      <option>Complementary products</option>
+                      <option>Manual product</option>
+                      <option>Same collection</option>
+                    </s-select>
+                    <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:8px;border:1px solid #E3E3E3;">
+                      <img src="assets/cap-sand.png" alt="Vichy Cap Blue — Sand" style="width:48px;height:48px;border-radius:8px;border:1px solid #E3E3E3;object-fit:cover;flex-shrink:0;">
+                      <a href="#" style="flex:1;min-width:0;font-size:13px;line-height:20px;font-weight:550;color:#005BD3;text-decoration:underline;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Vichy Cap Blue — Sand</a>
+                      <button type="button" aria-label="Change product" style="width:28px;height:28px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:#F1F1F1;border:none;border-radius:8px;padding:0;cursor:pointer;color:#303030;" style-hover="background:#EBEBEB;" style-focus="outline:2px solid #005BD3;outline-offset:1px;"><svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M15.655 4.344a2.695 2.695 0 0 0-3.81 0l-.599.599-.009-.009-1.06 1.06.008.01-5.88 5.88a2.75 2.75 0 0 0-.805 1.944v1.922a.75.75 0 0 0 .75.75h1.922a2.75 2.75 0 0 0 1.944-.806l7.54-7.539a2.695 2.695 0 0 0 0-3.81Zm-4.409 2.72-5.88 5.88a1.25 1.25 0 0 0-.366.884v1.172h1.172c.331 0 .65-.132.883-.366l5.88-5.88-1.689-1.69Zm2.75.629.599-.599a1.195 1.195 0 1 0-1.69-1.689l-.598.599 1.69 1.689Z"></path></svg></button>
+                    </div>
+                    <s-text-field label="Button text" value="Add" required=""></s-text-field>
+                  </div>
+                </sc-if>
+
+                <sc-if value="{{ isSurvey }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;flex-direction:column;gap:16px;">
+                    <s-text-field label="Question" value="{{ surveyQuestion }}" onInput="{{ onSurveyQuestion }}"></s-text-field>
+                    <div style="display:flex;flex-direction:column;gap:6px;">
+                      <span style="font-size:13px;line-height:20px;font-weight:550;">Answer options</span>
+                      <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;border:1px solid #E3E3E3;"><span style="display:flex;color:#8A8A8A;cursor:grab;flex-shrink:0;" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path d="M8 5a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm0 5a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm-1 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm7-11a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm-1 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm1 4a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"></path></svg></span><span style="flex:1;font-size:13px;">Social media</span><s-icon icon="delete" tone="subdued" size="small"></s-icon></div>
+                      <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;border:1px solid #E3E3E3;"><span style="display:flex;color:#8A8A8A;cursor:grab;flex-shrink:0;" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path d="M8 5a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm0 5a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm-1 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm7-11a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm-1 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm1 4a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"></path></svg></span><span style="flex:1;font-size:13px;">Search engine</span><s-icon icon="delete" tone="subdued" size="small"></s-icon></div>
+                      <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;border:1px solid #E3E3E3;"><span style="display:flex;color:#8A8A8A;cursor:grab;flex-shrink:0;" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path d="M8 5a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm0 5a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm-1 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm7-11a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm-1 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm1 4a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"></path></svg></span><span style="flex:1;font-size:13px;">Friend or family</span><s-icon icon="delete" tone="subdued" size="small"></s-icon></div>
+                      <s-button variant="tertiary" size="slim" icon="plus">Add option</s-button>
+                    </div>
+                    <s-checkbox label="Allow multiple answers"></s-checkbox>
+                  </div>
+                </sc-if>
+
+                <sc-if value="{{ isTextline }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;flex-direction:column;gap:16px;">
+                    <s-text-field label="Text" value="{{ textlineText }}" onInput="{{ onTextlineText }}"></s-text-field>
+                  </div>
+                </sc-if>
+
+              </div>
+            </sc-if>
+
+            <!-- ===== STYLE tab ===== -->
+            <sc-if value="{{ tabStyle }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;flex-direction:column;gap:16px;">
+
+
+                <sc-if value="{{ isUpsell }}" hint-placeholder-val="{{ true }}">
+                  <div style="display:flex;flex-direction:column;gap:16px;">
+                    <div style="display:flex;flex-direction:column;gap:6px;">
+                      <span style="font-size:13px;line-height:20px;font-weight:550;">Layout</span>
+                      <div style="display:grid;grid-template-columns:1fr 1fr;gap:2px;padding:2px;background:#F1F1F1;border-radius:8px;">
+                        <div onClick="{{ setDispList }}" style="{{ dispListStyle }}">Stacked</div>
+                        <div onClick="{{ setDispGrid }}" style="{{ dispGridStyle }}">Grid</div>
+                      </div>
+                    </div>
+                    <s-checkbox label="Show progress bar" details="Uses your checkout's accent color." checked=""></s-checkbox>
+                    <s-select label="Add button" helpText="Button variants come from the checkout component set.">
+                      <option>Secondary</option>
+                      <option>Primary</option>
+                      <option>Tertiary</option>
+                    </s-select>
+                    <s-select label="Container" helpText="Section draws a bordered card. Plain places the block inline.">
+                      <option>Section</option>
+                      <option>Plain</option>
+                    </s-select>
+                    <s-checkbox label="Hide item if already in cart" checked=""></s-checkbox>
+                  </div>
+                </sc-if>
+
+                <sc-if value="{{ isBanner }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;flex-direction:column;gap:16px;">
+                    <s-select label="Tone" helpText="Tones are set by the Banner component — each one has a fixed color and icon.">
+                      <option>Warning</option>
+                      <option>Info</option>
+                      <option>Success</option>
+                      <option>Critical</option>
+                    </s-select>
+                    <s-checkbox label="Collapsible"></s-checkbox>
+                    <s-checkbox label="Open link in new tab"></s-checkbox>
+                  </div>
+                </sc-if>
+
+                <sc-if value="{{ isTrust }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;flex-direction:column;gap:16px;">
+                    <s-select label="Badge size">
+                      <option>Medium</option>
+                      <option>Small</option>
+                      <option>Large</option>
+                    </s-select>
+                  </div>
+                </sc-if>
+
+                <sc-if value="{{ isOtherStyle }}" hint-placeholder-val="{{ false }}">
+                  <span style="font-size:13px;line-height:20px;color:#616161;">This block has no component options — it renders with your checkout branding as is.</span>
+                </sc-if>
+
+              </div>
+            </sc-if>
+
+            <!-- ===== RULES tab (shared) ===== -->
+            <sc-if value="{{ tabRules }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;flex-direction:column;gap:16px;">
+                <sc-if value="{{ isCartlineLoc }}" hint-placeholder-val="{{ false }}">
+                  <s-select label="Attach to" helpText="Cart line blocks render under each matching item in the order summary.">
+                    <option>All cart items</option>
+                    <option>Specific products</option>
+                    <option>Items matching conditions</option>
+                  </s-select>
+                </sc-if>
+
+                <div style="display:flex;flex-direction:column;gap:6px;">
+                  <span style="font-size:13px;line-height:20px;font-weight:550;">Display</span>
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:2px;padding:2px;background:#F1F1F1;border-radius:8px;">
+                    <div onClick="{{ setDisplayAlways }}" style="{{ displayAlwaysStyle }}">Always</div>
+                    <div onClick="{{ setDisplayTrigger }}" style="{{ displayTriggerStyle }}">On trigger</div>
+                  </div>
+                </div>
+
+                <sc-if value="{{ showConditions }}" hint-placeholder-val="{{ true }}">
+                  <div style="display:flex;flex-direction:column;gap:6px;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;">
+                      <span style="font-size:13px;line-height:20px;font-weight:550;">Conditions</span>
+                      <sc-if value="{{ hasConditions }}" hint-placeholder-val="{{ true }}">
+                      <div style="display:flex;gap:8px;">
+                        <button type="button" aria-label="Edit conditions" style="width:28px;height:28px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:#F1F1F1;border:none;border-radius:8px;padding:0;cursor:pointer;color:#303030;" style-hover="background:#EBEBEB;" style-focus="outline:2px solid #005BD3;outline-offset:1px;"><svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M15.655 4.344a2.695 2.695 0 0 0-3.81 0l-.599.599-.009-.009-1.06 1.06.008.01-5.88 5.88a2.75 2.75 0 0 0-.805 1.944v1.922a.75.75 0 0 0 .75.75h1.922a2.75 2.75 0 0 0 1.944-.806l7.54-7.539a2.695 2.695 0 0 0 0-3.81Zm-4.409 2.72-5.88 5.88a1.25 1.25 0 0 0-.366.884v1.172h1.172c.331 0 .65-.132.883-.366l5.88-5.88-1.689-1.69Zm2.75.629.599-.599a1.195 1.195 0 1 0-1.69-1.689l-.598.599 1.69 1.689Z"></path></svg></button>
+                        <button type="button" aria-label="Delete conditions" style="width:28px;height:28px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:#F1F1F1;border:none;border-radius:8px;padding:0;cursor:pointer;color:#303030;" style-hover="background:#EBEBEB;" style-focus="outline:2px solid #005BD3;outline-offset:1px;"><svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M11.5 8.25a.75.75 0 0 1 .75.75v4.25a.75.75 0 0 1-1.5 0v-4.25a.75.75 0 0 1 .75-.75Z"></path><path d="M9.25 9a.75.75 0 0 0-1.5 0v4.25a.75.75 0 0 0 1.5 0v-4.25Z"></path><path fill-rule="evenodd" d="M7.25 5.25a2.75 2.75 0 0 1 5.5 0h3a.75.75 0 0 1 0 1.5h-.75v5.45c0 1.68 0 2.52-.327 3.162a3 3 0 0 1-1.311 1.311c-.642.327-1.482.327-3.162.327h-.4c-1.68 0-2.52 0-3.162-.327a3 3 0 0 1-1.311-1.311c-.327-.642-.327-1.482-.327-3.162v-5.45h-.75a.75.75 0 0 1 0-1.5h3Zm1.5 0a1.25 1.25 0 1 1 2.5 0h-2.5Zm-2.25 1.5h7v5.45c0 .865-.001 1.423-.036 1.848-.033.408-.09.559-.128.633a1.5 1.5 0 0 1-.655.655c-.074.038-.225.095-.633.128-.425.035-.983.036-1.848.036h-.4c-.865 0-1.423-.001-1.848-.036-.408-.033-.559-.09-.633-.128a1.5 1.5 0 0 1-.656-.655c-.037-.074-.094-.225-.127-.633-.035-.425-.036-.983-.036-1.848v-5.45Z"></path></svg></button>
+                      </div>
+                      </sc-if>
+                    </div>
+                    <sc-if value="{{ noConditions }}" hint-placeholder-val="{{ false }}">
+                      <div style="display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding:12px;border-radius:8px;border:1px dashed #B5B5B5;background:#FAFAFA;">
+                        <span style="font-size:12px;line-height:16px;color:#616161;text-wrap:pretty;">This block shows on every checkout until you add a condition.</span>
+                        <s-button variant="tertiary" size="slim" icon="plus">Add condition</s-button>
+                      </div>
+                    </sc-if>
+                    <sc-for list="{{ conditionList }}" as="cond" hint-placeholder-count="1">
+                      <div style="display:flex;flex-direction:column;gap:6px;">
+                        <sc-if value="{{ cond.notFirst }}" hint-placeholder-val="{{ false }}">
+                          <span style="font-size:11px;line-height:14px;font-weight:550;color:#8A8A8A;padding-left:12px;">and</span>
+                        </sc-if>
+                        <div style="display:flex;gap:8px;align-items:flex-start;padding:10px 12px;border-radius:8px;background:#F7F7F7;">
+                          <span style="font-size:13px;line-height:20px;"><span style="font-weight:650;">{{ cond.field }}</span> <span style="color:#616161;">{{ cond.op }}</span> <span style="font-weight:650;">{{ cond.value }}</span></span>
+                        </div>
+                      </div>
+                    </sc-for>
+                  </div>
+                </sc-if>
+
+              </div>
+            </sc-if>
+
+          </div>
+          </div>
+          <div style="flex-shrink:0;background:#FFFFFF;border-radius:12px;box-shadow:var(--p-shadow-100), var(--p-shadow-bevel-100);padding:12px 16px;display:flex;flex-direction:column;gap:6px;">
+            <span style="font-size: 12px; line-height: 16px; font-weight: 550; color: var(--p-color-bg-inverse)">Block ID</span>
+            <div style="display:flex;gap:8px;">
+              <div style="flex:1;padding:8px 12px;border-radius:8px;border:1px solid #E3E3E3;background:#FAFAFA;font-family:var(--p-font-family-mono);font-size:12px;color:#616161;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ blockId }}</div>
+              <button onClick="{{ copyBlockId }}" aria-label="Copy block ID" title="Copy block ID" style="width:38px;height:38px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:#FFFFFF;border:none;border-radius:8px;box-shadow:var(--p-shadow-button);cursor:pointer;color:#4A4A4A;" style-hover="background:#FAFAFA;">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M11.25 8.5c-.414 0-.75.336-.75.75v1.25h-1.25c-.414 0-.75.336-.75.75s.336.75.75.75h1.25v1.25c0 .414.336.75.75.75s.75-.336.75-.75v-1.25h1.25c.414 0 .75-.336.75-.75s-.336-.75-.75-.75h-1.25v-1.25c0-.414-.336-.75-.75-.75Z"></path><path fill-rule="evenodd" d="M8.75 16.5c-1.438 0-2.618-1.104-2.74-2.51-1.406-.122-2.51-1.302-2.51-2.74v-5c0-1.519 1.231-2.75 2.75-2.75h5c1.438 0 2.618 1.104 2.74 2.51 1.406.122 2.51 1.302 2.51 2.74v5c0 1.519-1.231 2.75-2.75 2.75h-5Zm0-10.5c-1.519 0-2.75 1.231-2.75 2.75v3.725c-.57-.116-1-.62-1-1.225v-5c0-.69.56-1.25 1.25-1.25h5c.605 0 1.11.43 1.225 1h-3.725Zm0 1.5c-.69 0-1.25.56-1.25 1.25v5c0 .69.56 1.25 1.25 1.25h5c.69 0 1.25-.56 1.25-1.25v-5c0-.69-.56-1.25-1.25-1.25h-5Z"></path></svg>
+              </button>
+            </div>
+            <p style="margin:0;font-size:12px;line-height:16px;color:#616161;text-wrap:pretty;">{{ blockIdHelp }}</p>
+            <s-button variant="secondary" icon="external" href="#" target="_blank" fullwidth="">Open checkout editor</s-button>
+          </div>
+        </div>
+
+        <!-- Right: width-true preview -->
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;">
+          <div style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:2px;padding:12px 24px 0;">
+            <span style="font-size:11px;line-height:16px;font-weight:550;color:#8A8A8A;font-variant-numeric:tabular-nums;">{{ canvasLabel }}</span>
+            <span style="font-size:11px;line-height:16px;color:#8A8A8A;text-align:center;">Appearance only — placement is set in the checkout editor.</span>
+          </div>
+          <div ref="{{ previewAreaRef }}" style="flex:1;overflow-y:auto;display:flex;align-items:stretch;justify-content:center;gap:12px;padding:28px 24px 40px;">
+            <sc-if value="{{ showGhostLeft }}" hint-placeholder-val="{{ false }}">
+              <div style="{{ ghostSlotStyle }}">
+                <sc-if value="{{ tipLeft }}" hint-placeholder-val="{{ false }}">
+                  <div style="position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);z-index:20;white-space:nowrap;padding:4px 8px;border-radius:8px;background:#FFFFFF;color:#303030;font-size:12px;line-height:16px;box-shadow:0 4px 6px -2px rgba(26,26,26,0.20),0 0 0 1px rgba(0,0,0,0.08);pointer-events:none;">Preview in main column<span style="position:absolute;top:100%;left:50%;width:8px;height:8px;margin:-5px 0 0 -4px;transform:rotate(45deg);background:#FFFFFF;box-shadow:1px 1px 0 rgba(0,0,0,0.08);"></span></div>
+                </sc-if>
+                <button onClick="{{ togglePlacement }}" onMouseEnter="{{ tipOnLeft }}" onMouseLeave="{{ tipOff }}" onFocus="{{ tipOnLeft }}" onBlur="{{ tipOff }}" aria-label="Preview in main column" style="display:flex;align-items:center;justify-content:center;width:28px;height:28px;padding:0;border:1px solid #E3E3E3;border-radius:8px;background:#FFFFFF;color:#616161;cursor:pointer;box-shadow:0 1px 0 rgba(26,26,26,0.07);" style-hover="background:#F7F7F7;color:#303030;">
+                  <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M12.28 5.72a.75.75 0 0 1 0 1.06L9.06 10l3.22 3.22a.75.75 0 1 1-1.06 1.06l-3.75-3.75a.75.75 0 0 1 0-1.06l3.75-3.75a.75.75 0 0 1 1.06 0Z"></path></svg>
+                </button>
+              </div>
+            </sc-if>
+            <div style="{{ canvasWrapStyle }}">
+            <div style="{{ canvasStyle }}">
+              <div style="height:14px;border:1px dashed #DEDEDE;border-radius:8px;"></div>
+
+              <div ref="{{ blockRef }}" style="display:flex;flex-direction:column;">
+              <!-- The block itself, rendered live at column width -->
+              <sc-if value="{{ isUpsell }}" hint-placeholder-val="{{ true }}">
+                <div style="display:flex;flex-direction:column;gap:14px;padding:14px;border-radius:8px;border:1px solid #DEDEDE;background:#FFFFFF;font-family:'SF Pro Text',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
+                  <div style="display:flex;flex-direction:column;gap:6px;">
+                    <div style="height:5px;border-radius:30px;background:#F5F5F5;box-shadow:inset 0 0 0 1px #DEDEDE;overflow:hidden;">
+                      <div style="{{ barFillStyle }}"></div>
+                    </div>
+                    <span style="font-size:14px;line-height:1.5;">{{ upsellHeadingPreview }}</span>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:12px;">
+                    <img src="assets/cap-nude.png" alt="" style="width:64px;height:64px;border-radius:12px;object-fit:cover;flex-shrink:0;box-shadow:inset 0 0 0 2px #FFFFFF,0 3px 4px rgba(0,0,0,0.03),0 -0.5px 1.5px rgba(0,0,0,0.09),0 1px 1.75px rgba(0,0,0,0.12);">
+                    <div style="flex:1;display:flex;flex-direction:column;min-width:0;">
+                      <span style="font-size:14px;line-height:1.5;font-weight:600;">Vichy Cap Blue — Nude</span>
+                      <span style="font-size:14px;line-height:1.5;color:#707070;">€40.00</span>
+                    </div>
+                    <div style="padding:12px 14px;border-radius:8px;box-shadow:inset 0 0 0 1px #E3E3E3;color:#1C1C1C;font-size:14px;line-height:1.5;font-weight:600;flex-shrink:0;">Add</div>
+                  </div>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ isBanner }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;gap:12px;padding:14px;border-radius:8px;background:#FFF5EB;font-family:'SF Pro Text',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
+                  <s-icon icon="alert-triangle" size="small"></s-icon>
+                  <div style="display:flex;flex-direction:column;gap:2px;">
+                    <span style="font-size:14px;line-height:1.5;font-weight:600;color:#241700;">{{ bannerHeadingPreview }}</span>
+                    <span style="font-size:14px;line-height:1.5;color:#241700;">{{ bannerDescPreview }}</span>
+                  </div>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ isTrust }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;flex-direction:column;gap:10px;padding:8px 4px;font-family:'SF Pro Text',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
+                  <span style="font-size:14px;line-height:1.5;color:#707070;text-align:center;">{{ trustHeadingPreview }}</span>
+                  <div style="display:flex;justify-content:center;gap:16px;flex-wrap:wrap;">
+                    <div style="width:52px;height:52px;border-radius:50%;border:1.5px dashed #8A8A8A;display:flex;align-items:center;justify-content:center;font-size:7.5px;color:#616161;text-align:center;line-height:1.2;">SSL<br>SECURE</div>
+                    <div style="width:52px;height:52px;border-radius:50%;border:1.5px dashed #8A8A8A;display:flex;align-items:center;justify-content:center;font-size:7.5px;color:#616161;text-align:center;line-height:1.2;">EASY<br>RETURNS</div>
+                    <div style="width:52px;height:52px;border-radius:50%;border:1.5px dashed #8A8A8A;display:flex;align-items:center;justify-content:center;font-size:7.5px;color:#616161;text-align:center;line-height:1.2;">WORLD<br>SHIPPING</div>
+                    <div style="width:52px;height:52px;border-radius:50%;border:1.5px dashed #8A8A8A;display:flex;align-items:center;justify-content:center;font-size:7.5px;color:#616161;text-align:center;line-height:1.2;">PREMIUM<br>QUALITY</div>
+                  </div>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ isCartlineLoc }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;flex-direction:column;gap:14px;padding:14px;border-radius:8px;border:1px solid #DEDEDE;background:#FFFFFF;font-family:'SF Pro Text',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
+                  <div style="display:flex;align-items:flex-start;gap:14px;">
+                    <div style="position:relative;flex-shrink:0;">
+                      <img src="assets/plant.png" alt="" style="width:64px;height:64px;border-radius:12px;object-fit:cover;display:block;box-shadow:inset 0 0 0 2px #FFFFFF,0 3px 4px rgba(0,0,0,0.03),0 -0.5px 1.5px rgba(0,0,0,0.09),0 1px 1.75px rgba(0,0,0,0.12);">
+                      <span style="position:absolute;top:-7px;right:-7px;min-width:20px;height:20px;border-radius:10px;background:#707070;color:#FFFFFF;font-size:12px;font-weight:550;display:flex;align-items:center;justify-content:center;padding:0 5px;">1</span>
+                    </div>
+                    <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;">
+                      <span style="font-size:14px;line-height:1.5;font-weight:600;">Monstera Deliciosa</span>
+                      <span style="font-size:13px;line-height:1.5;color:#707070;">2 feet</span>
+                    </div>
+                    <span style="font-size:14px;line-height:1.5;font-weight:600;font-variant-numeric:tabular-nums;flex-shrink:0;">€100.00</span>
+                  </div>
+                  <div style="display:flex;flex-direction:column;gap:10px;padding-left:78px;">
+                    <button onClick="{{ toggleCartGroup }}" style="display:flex;align-items:center;gap:6px;padding:0;border:none;background:transparent;cursor:pointer;font-family:inherit;font-size:13px;line-height:20px;font-weight:550;color:#303030;align-self:flex-start;">
+                      <span>{{ cartGroupLabel }}</span>
+                      <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" style="{{ cartChevronStyle }}"><path fill-rule="evenodd" d="M5.72 8.47a.75.75 0 0 1 1.06 0L10 11.69l3.22-3.22a.75.75 0 1 1 1.06 1.06l-3.75 3.75a.75.75 0 0 1-1.06 0L5.72 9.53a.75.75 0 0 1 0-1.06Z"></path></svg>
+                    </button>
+                    <sc-if value="{{ cartGroupOpen }}" hint-placeholder-val="{{ true }}">
+                      <div style="display:flex;flex-direction:column;gap:8px;">
+                        <sc-if value="{{ isAutoAdd }}" hint-placeholder-val="{{ false }}">
+                          <div style="display:flex;align-items:center;gap:12px;">
+                            <img src="assets/pants-nude.png" alt="" style="width:44px;height:44px;border-radius:8px;object-fit:cover;flex-shrink:0;box-shadow:inset 0 0 0 2px #FFFFFF,0 3px 4px rgba(0,0,0,0.03),0 -0.5px 1.5px rgba(0,0,0,0.09),0 1px 1.75px rgba(0,0,0,0.12);">
+                            <span style="flex:1;min-width:0;font-size:14px;line-height:1.5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Crew Tracksuit Pants — Nude</span>
+                            <span style="font-size:14px;line-height:1.5;color:#707070;font-variant-numeric:tabular-nums;flex-shrink:0;">€0.00</span>
+                          </div>
+                        </sc-if>
+                        <sc-if value="{{ isClupsell }}" hint-placeholder-val="{{ false }}">
+                          <div style="display:flex;flex-direction:column;gap:8px;">
+                            <span style="font-size:13px;line-height:1.5;color:#707070;">{{ clHeadingPreview }}</span>
+                            <div style="display:flex;align-items:center;gap:12px;">
+                              <img src="assets/cap-sand.png" alt="" style="width:44px;height:44px;border-radius:8px;object-fit:cover;flex-shrink:0;box-shadow:inset 0 0 0 2px #FFFFFF,0 3px 4px rgba(0,0,0,0.03),0 -0.5px 1.5px rgba(0,0,0,0.09),0 1px 1.75px rgba(0,0,0,0.12);">
+                              <div style="flex:1;min-width:0;display:flex;flex-direction:column;">
+                                <span style="font-size:14px;line-height:1.5;font-weight:600;">Vichy Cap Blue — Sand</span>
+                                <span style="font-size:13px;line-height:1.5;color:#707070;">€25.00</span>
+                              </div>
+                              <div style="padding:8px 14px;border-radius:8px;box-shadow:inset 0 0 0 1px #E3E3E3;color:#1C1C1C;font-size:14px;line-height:1.5;font-weight:600;flex-shrink:0;">Add</div>
+                            </div>
+                          </div>
+                        </sc-if>
+                      </div>
+                    </sc-if>
+                  </div>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ isSurvey }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;flex-direction:column;gap:10px;padding:14px;border-radius:8px;border:1px solid #DEDEDE;background:#FFFFFF;font-family:'SF Pro Text',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
+                  <span style="font-size:14px;line-height:1.5;font-weight:600;">{{ surveyQuestionPreview }}</span>
+                  <div style="display:flex;align-items:center;gap:10px;"><div style="width:16px;height:16px;border-radius:50%;border:1px solid #707070;flex-shrink:0;"></div><span style="font-size:14px;line-height:1.5;">Social media</span></div>
+                  <div style="display:flex;align-items:center;gap:10px;"><div style="width:16px;height:16px;border-radius:50%;border:1px solid #707070;flex-shrink:0;"></div><span style="font-size:14px;line-height:1.5;">Search engine</span></div>
+                  <div style="display:flex;align-items:center;gap:10px;"><div style="width:16px;height:16px;border-radius:50%;border:1px solid #707070;flex-shrink:0;"></div><span style="font-size:14px;line-height:1.5;">Friend or family</span></div>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ isTextline }}" hint-placeholder-val="{{ false }}">
+                <div style="padding:4px;font-family:'SF Pro Text',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
+                  <span style="font-size:14px;line-height:1.5;color:#1C1C1C;">{{ textlinePreview }}</span>
+                </div>
+              </sc-if>
+
+              </div>
+
+              <div style="height:14px;border:1px dashed #DEDEDE;border-radius:8px;"></div>
+              <span style="font-size:11px;line-height:14px;color:#8A8A8A;text-align:center;">Dashed boxes are neighboring checkout elements — only your block is rendered.</span>
+            </div>
+            </div>
+            <sc-if value="{{ showGhostRight }}" hint-placeholder-val="{{ true }}">
+              <div style="{{ ghostSlotStyle }}">
+                <sc-if value="{{ tipRight }}" hint-placeholder-val="{{ false }}">
+                  <div style="position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);z-index:20;white-space:nowrap;padding:4px 8px;border-radius:8px;background:#FFFFFF;color:#303030;font-size:12px;line-height:16px;box-shadow:0 4px 6px -2px rgba(26,26,26,0.20),0 0 0 1px rgba(0,0,0,0.08);pointer-events:none;">Preview in order summary<span style="position:absolute;top:100%;left:50%;width:8px;height:8px;margin:-5px 0 0 -4px;transform:rotate(45deg);background:#FFFFFF;box-shadow:1px 1px 0 rgba(0,0,0,0.08);"></span></div>
+                </sc-if>
+                <button onClick="{{ togglePlacement }}" onMouseEnter="{{ tipOnRight }}" onMouseLeave="{{ tipOff }}" onFocus="{{ tipOnRight }}" onBlur="{{ tipOff }}" aria-label="Preview in order summary" style="display:flex;align-items:center;justify-content:center;width:28px;height:28px;padding:0;border:1px solid #E3E3E3;border-radius:8px;background:#FFFFFF;color:#616161;cursor:pointer;box-shadow:0 1px 0 rgba(26,26,26,0.07);" style-hover="background:#F7F7F7;color:#303030;">
+                  <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M7.72 5.72a.75.75 0 0 1 1.06 0l3.75 3.75a.75.75 0 0 1 0 1.06l-3.75 3.75a.75.75 0 1 1-1.06-1.06L10.94 10 7.72 6.78a.75.75 0 0 1 0-1.06Z"></path></svg>
+                </button>
+              </div>
+            </sc-if>
+          </div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ================= TEMPLATE GALLERY ================= -->
+  <sc-if value="{{ galleryOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeGallery }}" style="position:fixed;inset:0;z-index:80;background:rgba(0,0,0,0.71);display:flex;align-items:center;justify-content:center;padding:24px;">
+      <div onClick="{{ swallowClick }}" style="width:min(1020px,100%);max-height:88vh;background:#FFFFFF;border-radius:16px;box-shadow:var(--p-shadow-600);display:flex;flex-direction:column;overflow:hidden;">
+
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:16px 16px 12px 20px;border-bottom:1px solid #EBEBEB;">
+          <div style="display:flex;flex-direction:column;gap:2px;min-width:0;">
+            <h2 style="margin:0;font-size:20px;line-height:24px;font-weight:700;letter-spacing:-0.2px;">{{ galleryTitle }}</h2>
+            <span style="font-size:13px;line-height:20px;color:#616161;text-wrap:pretty;">Start from a play that already works for other stores — every one arrives with its trigger rules pre-built. You can change anything after.</span>
+          </div>
+          <button onClick="{{ closeGallery }}" aria-label="Close" style="display:flex;align-items:center;justify-content:center;width:28px;height:28px;flex-shrink:0;padding:0;border:none;border-radius:8px;background:transparent;color:#616161;cursor:pointer;" style-hover="background:#F1F1F1;color:#303030;">
+            <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z"></path></svg>
+          </button>
+        </div>
+
+        <div style="display:flex;min-height:0;flex:1;">
+
+          <div style="width:196px;flex-shrink:0;border-right:1px solid #EBEBEB;padding:12px 8px;display:flex;flex-direction:column;gap:2px;overflow-y:auto;background:#FAFAFA;">
+            <span style="padding:4px 8px 6px;font-size:11px;line-height:16px;font-weight:650;color:#8A8A8A;letter-spacing:0.4px;text-transform:uppercase;">What you want to move</span>
+            <sc-for list="{{ galleryGoals }}" as="g" hint-placeholder-count="5">
+              <button onClick="{{ g.onSelect }}" style="{{ g.styleObj }}">
+                <span style="min-width:0;text-align:left;">{{ g.label }}</span>
+                <span style="font-variant-numeric:tabular-nums;color:#8A8A8A;font-weight:450;">{{ g.count }}</span>
+              </button>
+            </sc-for>
+          </div>
+
+          <div style="flex:1;min-width:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px;">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:stretch;">
+              <sc-for list="{{ templates }}" as="tpl" hint-placeholder-count="6">
+                <div onClick="{{ tpl.onSelect }}" style="{{ tpl.cardStyle }}">
+                  <div style="display:flex;align-items:flex-start;gap:8px;">
+                    <div style="width:28px;height:28px;border-radius:8px;background:#F1F1F1;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                      <s-icon icon="{{ tpl.icon }}" tone="subdued" size="base" style="display:flex;align-items:center;justify-content:center;"></s-icon>
+                    </div>
+                    <span style="flex:1;font-size:13px;line-height:18px;font-weight:650;min-width:0;text-wrap:pretty;">{{ tpl.name }}</span>
+                    <sc-if value="{{ tpl.popular }}" hint-placeholder-val="{{ false }}">
+                      <s-badge tone="success">Popular</s-badge>
+                    </sc-if>
+                  </div>
+                  <span style="font-size:12px;line-height:16px;color:#616161;text-wrap:pretty;">{{ tpl.desc }}</span>
+                  <div style="margin-top:auto;display:flex;flex-direction:column;gap:6px;">
+                    <div style="display:flex;align-items:flex-start;gap:6px;padding:8px;border-radius:8px;background:#F7F7F7;">
+                      <s-icon icon="filter" tone="subdued" size="small" style="display:flex;margin-top:1px;flex-shrink:0;"></s-icon>
+                      <span style="font-size:11px;line-height:15px;color:#4A4A4A;text-wrap:pretty;font-variant-numeric:tabular-nums;">{{ tpl.rule }}</span>
+                    </div>
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+                      <span style="font-size:11px;line-height:14px;color:#8A8A8A;">{{ tpl.where }}</span>
+                      <span style="font-size:11px;line-height:14px;font-weight:650;color:#047B5D;font-variant-numeric:tabular-nums;">{{ tpl.lift }}</span>
+                    </div>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+            <sc-if value="{{ galleryEmpty }}" hint-placeholder-val="{{ false }}">
+              <div style="padding:24px;border-radius:12px;border:1px dashed #E3E3E3;text-align:center;">
+                <span style="font-size:13px;line-height:20px;color:#616161;">No templates for this combination yet. Build it from scratch and it becomes yours to reuse.</span>
+              </div>
+            </sc-if>
+            <span style="font-size:11px;line-height:16px;color:#8A8A8A;text-wrap:pretty;">Lift figures are medians across Checkout Boost stores on the same plan, last 90 days. Your results depend on traffic and catalogue.</span>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;border-top:1px solid #EBEBEB;background:#FFFFFF;">
+          <s-button variant="tertiary" onClick="{{ startFromScratch }}">Start from scratch</s-button>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:12px;line-height:16px;color:#616161;">{{ gallerySelLabel }}</span>
+            <s-button onClick="{{ closeGallery }}">Cancel</s-button>
+            <s-button variant="primary" disabled="{{ galleryNoSel }}" onClick="{{ useTemplate }}">Use template</s-button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1280,&quot;height&quot;:800},&quot;summaryColumnWidth&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:476,&quot;min&quot;:400,&quot;max&quot;:560,&quot;unit&quot;:&quot;px&quot;,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Preview canvas&quot;},&quot;mainColumnWidth&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:576,&quot;min&quot;:480,&quot;max&quot;:760,&quot;unit&quot;:&quot;px&quot;,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Preview canvas&quot;},&quot;showCardMetrics&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Library&quot;}}">
+class Component extends DCLogic {
+  state = {
+    view: 'library',
+    industry: 'fashion',
+    sel: 'upsell-eu',
+    tab: 'content',
+    device: 'desktop',
+    placement: 'summary',
+    displayBy: {},
+    catTip: null,
+    deleted: {},
+    moreMenuOpen: false,
+    confirmDeleteOpen: false,
+    disc: 'none',
+    disp: 'list',
+    bar: 'green',
+    active: { 'upsell-eu': true, 'upsell-usca': true, 'auto-add': true, 'trust': true, 'banner': true, 'textline': false, 'survey': true },
+    upsellHeading: "You're {remain_goal} away from free shipping",
+    bannerHeading: 'This order contains sale items with a 14-day return window.',
+    bannerDesc: 'Full-price items are 40 days.',
+    trustHeading: 'Buy with confidence, trusted by 1 million+ customers',
+    surveyQuestion: 'How did you hear about us?',
+    textlineText: 'Questions? Call us at +31 20 123 4567 — weekdays 9–5.',
+    clHeading: 'Complete the set',
+    gallery: null,
+    galleryGoal: 'all',
+    tplSel: null
+  };
+
+  // Proven checkout plays. Every one ships with its rules-engine trigger pre-built,
+  // so "Use template" lands the merchant on a working block, not an empty form.
+  TEMPLATES = [
+    { key: 'ship-threshold', name: 'Free shipping threshold', icon: 'discount', goal: 'aov', cats: ['upsell'], popular: true,
+      desc: 'Show how far the cart is from free shipping, with a progress bar that closes as they add.',
+      rule: 'If cart subtotal < \u20AC75 \u2192 show remaining amount', where: 'Order summary', lift: '+6% AOV', use: 'upsell-eu' },
+    { key: 'ship-upgrade', name: 'Shipping upgrade offer', icon: 'discount', goal: 'margin', cats: ['upsell', 'shipping'], popular: true,
+      desc: 'Offer next-day delivery at a fixed add-on price when they have picked standard shipping.',
+      rule: 'If method = Standard and subtotal \u2265 \u20AC40 \u2192 offer express \u2013 50%', where: 'Shipping step', lift: '+\u20AC2.10 / order', use: 'upsell-usca' },
+    { key: 'warranty', name: 'Protection plan add-on', icon: 'check-circle', goal: 'margin', cats: ['upsell', 'cartline'],
+      desc: 'Attach an extended warranty to high-value items, priced as a share of the line total.',
+      rule: 'If line price \u2265 \u20AC150 \u2192 offer 2-year cover', where: 'Under each cart line', lift: '+4% AOV', use: 'cartline-upsell' },
+    { key: 'free-gift', name: 'Free gift over threshold', icon: 'cart', goal: 'aov', cats: ['upsell', 'cartline'], popular: true,
+      desc: 'Auto-add a sample or sachet once the cart clears a total, and remove it if the cart drops back.',
+      rule: 'If subtotal \u2265 \u20AC100 \u2192 auto add gift, else remove', where: 'Order summary', lift: '+9% AOV', use: 'auto-add' },
+    { key: 'complete-set', name: 'Complete the set', icon: 'cart', goal: 'aov', cats: ['upsell', 'cartline'],
+      desc: 'Suggest the sibling product buyers usually pair with what is already in the cart.',
+      rule: 'If cart has collection item and pair missing \u2192 offer pair', where: 'Under each cart line', lift: '+3% AOV', use: 'cartline-upsell' },
+    { key: 'qty-upgrade', name: 'Buy two, save', icon: 'discount', goal: 'aov', cats: ['upsell', 'cartline'],
+      desc: 'Turn a single unit into a two-pack at a small discount \u2014 the cheapest AOV win to run.',
+      rule: 'If line quantity = 1 \u2192 offer 2 for \u201310%', where: 'Under each cart line', lift: '+5% AOV', use: 'cartline-upsell' },
+    { key: 'subscribe', name: 'Subscribe and save swap', icon: 'note', goal: 'repeat', cats: ['upsell'],
+      desc: 'Offer to convert a one-off consumable into a refill schedule at the moment of payment.',
+      rule: 'If item is consumable and no active subscription \u2192 offer refill', where: 'Order summary', lift: '+11% repeat rate', use: 'upsell-eu' },
+    { key: 'vip', name: 'VIP-only add-on', icon: 'star', goal: 'repeat', cats: ['upsell'],
+      desc: 'Reserve an exclusive product or price for tagged customers so loyalty feels earned.',
+      rule: 'If customer tag = VIP \u2192 show member price', where: 'Order summary', lift: '+7% conv (VIP)', use: 'upsell-eu' },
+    { key: 'first-order', name: 'First-order trial size', icon: 'cart', goal: 'repeat', cats: ['upsell'],
+      desc: 'Let new customers add a low-price trial size so a second order has something to build on.',
+      rule: 'If orders placed = 0 \u2192 offer trial at \u20AC5', where: 'Order summary', lift: '+8% second order', use: 'upsell-eu' },
+    { key: 'giftwrap', name: 'Gift wrap add-on', icon: 'note', goal: 'season', cats: ['upsell', 'form'],
+      desc: 'Sell wrapping and a handwritten note in the weeks where buyers are shopping for someone else.',
+      rule: 'If date between 15 Nov \u2013 24 Dec \u2192 offer wrap \u20AC4', where: 'Order summary', lift: '+\u20AC1.40 / order', use: 'upsell-eu' },
+    { key: 'low-stock', name: 'Low-stock urgency offer', icon: 'info', goal: 'season', cats: ['upsell', 'cartline'],
+      desc: 'Nudge a top-up when inventory on the item in the cart is running down.',
+      rule: 'If inventory < 10 \u2192 show stock note and offer spare', where: 'Under each cart line', lift: '+2% conv', use: 'cartline-upsell' },
+    { key: 'thanks-repeat', name: 'Thank you page repeat offer', icon: 'discount', goal: 'repeat', cats: ['upsell', 'announce'], popular: true,
+      desc: 'Put a time-boxed code on the Thank you page while intent is still at its highest.',
+      rule: 'If order total \u2265 \u20AC60 \u2192 show 15% code, 72h expiry', where: 'Thank you page', lift: '+13% repeat rate', use: 'upsell-usca' }
+  ];
+
+  GOALS = [
+    { key: 'all', label: 'All plays' },
+    { key: 'aov', label: 'Raise order value' },
+    { key: 'margin', label: 'Protect margin' },
+    { key: 'repeat', label: 'Win repeat orders' },
+    { key: 'season', label: 'Timing and urgency' }
+  ];
+
+  BLOCKS = {
+    'upsell-eu':   { name: 'Shipping upsell — EU',    icon: 'discount', kind: 'upsell',   metric: '\u20AC1,480 \u00B7 2.6% conv \u00B7 1,402 views', place: 'summary', id: 'gid://cb/block/9b41ffa7-upsell' },
+    'upsell-usca': { name: 'Shipping upsell — US/CA', icon: 'discount', kind: 'upsell',   metric: '\u20AC2,310 \u00B7 3.1% conv \u00B7 1,988 views', place: 'summary', id: 'gid://cb/block/5d02c6e3-upsell' },
+    'auto-add':    { name: 'Auto add to cart',         icon: 'cart',     kind: 'autoadd',  metric: '\u20AC1,840 \u00B7 4.2% conv \u00B7 2,104 views', place: 'summary', location: 'cartline', id: 'gid://cb/block/1a9e44b0-autoadd' },
+    'cartline-upsell': { name: 'Cartline upsell',      icon: 'cart',     kind: 'clupsell', metric: '\u20AC640 \u00B7 1.9% conv \u00B7 1,340 views',  place: 'summary', location: 'cartline', id: 'gid://cb/block/3e88a1c4-clupsell' },
+    'trust':       { name: 'Trust badges',             icon: 'check-circle', kind: 'trust', metric: '1,876 views',              place: 'main',    id: 'gid://cb/block/c47210df-trust' },
+    'banner':      { name: 'Sale-items banner',        icon: 'info',     kind: 'banner',   metric: '1,204 views',               place: 'main',    id: 'gid://cb/block/7f3a2e91-banner' },
+    'textline':    { name: 'Support text line',        icon: 'note',     kind: 'textline', metric: '0 views',                   place: 'main',    id: 'gid://cb/block/88f3c2d5-textline' },
+    'survey':      { name: 'Post-purchase survey',     icon: 'list-bulleted', kind: 'survey', metric: '286 responses',          place: 'main',    id: 'gid://cb/block/e93b57a2-survey' }
+  };
+
+  // Dynamic targets render wherever the merchant places them, and always render.
+  // Static targets attach to a core checkout element, repeat for every instance of
+  // it, and don't render at all when that element isn't part of the order.
+  CATS = [
+    { name: 'Upsells & offers', short: 'upsell', gkey: 'upsell', target: 'dynamic', blocks: ['upsell-eu', 'upsell-usca'] },
+    { name: 'Trust & content', short: 'content block', gkey: 'content', target: 'dynamic', blocks: ['trust', 'banner', 'textline'] },
+    { name: 'Forms, fields & modals', short: 'form', gkey: 'form', target: 'dynamic', blocks: ['survey'] },
+    { name: 'Cart line items', short: 'cart line block', gkey: 'cartline', target: 'static', diagram: 'cartline',
+      targetId: 'purchase.checkout.cart-line-item.render-after',
+      anchorPhrase: 'every product in the order summary',
+      caption: 'Repeats under every product in the order summary \u2014 a free gift, upsell, badge or note attached to the line itself.',
+      blocks: ['auto-add', 'cartline-upsell'] },
+    { name: 'Shipping methods', short: 'shipping block', gkey: 'shipping', target: 'static', diagram: 'shipping',
+      targetId: 'purchase.checkout.shipping-option-item.details.render',
+      anchorPhrase: 'every shipping option name',
+      caption: 'Custom information under shipping option name',
+      blocks: [] },
+    { name: 'Thank you announcement', short: 'announcement', gkey: 'announce', target: 'static', diagram: 'announce',
+      targetId: 'purchase.thank-you.announcement.render',
+      anchorPhrase: 'the top of the Thank you page',
+      caption: 'A dismissable bar pinned to the top of the Thank you page \u2014 the one slot buyers always see after paying.',
+      blocks: [] }
+  ];
+
+  INDUSTRIES = [
+    { value: 'fashion', label: 'Fashion & apparel' },
+    { value: 'beauty', label: 'Beauty & cosmetics' },
+    { value: 'electronics', label: 'Electronics' },
+    { value: 'food', label: 'Food & beverage' },
+    { value: 'home', label: 'Home & furniture' }
+  ];
+
+  SUGGESTIONS = {
+    fashion: [
+      { name: 'Size guide modal', icon: 'note', benefit: 'Cuts support tickets', reason: 'Answer fit questions without leaving checkout.' },
+      { name: 'Bundle offer', icon: 'discount', benefit: 'Lifts AOV', reason: 'Complete-the-look sets sell best at payment.' },
+      { name: 'Review block', icon: 'star', benefit: 'Lifts conversion', reason: 'Ratings from other buyers calm last-minute doubts.' },
+      { name: 'Returns banner', icon: 'info', benefit: 'Builds trust', reason: 'Set exchange expectations up front.' },
+      { name: 'Gift message field', icon: 'note', benefit: 'Customer insight', reason: 'Let buyers add a note for gift orders.' },
+      { name: 'Reorder reminder', icon: 'cart', benefit: 'Drives repeat orders', reason: 'Invite them back for restocks and new drops.' }
+    ],
+    beauty: [
+      { name: 'Free gift threshold', icon: 'cart', benefit: 'Lifts AOV', reason: 'A free sample above a cart total nudges spend.' },
+      { name: 'Review block', icon: 'star', benefit: 'Builds trust', reason: 'Show top product reviews at checkout.' },
+      { name: 'Ingredients modal', icon: 'note', benefit: 'Cuts support tickets', reason: 'Full ingredient lists behind a link, not in the page.' },
+      { name: 'Subscription offer', icon: 'discount', benefit: 'Drives repeat orders', reason: 'Turn a one-off into a refill schedule.' },
+      { name: 'Skin type field', icon: 'note', benefit: 'Customer insight', reason: 'Capture skin or hair type for better follow-ups.' },
+      { name: 'Bundle offer', icon: 'discount', benefit: 'Lifts conversion', reason: 'Routine sets convert better than single items.' }
+    ],
+    electronics: [
+      { name: 'Warranty upsell', icon: 'discount', benefit: 'Lifts AOV', reason: 'Extended cover converts best at checkout.' },
+      { name: 'Payment icons row', icon: 'check-circle', benefit: 'Builds trust', reason: 'Secure-payment marks reduce hesitation.' },
+      { name: 'Delivery banner', icon: 'info', benefit: 'Cuts support tickets', reason: 'Flag signature-on-delivery for high-value orders.' },
+      { name: 'Review block', icon: 'star', benefit: 'Lifts conversion', reason: 'Ratings on high-consideration items calm doubts.' },
+      { name: 'Compared-with field', icon: 'note', benefit: 'Customer insight', reason: 'Find out what they compared you against.' },
+      { name: 'Accessory bundle', icon: 'cart', benefit: 'Drives repeat orders', reason: 'Cables and cases bring buyers back.' }
+    ],
+    food: [
+      { name: 'Allergen notice', icon: 'note', benefit: 'Cuts support tickets', reason: 'Show allergen and storage notes before payment.' },
+      { name: 'Bundle offer', icon: 'discount', benefit: 'Lifts AOV', reason: 'Pair sauces and sides with the main item.' },
+      { name: 'Subscription offer', icon: 'discount', benefit: 'Drives repeat orders', reason: 'Weekly boxes beat one-off orders.' },
+      { name: 'Cut-off time banner', icon: 'info', benefit: 'Builds trust', reason: 'Set delivery cut-offs for perishable orders.' },
+      { name: 'Taste preference field', icon: 'list-bulleted', benefit: 'Customer insight', reason: 'Ask about preferences for reorders.' },
+      { name: 'Review block', icon: 'star', benefit: 'Lifts conversion', reason: 'Ratings help first-time food buyers commit.' }
+    ],
+    home: [
+      { name: 'Delivery banner', icon: 'info', benefit: 'Cuts support tickets', reason: 'Set lead-time expectations for bulky items.' },
+      { name: 'Assembly upsell', icon: 'discount', benefit: 'Lifts AOV', reason: 'Assembly and installation sell well at checkout.' },
+      { name: 'Review block', icon: 'star', benefit: 'Lifts conversion', reason: 'Photos from other homes reduce hesitation.' },
+      { name: 'Damage-free badge', icon: 'check-circle', benefit: 'Builds trust', reason: 'Reassure buyers about delivery handling.' },
+      { name: 'Room field', icon: 'note', benefit: 'Customer insight', reason: 'Learn which room they bought for.' },
+      { name: 'Care kit offer', icon: 'cart', benefit: 'Drives repeat orders', reason: 'Care kits bring buyers back after delivery.' }
+    ]
+  };
+
+  CONDITIONS = {
+    'upsell-eu': [
+      { field: 'Shipping address country', op: 'is any of', value: 'EU countries' },
+      { field: 'Cart total', op: 'is less than', value: '\u20AC150.00' }
+    ],
+    'upsell-usca': [{ field: 'Shipping address country', op: 'is any of', value: 'US, CA' }],
+    'auto-add': [{ field: 'Cart total', op: 'is greater than', value: '\u20AC50.00' }],
+    'cartline-upsell': [],
+    'banner': [{ field: 'Cart', op: 'contains', value: 'items on sale' }],
+    'trust': [],
+    'survey': [{ field: 'Order', op: 'is', value: 'completed' }],
+    'textline': []
+  };
+
+  devSeg(on) {
+    return {
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      width: '34px', height: '28px', padding: 0, border: 'none', borderRadius: '8px',
+      background: on ? '#FFFFFF' : 'transparent',
+      color: on ? '#303030' : '#8A8A8A',
+      boxShadow: on ? '0 1px 2px rgba(26,26,26,0.10), 0 0 0 1px rgba(0,0,0,0.06)' : 'none',
+      cursor: 'pointer', transition: 'background 150ms var(--p-motion-ease), color 150ms var(--p-motion-ease)'
+    };
+  }
+
+  seg(on, extra) {
+    return Object.assign({
+      padding: '6px 0', textAlign: 'center', fontSize: '13px', lineHeight: '20px', cursor: 'pointer',
+      fontFamily: 'var(--p-font-family-sans)',
+      borderRadius: '6px',
+      fontWeight: on ? 550 : 450,
+      background: on ? '#FFFFFF' : 'transparent',
+      boxShadow: on ? 'var(--p-shadow-button)' : 'none',
+      color: on ? '#303030' : '#616161',
+      transition: 'background 150ms var(--p-motion-ease), color 150ms var(--p-motion-ease)'
+    }, extra || {});
+  }
+
+  previewAreaRef = React.createRef();
+
+  componentDidMount() {
+    this._ro = new ResizeObserver((entries) => {
+      // area padding (24*2) + row gap (12) + ghost chevron slot (28) + canvas wrap padding/border (15+1)
+      const w = entries[0].contentRect.width - 104;
+      if (Math.abs(w - (this.state.availW || 0)) > 1) this.setState({ availW: w });
+    });
+    this._observeArea();
+  }
+
+  componentDidUpdate() { this._observeArea(); this._measureBlock(); }
+
+  blockRef = (el) => {
+    if (el === this._blockEl) return;
+    if (this._bro && this._blockEl) this._bro.unobserve(this._blockEl);
+    this._blockEl = el;
+    if (el) {
+      if (!this._bro) this._bro = new ResizeObserver(() => this._measureBlock());
+      this._bro.observe(el);
+    }
+    this._measureBlock();
+  };
+
+  _measureBlock() {
+    if (this._raf) cancelAnimationFrame(this._raf);
+    this._raf = requestAnimationFrame(() => {
+      const el = this._blockEl;
+      if (!el || !el.offsetHeight) return;
+      const c = el.offsetTop + el.offsetHeight / 2;
+      if (Math.abs(c - (this.state.blockCenter || 0)) > 0.5) this.setState({ blockCenter: c });
+    });
+  }
+
+  _observeArea() {
+    const el = this.previewAreaRef.current;
+    if (el && this._observedEl !== el) {
+      if (this._observedEl) this._ro.unobserve(this._observedEl);
+      this._ro.observe(el);
+      this._observedEl = el;
+    }
+  }
+
+  componentWillUnmount() { if (this._ro) this._ro.disconnect(); }
+
+  SNAP_KEYS = ['active','upsellHeading','bannerHeading','bannerDesc','trustHeading','surveyQuestion','textlineText','clHeading','disc','disp','bar','displayBy'];
+
+  snapshot() { const o = {}; this.SNAP_KEYS.forEach(k => { o[k] = JSON.stringify(this.state[k]); }); return o; }
+
+  isDirty() { if (!this._snap) return false; return this.SNAP_KEYS.some(k => this._snap[k] !== JSON.stringify(this.state[k])); }
+
+  openStudio(id) {
+    const b = this.BLOCKS[id];
+    this._snap = this.snapshot();
+    this.setState({ view: 'studio', sel: id, tab: 'content', placement: b.place, device: 'desktop', tip: null });
+  }
+
+  renderVals() {
+    const s = this.state;
+    const b = this.BLOCKS[s.sel];
+    const kind = b.kind;
+
+    const cats = this.CATS.map((c0) => {
+      const c = Object.assign({}, c0, { blocks: c0.blocks.filter((id) => !s.deleted[id]) });
+      return {
+      name: c.name,
+      short: c.short,
+      caption: c.caption || '',
+      hasCaption: !!c.caption,
+      count: c.blocks.length + (c.blocks.length === 1 ? ' block' : ' blocks'),
+      isStatic: c.target === 'static',
+      targetId: c.targetId || '',
+      isCartline: c.diagram === 'cartline',
+      isShipping: c.diagram === 'shipping',
+      isAnnounce: c.diagram === 'announce',
+      isEmpty: c.blocks.length === 0,
+      // With blocks present the illustration would crowd the list, so it moves
+      // into a hover popover on the heading instead of sitting in the card.
+      hasTip: c.target === 'static' && c.blocks.length > 0,
+      showDiagram: c.blocks.length === 0 || s.catTip === c.name,
+      tipOn: () => this.setState({ catTip: c.name }),
+      tipOff: () => this.setState({ catTip: null }),
+      bodyStyle: { flex: 1, display: 'flex', flexDirection: 'column', gap: c.blocks.length === 0 ? '12px' : '8px' },
+      diagramWrapStyle: c.blocks.length === 0
+        ? { display: 'flex', flexDirection: 'column', gap: '8px' }
+        : {
+            position: 'absolute', top: '42px', left: '16px', zIndex: 40, width: '192px',
+            display: 'flex', flexDirection: 'column', gap: '8px',
+            background: '#FFFFFF', borderRadius: '8px', padding: '8px',
+            boxShadow: 'var(--p-shadow-300)', border: '1px solid #E3E3E3'
+          },
+      onAdd: () => this.setState({ gallery: c.gkey, galleryGoal: 'all', tplSel: null }),
+      blocks: c.blocks.map((id) => {
+        const bl = this.BLOCKS[id];
+        const on = s.active[id];
+        const cond = this.CONDITIONS[id] || [];
+        return {
+          name: bl.name, icon: bl.icon,
+          metric: (this.props.showCardMetrics ?? true) ? bl.metric : '',
+          condLabel: cond.length ? 'Conditional' : 'Always',
+          statusTone: on ? 'success' : 'default',
+          statusLabel: on ? 'Active' : 'Off',
+          onOpen: () => this.openStudio(id)
+        };
+      })
+      };
+    });
+
+    const tabs = [
+      { key: 'content', label: 'Content' },
+      { key: 'style', label: 'Style' },
+      { key: 'rules', label: 'Rules' }
+    ].map((t) => ({
+      label: t.label,
+      onSelect: () => this.setState({ tab: t.key }),
+      styleObj: {
+        border: 'none', background: 'transparent', cursor: 'pointer',
+        padding: '8px 12px 10px', fontFamily: 'var(--p-font-family-sans)',
+        fontSize: '13px', lineHeight: '20px',
+        fontWeight: s.tab === t.key ? 650 : 450,
+        color: s.tab === t.key ? '#303030' : '#616161',
+        boxShadow: s.tab === t.key ? 'inset 0 -2px 0 #303030' : 'none'
+      }
+    }));
+
+    const isMobile = s.device === 'mobile';
+    // Shopify's checkout standard is 500px main / 400px order-summary CONTENT width.
+    // Each column adds a 38px inset per side, so the outer columns are 576 / 476
+    // (1052px desktop container). Mobile is a single 402px column.
+    const sumW = this.props.summaryColumnWidth ?? 476;
+    const mainW = this.props.mainColumnWidth ?? 576;
+    // Display is per block, and defaults to what the library card claims:
+    // a block with conditions is "On trigger", one without is "Always".
+    const conds = this.CONDITIONS[s.sel] || [];
+    const display = s.displayBy[s.sel] || (conds.length ? 'trigger' : 'always');
+
+    // Render at the column's *content* width (column minus its 38px checkout inset)
+    // so the preview sits flush to the divider instead of behind dead padding.
+    const widthPx = isMobile ? 402 : (s.placement === 'summary' ? sumW - 76 : mainW - 76);
+    const availW = s.availW || widthPx;
+    const scale = Math.min(1, availW / widthPx);
+    let canvasLabel = isMobile
+      ? 'Mobile \u00B7 402px \u00B7 single column'
+      : (s.placement === 'summary' ? 'Order summary \u00B7 ' + (sumW - 76) + 'px' : 'Main column \u00B7 ' + (mainW - 76) + 'px');
+    if (scale < 1) canvasLabel += ' \u00B7 scaled to fit';
+
+    const canPlace = b.location !== 'cartline';
+
+    // Balance category cards across columns: heights vary per store (block counts,
+    // captions), so pack greedily into the shortest column instead of a fixed grid.
+    const staticCats = cats.filter((c) => c.isStatic);
+
+    // A static block isn't placed by the merchant — its target decides where it
+    // renders — so the Block ID panel must not promise a placement choice.
+    let anchoredTo = '';
+    this.CATS.forEach((c) => {
+      if (c.target === 'static' && c.blocks.indexOf(s.sel) > -1) anchoredTo = c.anchorPhrase;
+    });
+    const blockIdHelp = anchoredTo
+      ? 'This block renders automatically under ' + anchoredTo + ' \u2014 there is nothing to place. Use the checkout editor to activate it.'
+      : 'Paste this ID into the Shopify checkout editor to place the block. Its final appearance depends on where you place it in the checkout layout.';
+    const dynamicCats = cats.filter((c) => !c.isStatic);
+    const baseName = (n) => n.split(/\s+[\u2014\u2013-]\s+/)[0].trim().toLowerCase();
+    const installedNames = new Set(Object.keys(this.BLOCKS).filter((k) => !s.deleted[k]).map((k) => baseName(this.BLOCKS[k].name)));
+    const order = [];
+    this.CATS.forEach((c) => c.blocks.forEach((id) => { if (order.indexOf(id) === -1) order.push(id); }));
+    const sugPool = (this.SUGGESTIONS[s.industry] || []).filter((g) => !installedNames.has(baseName(g.name)));
+    const suggestions = [];
+    sugPool.forEach((g) => { if (suggestions.length < 3 && !suggestions.some((x) => x.benefit === g.benefit)) suggestions.push(g); });
+    sugPool.forEach((g) => { if (suggestions.length < 3 && suggestions.indexOf(g) === -1) suggestions.push(g); });
+    const pool = s.gallery ? this.TEMPLATES.filter((t) => t.cats.indexOf(s.gallery) > -1) : [];
+    const shown = s.galleryGoal === 'all' ? pool : pool.filter((t) => t.goal === s.galleryGoal);
+    const selTpl = this.TEMPLATES.filter((t) => t.key === s.tplSel)[0];
+    const at = Math.max(0, order.indexOf(s.sel));
+    const prevId = order[(at - 1 + order.length) % order.length];
+    const nextId = order[(at + 1) % order.length];
+
+    return {
+      isLibrary: s.view === 'library',
+      isStudio: s.view === 'studio',
+      closeStudio: () => this.setState({ view: 'library', tip: null }),
+      cats,
+      dynamicCats,
+      staticCats,
+      blockIdHelp,
+      studioDirty: this.isDirty(),
+      discardStudio: () => { if (this._snap) { const r = {}; this.SNAP_KEYS.forEach(k => { r[k] = JSON.parse(this._snap[k]); }); this.setState(r); } },
+      saveStudio: () => { this._snap = this.snapshot(); this.forceUpdate(); },
+      suggestions: suggestions.map((g) => Object.assign({}, g, {
+        onAdd: () => this.setState({ gallery: 'upsell', galleryGoal: 'all', tplSel: null })
+      })),
+      hasSuggestions: suggestions.length > 0,
+
+      galleryOpen: !!s.gallery,
+      galleryTitle: ({ upsell: 'Add an upsell', content: 'Add a content block', form: 'Add a form or modal',
+        cartline: 'Add a cart line block', shipping: 'Add a shipping block',
+        announce: 'Add a Thank you announcement' })[s.gallery] || 'Add a block',
+      swallowClick: (e) => e.stopPropagation(),
+      closeGallery: () => this.setState({ gallery: null, tplSel: null }),
+      galleryGoals: this.GOALS.map((g) => ({
+        label: g.label,
+        count: (g.key === 'all' ? pool : pool.filter((t) => t.goal === g.key)).length,
+        onSelect: () => this.setState({ galleryGoal: g.key, tplSel: null }),
+        styleObj: {
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px',
+          width: '100%', boxSizing: 'border-box', padding: '6px 8px', border: 'none',
+          borderRadius: '8px', cursor: 'pointer', textAlign: 'left',
+          fontFamily: 'var(--p-font-family-sans)', fontSize: '13px', lineHeight: '20px',
+          fontWeight: s.galleryGoal === g.key ? 650 : 450,
+          color: '#303030',
+          background: s.galleryGoal === g.key ? '#FFFFFF' : 'transparent',
+          boxShadow: s.galleryGoal === g.key ? 'var(--p-shadow-100), var(--p-shadow-bevel-100)' : 'none'
+        }
+      })),
+      templates: shown.map((t) => ({
+        name: t.name, icon: t.icon, desc: t.desc, rule: t.rule, where: t.where, lift: t.lift,
+        popular: !!t.popular,
+        onSelect: () => this.setState({ tplSel: t.key }),
+        cardStyle: {
+          display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px',
+          borderRadius: '10px', cursor: 'pointer', background: '#FFFFFF', minWidth: 0,
+          border: '1px solid ' + (s.tplSel === t.key ? '#005BD3' : '#E3E3E3'),
+          boxShadow: s.tplSel === t.key ? '0 0 0 1px #005BD3' : 'none'
+        }
+      })),
+      galleryEmpty: shown.length === 0,
+      galleryNoSel: !selTpl,
+      gallerySelLabel: selTpl ? selTpl.name : 'Pick a play to continue',
+      startFromScratch: () => this.setState({ gallery: null, tplSel: null, view: 'studio', tab: 'content' }),
+      useTemplate: () => { if (selTpl) this.setState({ gallery: null, tplSel: null, tab: 'rules' }, () => this.openStudio(selTpl.use)); },
+
+      moreMenuOpen: !!s.moreMenuOpen,
+      toggleMoreMenu: () => this.setState({ moreMenuOpen: !s.moreMenuOpen }),
+      confirmDeleteOpen: !!s.confirmDeleteOpen,
+      askDeleteBlock: () => this.setState({ moreMenuOpen: false, confirmDeleteOpen: true }),
+      cancelDelete: () => this.setState({ confirmDeleteOpen: false }),
+      confirmDeleteBlock: () => this.setState({
+        deleted: Object.assign({}, s.deleted, { [s.sel]: true }),
+        confirmDeleteOpen: false, view: 'library', tip: null
+      }),
+      studioName: b.name,
+      studioIcon: b.icon,
+      moreItemsOpen: !!s.moreItemsOpen,
+      moreItemsLabel: s.moreItemsOpen ? 'Show less' : '+ 1 more',
+      moreChevronStyle: s.moreItemsOpen ? { transform: 'rotate(180deg)' } : {},
+      toggleMoreItems: () => this.setState({ moreItemsOpen: !s.moreItemsOpen }),
+      statusMenuOpen: !!s.statusMenuOpen,
+      studioInactive: !s.active[s.sel],
+      toggleStatusMenu: () => this.setState({ statusMenuOpen: !s.statusMenuOpen }),
+      setStatusActive: () => this.setState({ active: Object.assign({}, s.active, { [s.sel]: true }), statusMenuOpen: false }),
+      setStatusInactive: () => this.setState({ active: Object.assign({}, s.active, { [s.sel]: false }), statusMenuOpen: false }),
+      statusCapsuleStyle: {
+        display: 'flex', alignItems: 'center', gap: '4px', padding: '2px 8px 2px 10px',
+        borderRadius: '999px', border: 'none', cursor: 'pointer',
+        fontFamily: 'inherit', fontSize: '12px', lineHeight: '16px', fontWeight: 550,
+        background: s.active[s.sel] ? '#CDFED4' : '#F1F1F1',
+        color: s.active[s.sel] ? '#0C5132' : '#616161'
+      },
+      statusOptActiveStyle: { display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 10px', border: 'none', background: 'transparent', borderRadius: '6px', cursor: 'pointer', fontFamily: 'inherit', fontSize: '13px', lineHeight: '20px', color: '#303030' },
+      statusOptInactiveStyle: { display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 10px', border: 'none', background: 'transparent', borderRadius: '6px', cursor: 'pointer', fontFamily: 'inherit', fontSize: '13px', lineHeight: '20px', color: '#303030' },
+      studioActive: !!s.active[s.sel],
+      studioStatusTone: s.active[s.sel] ? 'success' : 'default',
+      studioStatusLabel: s.active[s.sel] ? 'Active' : 'Off',
+      toggleActive: () => this.setState({ active: { ...s.active, [s.sel]: !s.active[s.sel] } }),
+      studioTabs: tabs,
+      tabContent: s.tab === 'content',
+      tabStyle: s.tab === 'style',
+      tabRules: s.tab === 'rules',
+
+      isUpsell: kind === 'upsell',
+      isBanner: kind === 'banner',
+      isTrust: kind === 'trust',
+      isAutoAdd: kind === 'autoadd',
+      isSurvey: kind === 'survey',
+      isTextline: kind === 'textline',
+      isClupsell: kind === 'clupsell',
+      isCartlineLoc: b.location === 'cartline',
+      cartGroupLabel: b.name,
+      cartGroupOpen: s.cartGroupOpen !== false,
+      cartChevronStyle: s.cartGroupOpen !== false ? { transform: 'rotate(180deg)' } : {},
+      toggleCartGroup: () => this.setState({ cartGroupOpen: s.cartGroupOpen === false }),
+      showPlacementSwitch: !isMobile && b.location !== 'cartline',
+      clHeading: s.clHeading,
+      onClHeading: (e) => this.setState({ clHeading: e.target.value }),
+      clHeadingPreview: s.clHeading || 'Add a heading',
+      isOtherStyle: kind === 'autoadd' || kind === 'survey' || kind === 'textline' || kind === 'clupsell',
+
+      upsellHeading: s.upsellHeading,
+      onUpsellHeading: (e) => this.setState({ upsellHeading: e.target.value }),
+      upsellHeadingPreview: (s.upsellHeading || 'Add a heading').replace('{remain_goal}', '\u20AC45'),
+      bannerHeading: s.bannerHeading,
+      onBannerHeading: (e) => this.setState({ bannerHeading: e.target.value }),
+      bannerHeadingPreview: s.bannerHeading || 'Banner heading',
+      bannerDesc: s.bannerDesc,
+      onBannerDesc: (e) => this.setState({ bannerDesc: e.target.value }),
+      bannerDescPreview: s.bannerDesc || '',
+      trustHeading: s.trustHeading,
+      onTrustHeading: (e) => this.setState({ trustHeading: e.target.value }),
+      trustHeadingPreview: s.trustHeading || '',
+      surveyQuestion: s.surveyQuestion,
+      onSurveyQuestion: (e) => this.setState({ surveyQuestion: e.target.value }),
+      surveyQuestionPreview: s.surveyQuestion || 'Your question',
+      textlineText: s.textlineText,
+      onTextlineText: (e) => this.setState({ textlineText: e.target.value }),
+      textlinePreview: s.textlineText || 'Your text',
+
+      setDiscNone: () => this.setState({ disc: 'none' }),
+      setDiscPct: () => this.setState({ disc: 'pct' }),
+      discNoneStyle: this.seg(s.disc === 'none'),
+      discPctStyle: this.seg(s.disc === 'pct'),
+      setDispList: () => this.setState({ disp: 'list' }),
+      setDispGrid: () => this.setState({ disp: 'grid' }),
+      dispListStyle: this.seg(s.disp === 'list'),
+      dispGridStyle: this.seg(s.disp === 'grid'),
+      // Progress component from the kit: 5px track, 30px radius, accent fill rgb(0,91,211)
+      barFillStyle: { width: '65%', height: '100%', borderRadius: '30px', background: '#005BD3' },
+
+      setPlaceMain: () => this.setState({ placement: 'main' }),
+      setPlaceSummary: () => this.setState({ placement: 'summary' }),
+      placeMainStyle: this.seg(s.placement === 'main'),
+      placeSummaryStyle: this.seg(s.placement === 'summary'),
+      setDisplayAlways: () => this.setState({ displayBy: Object.assign({}, s.displayBy, { [s.sel]: 'always' }) }),
+      setDisplayTrigger: () => this.setState({ displayBy: Object.assign({}, s.displayBy, { [s.sel]: 'trigger' }) }),
+      displayAlwaysStyle: this.seg(display === 'always'),
+      displayTriggerStyle: this.seg(display === 'trigger'),
+      showConditions: display === 'trigger',
+      hasConditions: conds.length > 0,
+      noConditions: conds.length === 0,
+      conditionList: conds.map((c, i) => ({ field: c.field, op: c.op, value: c.value, notFirst: i > 0 })),
+      blockId: b.id,
+      copyBlockId: () => { try { navigator.clipboard.writeText(b.id); } catch (e) {} },
+
+      setDeviceDesktop: () => this.setState({ device: 'desktop' }),
+      setDeviceMobile: () => this.setState({ device: 'mobile' }),
+      deviceDesktopStyle: this.seg(!isMobile, { padding: '5px 14px' }),
+      deviceMobileStyle: this.seg(isMobile, { padding: '5px 14px' }),
+      isDesktop: !isMobile,
+      topPlaceMainStyle: this.seg(s.placement === 'main', { padding: '5px 14px' }),
+      topPlaceSummaryStyle: this.seg(s.placement === 'summary', { padding: '5px 14px' }),
+      canvasLabel,
+      previewAreaRef: this.previewAreaRef,
+      canvasWrapStyle: Object.assign(
+        { width: (widthPx * scale) + 'px', alignSelf: 'flex-start' },
+        !isMobile && s.placement === 'main' ? { alignSelf: 'stretch', borderRight: '1px solid #E3E3E3', paddingRight: '15px' } : {},
+        !isMobile && s.placement === 'summary' ? { alignSelf: 'stretch', borderLeft: '1px solid #E3E3E3', paddingLeft: '15px' } : {}
+      ),
+      showGhostLeft: !isMobile && canPlace && s.placement === 'summary',
+      showGhostRight: !isMobile && canPlace && s.placement === 'main',
+      togglePlacement: () => this.setState({ placement: s.placement === 'main' ? 'summary' : 'main' }),
+      blockRef: this.blockRef,
+      tipLeft: s.tip === 'left',
+      tipRight: s.tip === 'right',
+      tipOnLeft: () => this.setState({ tip: 'left' }),
+      tipOnRight: () => this.setState({ tip: 'right' }),
+      tipOff: () => this.setState({ tip: null }),
+      ghostSlotStyle: {
+        position: 'relative', flexShrink: 0, alignSelf: 'flex-start', zIndex: 5,
+        marginTop: Math.max(0, (s.blockCenter || 90) * scale - 14) + 'px',
+        visibility: s.blockCenter ? 'visible' : 'hidden'
+      },
+      devSegDesktopStyle: this.devSeg(!isMobile),
+      devSegMobileStyle: this.devSeg(isMobile),
+      isDesktopView: !isMobile,
+      isMobileView: isMobile,
+      toggleDevice: () => this.setState({ device: isMobile ? 'desktop' : 'mobile' }),
+      deviceTipLabel: isMobile ? 'Show desktop view' : 'Show mobile view',
+      tipDevice: s.tip === 'device',
+      tipExit: s.tip === 'exit',
+      tipOnExit: () => this.setState({ tip: 'exit' }),
+      tipOnDevice: () => this.setState({ tip: 'device' }),
+      deviceBtnStyle: {
+        display: 'flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px',
+        padding: 0, border: 'none', borderRadius: '8px', cursor: 'pointer',
+        background: '#F1F1F1', color: '#303030'
+      },
+      canvasStyle: Object.assign(
+        {
+          position: 'relative', boxSizing: 'border-box',
+          width: widthPx + 'px', transform: 'scale(' + scale + ')', transformOrigin: 'top left',
+          transition: 'width 200ms cubic-bezier(0.25,0.1,0.25,1)',
+          display: 'flex', flexDirection: 'column'
+        },
+        // Real checkout surfaces: main column is white, order summary is #F5F5F5
+        // with a #D6D6D6 hairline; both inset 38px (21px on mobile).
+        isMobile
+          ? { background: '#FFFFFF', border: '1px solid #DEDEDE', borderRadius: '16px', padding: '21px', gap: '21px' }
+          : s.placement === 'summary'
+            ? { gap: '21px' }
+            : { gap: '32px' }
+      )
+    };
+  }
+}
+</script>
+</body>
+</html>

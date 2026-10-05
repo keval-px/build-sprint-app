@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js?v=2"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="_ds/ShopifyPolarisDesignSystem_019df8/colors_and_type.css">
+  <script src="_ds/ShopifyPolarisDesignSystem_019df8/polaris-web-components.js"></script>
+  <script src="_ds/ShopifyPolarisDesignSystem_019df8/polaris-web-components-forms.js?v=2"></script>
+  <style>
+    body { margin: 0; background: #F1F1F1; }
+    ::selection { background: #B3D7FF; }
+  </style>
+</helmet>
+
+<div style="min-height: 100vh; font-family: var(--p-font-family-sans); color: #303030; background-color: var(--p-color-bg-surface-active)">
+  <div style="max-width: 1240px; margin: 0 auto; padding: 24px 32px 96px; display: flex; flex-direction: column; gap: 20px">
+
+    <!-- ============ HERO ============ -->
+    <div data-screen-label="Dashboard hero" style="position: relative; overflow: hidden; border-radius: 16px; box-shadow: 0px 0px 0px 0px rgba(26,26,26,0.06); padding: 22px 28px 28px; background-color: #fcfcfc00; padding-bottom: 20px; padding-top: 0px; padding-right: 0px; padding-left: 0px">
+      <div style="position:absolute;inset:0;pointer-events:none;mask-image:linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.9) 26%, rgba(0,0,0,0.9) 55%, transparent 97%);-webkit-mask-image:linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.9) 26%, rgba(0,0,0,0.9) 55%, transparent 97%);">{{ heroGrid }}</div>
+      
+
+      <!-- metric strip -->
+      <div style="position: relative; align-items: flex-start; gap: 80px; flex-wrap: wrap; padding-bottom: 18px; display: flex; justify-content: center">
+        
+        <!-- date range card -->
+        <div style="position:relative;" onMouseEnter="{{ openRange }}" onMouseLeave="{{ closeRange }}">
+          <div style="display:flex;flex-direction:column;gap:5px;min-width:118px;cursor:pointer;">
+            <span style="font-size:12px;color:#616161;">Date range</span>
+            <span style="font-size:21px;line-height:22px;font-weight:700;color:#303030;font-variant-numeric:tabular-nums;letter-spacing:-0.3px;display:flex;align-items:center;gap:7px;">{{ dateRange }}<svg width="11" height="11" viewBox="0 0 20 20" fill="none" style="flex-shrink:0;"><path d="M5 7.5L10 12.5L15 7.5" stroke="#8A8A8A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>
+          </div>
+          <sc-if value="{{ rangeOpen }}" hint-placeholder-val="{{ false }}">
+            <div style="position:absolute;top:100%;left:0;margin-top:8px;width:248px;background:#fff;border-radius:12px;box-shadow:0 4px 6px -2px rgba(26,26,26,0.20), inset 0 0 0 1px rgba(0,0,0,0.06);padding:6px;z-index:40;display:flex;flex-direction:column;gap:2px;">
+              <sc-for list="{{ rangeOptions }}" as="o" hint-placeholder-count="5">
+                <button onClick="{{ o.onClick }}" style="{{ o.style }}" style-hover="background:#F7F7F7;" style-focus="outline:2px solid #005BD3;outline-offset:1px;">
+                  <span style="font-size:13px;color:#303030;">{{ o.label }}</span>
+                  <span style="{{ o.checkStyle }}">✓</span>
+                </button>
+              </sc-for>
+              <div style="border-top:1px solid #EBEBEB;margin:4px 0;"></div>
+              <div style="padding:4px 10px 8px;display:flex;flex-direction:column;gap:8px;">
+                <span style="font-size:12px;font-weight:650;color:#616161;">Custom range</span>
+                <div style="display:flex;gap:8px;">
+                  <input type="date" onChange="{{ setCustomFrom }}" style="flex:1;min-width:0;font-family:inherit;font-size:12px;color:#303030;padding:6px 8px;border-radius:8px;border:1px solid #E3E3E3;background:#fff;">
+                  <input type="date" onChange="{{ setCustomTo }}" style="flex:1;min-width:0;font-family:inherit;font-size:12px;color:#303030;padding:6px 8px;border-radius:8px;border:1px solid #E3E3E3;background:#fff;">
+                </div>
+                <button onClick="{{ applyCustom }}" style="font-family:inherit;font-size:12px;font-weight:550;color:#fff;background:#303030;border:none;border-radius:8px;padding:7px 12px;cursor:pointer;" style-hover="background:#1A1A1A;" style-focus="outline:2px solid #005BD3;outline-offset:1px;">Apply range</button>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+
+        <sc-for list="{{ heroKpis }}" as="k" hint-placeholder-count="4">
+          <div style="display:flex;flex-direction:column;gap:5px;min-width:118px;">
+            <span style="font-size:12px;color:#616161;">{{ k.label }}</span>
+            <span style="font-size:21px;line-height:22px;font-weight:700;color:#303030;font-variant-numeric:tabular-nums;letter-spacing:-0.3px;">{{ k.value }}</span>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="display:flex;">{{ k.spark }}</span>
+              <sc-if value="{{ showCompare }}" hint-placeholder-val="{{ true }}"><span style="{{ k.deltaStyle }}">{{ k.delta }}</span></sc-if>
+            </div>
+          </div>
+        </sc-for>
+
+      </div>
+
+      <!-- headline -->
+      <div style="position:relative;display:flex;flex-direction:column;align-items:center;text-align:center;gap:9px;padding:36px 0 26px;">
+        <span style="font-size: 12px; font-weight: 650; color: #303030; letter-spacing: 0.4px; text-transform: none">Hey Keval, revenue attributed to Checkout Boost:</span>
+        <h1 style="margin:0;font-size:46px;line-height:50px;font-weight:700;letter-spacing:-1px;color:#1A1A1A;font-variant-numeric:tabular-nums;">{{ heroValue }}</h1>
+        <sc-if value="{{ isActive }}" hint-placeholder-val="{{ true }}"><span style="font-size: 13px; line-height: 20px; color: #616161; max-width: 540px; text-wrap: pretty">Across upsells, discount-code orders, and assisted checkouts.</span></sc-if>
+        <sc-if value="{{ isNew }}" hint-placeholder-val="{{ false }}"><span style="font-size: 13px; line-height: 20px; color: #616161; max-width: 540px; text-wrap: pretty">Tracking is live. Your first attributed order appears here within minutes of a sale.</span></sc-if>
+      </div>
+
+      <!-- action chips -->
+      <div style="position:relative;display:flex;justify-content:center;gap:12px;flex-wrap:wrap;">
+        <sc-for list="{{ chips }}" as="c" hint-placeholder-count="3">
+          <button style="display: flex; align-items: center; gap: 9px; background: #fff; border: none; border-radius: 999px; padding: 9px 10px 9px 16px; font-family: inherit; cursor: pointer; box-shadow: 0px 1px 1px 0px rgba(26,26,26,0.10); padding-top: 6px; padding-bottom: 6px; padding-right: 12px; padding-left: 12px" style-hover="box-shadow:0 3px 8px rgba(26,26,26,0.13), inset 0 0 0 1px rgba(0,0,0,0.10);" style-focus="outline:2px solid #005BD3;outline-offset:1px;">
+            <span style="{{ c.dotStyle }}"></span>
+            <span style="font-size: 12px; font-weight: 550; color: #303030">{{ c.label }}</span>
+            <span style="{{ c.badgeStyle }}">{{ c.badge }}</span>
+          </button>
+        </sc-for>
+      </div>
+    </div>
+
+    <!-- ============ ROW: Revenue + Health ============ -->
+    <div style="display:grid;grid-template-columns:1.85fr 1fr;gap:20px;">
+      <div data-screen-label="Attributed revenue" style="background: #fff; border-radius: 12px; padding: 20px 22px; box-shadow: 0px 1px 1px 0px rgba(26,26,26,0.06); display: flex; flex-direction: column; gap: 16px">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            <span style="display:flex;align-items:center;gap:6px;">
+              <span style="font-size:13px;font-weight:650;color:#303030;">Attributed revenue</span>
+              <span style="position:relative;display:inline-flex;">
+                <sc-if value="{{ tipRevenue }}" hint-placeholder-val="{{ false }}">
+                  <div style="position:absolute;bottom:calc(100% + 8px);left:-6px;z-index:30;width:270px;padding:8px 10px;border-radius:8px;background:#FFFFFF;color:#303030;font-size:12px;line-height:16px;font-weight:450;text-align:left;text-wrap:pretty;box-shadow:0 4px 6px -2px rgba(26,26,26,0.20),0 0 0 1px rgba(0,0,0,0.08);pointer-events:none;">Revenue from accepted upsells, orders using Checkout Boost discount codes, and checkouts the app assisted. Orders may be counted where Checkout Boost contributed to the sale.<span style="position:absolute;top:100%;left:20px;width:8px;height:8px;margin:-5px 0 0 -4px;transform:rotate(45deg);background:#FFFFFF;box-shadow:1px 1px 0 rgba(0,0,0,0.08);"></span></div>
+                </sc-if>
+                <span onMouseEnter="{{ tipOnRevenue }}" onMouseLeave="{{ tipOff }}" onFocus="{{ tipOnRevenue }}" onBlur="{{ tipOff }}" tabindex="0" role="button" aria-label="About attributed revenue" style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:999px;background:#EBEBEB;color:#616161;font-size:10px;font-weight:650;cursor:help;">i</span>
+              </span>
+            </span>
+            <div style="display: flex; align-items: center; gap: 10px">
+              <span style="font-size:28px;line-height:30px;font-weight:700;color:#1A1A1A;font-variant-numeric:tabular-nums;letter-spacing:-0.4px;">{{ revTotalLabel }}</span>
+              <sc-if value="{{ showCompare }}" hint-placeholder-val="{{ true }}"><span style="font-size:12px;font-weight:650;color:#047B5D;background:#CDFED4;border-radius:8px;padding:2px 8px;">{{ revDelta }}</span></sc-if>
+            </div>
+          </div>
+          <sc-if value="{{ showCompare }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;align-items:center;gap:16px;padding-top:4px;">
+              <span style="display:inline-flex;align-items:center;gap:6px;font-size:11px;color:#8A8A8A;"><span style="width:16px;height:2px;background:#1F8A5B;border-radius:2px;"></span>This period</span>
+              <span style="display:inline-flex;align-items:center;gap:6px;font-size:11px;color:#8A8A8A;"><span style="width:16px;height:0;border-top:2px dashed #C9CCD0;"></span>Previous</span>
+            </div>
+          </sc-if>
+        </div>
+        <sc-if value="{{ isActive }}" hint-placeholder-val="{{ true }}">
+        <div style="width:100%;">{{ revChart }}</div>
+        <div style="display:flex;flex-direction:column;gap:12px;border-top:1px solid #EBEBEB;padding-top:16px;">
+          <span style="font-size:12px;font-weight:650;color:#616161;">Where it came from</span>
+          <div style="display:flex;height:10px;border-radius:999px;overflow:hidden;background:#F1F1F1;">
+            <sc-for list="{{ revSources }}" as="s" hint-placeholder-count="4"><span style="{{ s.barStyle }}"></span></sc-for>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px 24px;">
+            <sc-for list="{{ revSources }}" as="s" hint-placeholder-count="4">
+              <div style="display:flex;align-items:center;gap:9px;">
+                <span style="{{ s.dotStyle }}"></span>
+                <span style="font-size:12px;color:#616161;flex:1;min-width:0;">{{ s.name }}</span>
+                <span style="font-size:13px;font-weight:650;color:#303030;font-variant-numeric:tabular-nums;">{{ s.valueLabel }}</span>
+                <span style="font-size: 11px; color: #8A8A8A; font-variant-numeric: tabular-nums; width: 24px; text-align: right">{{ s.pctLabel }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        </sc-if>
+        <sc-if value="{{ isNew }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;padding:56px 24px;">
+          <span style="font-size:13px;font-weight:650;color:#303030;">No attributed revenue yet</span>
+          <span style="font-size:12px;line-height:18px;color:#616161;max-width:400px;">Turn on your first revenue feature — most stores see their first attributed order within 48 hours.</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px;border-top:1px solid #EBEBEB;padding-top:16px;">
+          <span style="font-size:12px;font-weight:650;color:#616161;">Where it will come from</span>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px 24px;">
+            <div style="display:flex;align-items:center;gap:9px;">
+              <span style="width:10px;height:10px;border-radius:3px;background:#E3E3E3;flex-shrink:0;"></span>
+              <span style="font-size:12px;color:#616161;flex:1;min-width:0;">Upsells</span>
+              <span style="font-size:13px;font-weight:650;color:#8A8A8A;">—</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:9px;">
+              <span style="width:10px;height:10px;border-radius:3px;background:#E3E3E3;flex-shrink:0;"></span>
+              <span style="font-size:12px;color:#616161;flex:1;min-width:0;">Discount codes</span>
+              <span style="font-size:13px;font-weight:650;color:#8A8A8A;">—</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:9px;">
+              <span style="width:10px;height:10px;border-radius:3px;background:#E3E3E3;flex-shrink:0;"></span>
+              <span style="font-size:12px;color:#616161;flex:1;min-width:0;">Assisted / influenced</span>
+              <span style="font-size:13px;font-weight:650;color:#8A8A8A;">—</span>
+            </div>
+          </div>
+        </div>
+        </sc-if>
+      </div>
+
+      <div data-screen-label="Checkout health" style="background: #fff; border-radius: 12px; padding: 20px 22px; box-shadow: 0px 1px 1px 0px rgba(26,26,26,0.06); display: flex; flex-direction: column; gap: 16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <span style="font-size:13px;font-weight:650;color:#303030;">Checkout health</span>
+          <span style="font-size:12px;font-weight:650;color:#fff;background:#005BD3;border-radius:8px;padding:2px 9px;">{{ healthTier }}</span>
+        </div>
+        <div style="display: block; align-items: center; gap: 18px">
+          <div style="position: relative; width: 116px; height: 130px; flex-shrink: 0">
+            <svg width="116" height="116" viewBox="0 0 116 116" style="display:block;transform:rotate(-90deg);">
+              <circle cx="58" cy="58" r="52" fill="none" stroke="#EDEDED" stroke-width="9"></circle>
+              <circle cx="58" cy="58" r="52" fill="none" stroke="{{ healthColor }}" stroke-width="9" stroke-linecap="round" stroke-dasharray="{{ healthDash }}"></circle>
+            </svg>
+            <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+              <span style="font-size:30px;line-height:30px;font-weight:700;color:#1A1A1A;font-variant-numeric:tabular-nums;">{{ healthScore }}</span>
+              <span style="font-size:11px;color:#8A8A8A;">out of 100</span>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:9px;flex:1;min-width:0;">
+            <sc-for list="{{ healthFactors }}" as="h" hint-placeholder-count="5">
+              <div style="display:flex;align-items:center;gap:9px;">
+                <span style="{{ h.iconStyle }}">{{ h.mark }}</span>
+                <span style="{{ h.labelStyle }}">{{ h.label }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        <div style="border-top:1px solid #EBEBEB;padding-top:14px;display:flex;flex-direction:column;gap:10px;">
+          <p style="margin:0;font-size:12px;line-height:17px;color:#616161;">Run a full scan of your checkout for issues hurting conversion, with step-by-step fixes. <span style="color:#303030;font-weight:650;">Available on higher plans.</span></p>
+          <s-button variant="primary" fullWidth="true">Run checkout audit</s-button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ ROW: Funnel ============ -->
+    <div data-screen-label="Checkout funnel" style="background:#fff;border-radius:12px;padding:20px 22px;box-shadow:0px 1px 1px 0px rgba(26,26,26,0.06);display:flex;flex-direction:column;gap:14px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+          <span style="font-size:13px;font-weight:650;color:#303030;">Where sessions drop off</span>
+          <sc-if value="{{ isActive }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
+            <sc-for list="{{ funnelSegs }}" as="fs" hint-placeholder-count="5">
+              <button onClick="{{ fs.onClick }}" style="{{ fs.style }}" style-hover="background:#F1F1F1;">{{ fs.label }}</button>
+            </sc-for>
+          </div>
+          </sc-if>
+        </div>
+        <sc-if value="{{ isActive }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;flex-direction:column;gap:9px;">
+          <sc-for list="{{ funnelSteps }}" as="st" hint-placeholder-count="5">
+            <div style="display:grid;grid-template-columns:148px 1fr 190px;gap:14px;align-items:center;">
+              <span style="font-size:12px;color:#616161;">{{ st.label }}</span>
+              <div style="position:relative;height:24px;border-radius:6px;background:#F7F7F7;overflow:hidden;">
+                <span style="{{ st.barStyle }}"></span>
+              </div>
+              <div style="display:flex;align-items:baseline;justify-content:flex-end;gap:10px;">
+                <span style="font-size:13px;font-weight:650;color:#303030;font-variant-numeric:tabular-nums;">{{ st.count }}</span>
+                <span style="{{ st.dropStyle }}">{{ st.drop }}</span>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+        <p style="margin:0;font-size:12px;line-height:18px;color:var(--p-color-text-secondary);border-top:1px solid var(--p-color-border-secondary);padding-top:12px;">{{ funnelCaption }}</p>
+        </sc-if>
+        <sc-if value="{{ isNew }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;padding:36px 24px;">
+          <span style="font-size:13px;font-weight:650;color:#303030;">No checkout sessions yet</span>
+          <span style="font-size:12px;line-height:18px;color:#616161;max-width:380px;">The funnel fills in as shoppers reach checkout — usually within a few hours of install.</span>
+        </div>
+        </sc-if>
+    </div>
+
+    <!-- ============ ROW: Trends + Codes ============ -->
+    <div data-screen-label="Trends since install" style="background:#fff;border-radius:12px;padding:20px 22px;box-shadow:0px 1px 1px 0px rgba(26,26,26,0.06);display:flex;flex-direction:column;gap:16px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <span style="font-size:13px;font-weight:650;color:#303030;">Trends since install</span>
+          <span style="font-size:12px;color:#616161;">since {{ installLabel }}</span>
+        </div>
+        <sc-if value="{{ isActive }}" hint-placeholder-val="{{ true }}">
+        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;">
+          <sc-for list="{{ trendCards }}" as="t" hint-placeholder-count="3">
+            <div style="display:flex;flex-direction:column;gap:6px;padding:14px 16px;border-radius:8px;border:1px solid #EBEBEB;min-width:0;">
+              <div style="display:flex;align-items:center;gap:5px;min-width:0;">
+                <span style="font-size:12px;line-height:16px;color:#616161;min-width:0;">{{ t.label }}</span>
+                <span style="position:relative;display:inline-flex;">
+                  <sc-if value="{{ t.tipLeft }}" hint-placeholder-val="{{ false }}">
+                    <div style="position:absolute;bottom:calc(100% + 8px);z-index:30;width:230px;padding:8px 10px;border-radius:8px;background:#FFFFFF;color:#303030;font-size:12px;line-height:16px;font-weight:450;text-align:left;text-wrap:pretty;box-shadow:0 4px 6px -2px rgba(26,26,26,0.20),0 0 0 1px rgba(0,0,0,0.08);pointer-events:none;left:-6px;">{{ t.tipText }}<span style="position:absolute;top:100%;width:8px;height:8px;transform:rotate(45deg);background:#FFFFFF;box-shadow:1px 1px 0 rgba(0,0,0,0.08);left:20px;margin:-5px 0 0 -4px;"></span></div>
+                  </sc-if>
+                  <sc-if value="{{ t.tipRight }}" hint-placeholder-val="{{ false }}">
+                    <div style="position:absolute;bottom:calc(100% + 8px);z-index:30;width:230px;padding:8px 10px;border-radius:8px;background:#FFFFFF;color:#303030;font-size:12px;line-height:16px;font-weight:450;text-align:left;text-wrap:pretty;box-shadow:0 4px 6px -2px rgba(26,26,26,0.20),0 0 0 1px rgba(0,0,0,0.08);pointer-events:none;right:-6px;">{{ t.tipText }}<span style="position:absolute;top:100%;width:8px;height:8px;transform:rotate(45deg);background:#FFFFFF;box-shadow:1px 1px 0 rgba(0,0,0,0.08);right:20px;margin:-5px -4px 0 0;"></span></div>
+                  </sc-if>
+                  <span onMouseEnter="{{ t.tipOn }}" onMouseLeave="{{ tipOff }}" onFocus="{{ t.tipOn }}" onBlur="{{ tipOff }}" tabindex="0" role="button" aria-label="{{ t.tipLabel }}" style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:999px;background:#EBEBEB;color:#616161;font-size:10px;font-weight:650;cursor:help;flex-shrink:0;">i</span>
+                </span>
+              </div>
+              <div style="display:flex;align-items:baseline;gap:6px;min-width:0;flex-wrap:wrap;">
+                <sc-if value="{{ t.hasFrom }}" hint-placeholder-val="{{ true }}">
+                  <span style="font-size:13px;line-height:18px;color:#B5B5B5;font-weight:450;font-variant-numeric:tabular-nums;">{{ t.before }}</span>
+                  <span style="font-size:11px;line-height:18px;color:#B5B5B5;">→</span>
+                </sc-if>
+                <span style="font-size:22px;line-height:26px;font-weight:700;color:#1A1A1A;font-variant-numeric:tabular-nums;letter-spacing:-0.3px;">{{ t.value }}</span>
+              </div>
+              <span style="align-self:flex-start;font-size:12px;font-weight:650;line-height:normal;color:#047B5D;background:#CDFED4;border-radius:8px;padding:2px 8px;font-variant-numeric:tabular-nums;">{{ t.delta }}</span>
+            </div>
+          </sc-for>
+        </div>
+        </sc-if>
+        <sc-if value="{{ isNew }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;gap:14px;">
+          <sc-for list="{{ baseline }}" as="b" hint-placeholder-count="3">
+            <div style="display:flex;flex-direction:column;gap:3px;">
+              <span style="font-size:12px;color:#616161;">{{ b.label }}</span>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span style="font-size:20px;font-weight:700;color:#1A1A1A;font-variant-numeric:tabular-nums;letter-spacing:-0.3px;">{{ b.value }}</span>
+                <span style="font-size:12px;font-weight:550;color:#616161;background:#F1F1F1;border-radius:8px;padding:2px 9px;">Baseline</span>
+              </div>
+            </div>
+          </sc-for>
+          <span style="font-size:11px;line-height:15px;color:#8A8A8A;">Captured at install — you'll see before → after movement here after your first week.</span>
+        </div>
+        </sc-if>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start;">
+      <div data-screen-label="Validation rules" style="background:#fff;border-radius:12px;padding:20px 22px;box-shadow:0px 1px 1px 0px rgba(26,26,26,0.06);display:flex;flex-direction:column;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;">
+          <div style="display:flex;align-items:baseline;gap:6px;min-width:0;">
+            <span style="font-size:13px;font-weight:650;color:#303030;">Validation rules</span>
+            <span style="font-size:12px;color:#8A8A8A;">·</span>
+            <span style="font-size:12px;color:#616161;font-variant-numeric:tabular-nums;">{{ blockedLabel }} blocked</span>
+          </div>
+          <span style="font-size:12px;font-weight:550;color:#005BD3;cursor:pointer;">View all</span>
+        </div>
+        <sc-if value="{{ isActive }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;flex-direction:column;">
+          <sc-for list="{{ validationRules }}" as="r" hint-placeholder-count="4">
+            <div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid #F4F4F4;">
+              <div style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;">
+                <span style="font-size:13px;font-weight:650;color:#303030;">{{ r.name }}</span>
+                <span style="font-size:11px;color:#8A8A8A;">{{ r.scope }}</span>
+              </div>
+              <span style="font-size:13px;font-weight:650;color:#303030;font-variant-numeric:tabular-nums;flex-shrink:0;">{{ r.blocked }}</span>
+            </div>
+          </sc-for>
+        </div>
+        </sc-if>
+      </div>
+
+      <div data-screen-label="Top discount codes" style="background:#fff;border-radius:12px;padding:20px 22px;box-shadow:0px 1px 1px 0px rgba(26,26,26,0.06);display:flex;flex-direction:column;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+          <span style="font-size:13px;font-weight:650;color:#303030;">Top discount codes</span>
+          <span style="font-size:12px;font-weight:550;color:#005BD3;cursor:pointer;">View all</span>
+        </div>
+        <sc-if value="{{ isActive }}" hint-placeholder-val="{{ true }}">
+        <sc-for list="{{ codes }}" as="c" hint-placeholder-count="4">
+          <div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid #F4F4F4;">
+            <div style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;">
+              <span style="font-size:13px;font-weight:650;color:#303030;font-family:ui-monospace, SFMono-Regular, monospace;">{{ c.code }}</span>
+              <span style="font-size:11px;color:#8A8A8A;">{{ c.method }} · {{ c.used }} uses</span>
+            </div>
+            <span style="font-size:13px;font-weight:650;color:#047B5D;font-variant-numeric:tabular-nums;">{{ c.rev }}</span>
+          </div>
+        </sc-for>
+        </sc-if>
+        <sc-if value="{{ isNew }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;padding:40px 24px;flex:1;justify-content:center;">
+          <span style="font-size:13px;font-weight:650;color:#303030;">No codes used yet</span>
+          <span style="font-size:12px;line-height:18px;color:#616161;max-width:280px;">Create a Checkout Boost discount to see code-driven revenue here.</span>
+        </div>
+        </sc-if>
+      </div>
+    </div>
+
+    <!-- ============ ROW: Top offers ============ -->
+    <div data-screen-label="Top performing offers" style="background:#fff;border-radius:12px;padding:20px 22px;box-shadow:0px 1px 1px 0px rgba(26,26,26,0.06);display:flex;flex-direction:column;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+        <span style="font-size:13px;font-weight:650;color:#303030;">Top performing offers</span>
+        <span style="font-size:12px;font-weight:550;color:#005BD3;cursor:pointer;">View all</span>
+      </div>
+      <sc-if value="{{ isActive }}" hint-placeholder-val="{{ true }}">
+      <div style="display:grid;grid-template-columns:2.4fr 1fr 1fr 1fr 0.8fr;gap:12px;padding-bottom:9px;border-bottom:1px solid #EBEBEB;">
+        <span style="font-size:12px;font-weight:550;color:#8A8A8A;">Offer</span>
+        <span style="font-size:12px;font-weight:550;color:#8A8A8A;">Type</span>
+        <span style="font-size:12px;font-weight:550;color:#8A8A8A;text-align:right;">Impressions</span>
+        <span style="font-size:12px;font-weight:550;color:#8A8A8A;text-align:right;">Revenue</span>
+        <span style="font-size:12px;font-weight:550;color:#8A8A8A;text-align:right;">Conv.</span>
+      </div>
+      <sc-for list="{{ blocks }}" as="b" hint-placeholder-count="5">
+        <div style="display:grid;grid-template-columns:2.4fr 1fr 1fr 1fr 0.8fr;gap:12px;padding:13px 0;border-bottom:1px solid #F4F4F4;align-items:center;">
+          <span style="font-size:13px;font-weight:650;color:#303030;">{{ b.name }}</span>
+          <span style="font-size:12px;color:#616161;">{{ b.type }}</span>
+          <span style="font-size:13px;color:#303030;text-align:right;font-variant-numeric:tabular-nums;">{{ b.impr }}</span>
+          <span style="font-size:13px;font-weight:650;color:#047B5D;text-align:right;font-variant-numeric:tabular-nums;">{{ b.rev }}</span>
+          <span style="font-size:13px;color:#303030;text-align:right;font-variant-numeric:tabular-nums;">{{ b.conv }}</span>
+        </div>
+      </sc-for>
+      </sc-if>
+      <sc-if value="{{ isNew }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;padding:36px 24px;">
+        <span style="font-size:13px;font-weight:650;color:#303030;">No offers yet</span>
+        <span style="font-size:12px;line-height:18px;color:#616161;max-width:380px;">Add an upsell block or post-purchase funnel to start earning attributed revenue.</span>
+        <s-button>Add block</s-button>
+      </div>
+      </sc-if>
+    </div>
+
+    <!-- ============ ROW: Experiments ============ -->
+    <div style="display:grid;grid-template-columns:1fr;gap:20px;">
+      <div data-screen-label="Experiments" style="background:#fff;border-radius:12px;padding:20px 22px;box-shadow:0px 1px 1px 0px rgba(26,26,26,0.06);display:flex;flex-direction:column;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+          <span style="display:flex;align-items:center;gap:6px;">
+            <span style="font-size:13px;font-weight:650;color:#303030;">Experiments</span>
+            <span style="position:relative;display:inline-flex;">
+                <sc-if value="{{ tipExperiments }}" hint-placeholder-val="{{ false }}">
+                  <div style="position:absolute;bottom:calc(100% + 8px);left:-6px;z-index:30;width:270px;padding:8px 10px;border-radius:8px;background:#FFFFFF;color:#303030;font-size:12px;line-height:16px;font-weight:450;text-align:left;text-wrap:pretty;box-shadow:0 4px 6px -2px rgba(26,26,26,0.20),0 0 0 1px rgba(0,0,0,0.08);pointer-events:none;">A/B tests split checkout sessions randomly between variants, so lifts shown here are measured — not modeled.<span style="position:absolute;top:100%;left:20px;width:8px;height:8px;margin:-5px 0 0 -4px;transform:rotate(45deg);background:#FFFFFF;box-shadow:1px 1px 0 rgba(0,0,0,0.08);"></span></div>
+                </sc-if>
+                <span onMouseEnter="{{ tipOnExperiments }}" onMouseLeave="{{ tipOff }}" onFocus="{{ tipOnExperiments }}" onBlur="{{ tipOff }}" tabindex="0" role="button" aria-label="About experiments" style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:999px;background:#EBEBEB;color:#616161;font-size:10px;font-weight:650;cursor:help;">i</span>
+              </span>
+          </span>
+          <span style="font-size:12px;font-weight:550;color:#005BD3;cursor:pointer;">Create experiment</span>
+        </div>
+        <sc-if value="{{ isNew }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;padding:36px 24px;">
+          <span style="font-size:13px;font-weight:650;color:#303030;">No experiments yet</span>
+          <span style="font-size:12px;line-height:18px;color:#616161;max-width:380px;">A/B test offer copy or block placement once your first block is live.</span>
+        </div>
+        </sc-if>
+        <sc-if value="{{ isActive }}" hint-placeholder-val="{{ true }}">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 40px;">
+        <sc-for list="{{ experiments }}" as="e" hint-placeholder-count="2">
+          <div style="display:flex;flex-direction:column;gap:10px;padding:14px 0;border-bottom:1px solid #F4F4F4;">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+              <span style="font-size:13px;font-weight:650;color:#303030;">{{ e.name }}</span>
+              <span style="{{ e.statusStyle }}">{{ e.status }}</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px;">
+              <sc-for list="{{ e.variants }}" as="v" hint-placeholder-count="2">
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <span style="font-size:11px;font-weight:650;color:#616161;width:12px;">{{ v.key }}</span>
+                  <span style="font-size:12px;color:#616161;flex:1;min-width:0;">{{ v.label }}</span>
+                  <div style="width:110px;height:6px;border-radius:999px;background:#F1F1F1;overflow:hidden;flex-shrink:0;"><div style="{{ v.barStyle }}"></div></div>
+                  <span style="font-size:12px;font-weight:650;color:#303030;font-variant-numeric:tabular-nums;width:40px;text-align:right;">{{ v.conv }}</span>
+                </div>
+              </sc-for>
+            </div>
+            <span style="font-size:11px;color:#8A8A8A;">{{ e.meta }}</span>
+          </div>
+        </sc-for>
+        </div>
+        </sc-if>
+      </div>
+
+    </div>
+
+    <!-- ============ ROW: Help ============ -->
+    <div data-screen-label="Help" style="background:#fff;border-radius:12px;padding:12px 22px;box-shadow:0px 1px 1px 0px rgba(26,26,26,0.06);display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
+      <span style="font-size:13px;color:#616161;">Need help with Checkout Boost?</span>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:12px;font-weight:550;color:#005BD3;cursor:pointer;padding:5px 10px;border-radius:8px;" style-hover="background:#F7F7F7;">Email support</span>
+        <span style="width:1px;height:14px;background:#EBEBEB;"></span>
+        <span style="font-size:12px;font-weight:550;color:#005BD3;cursor:pointer;padding:5px 10px;border-radius:8px;" style-hover="background:#F7F7F7;">Documentation</span>
+        <span style="width:1px;height:14px;background:#EBEBEB;"></span>
+        <span style="font-size:12px;font-weight:550;color:#005BD3;cursor:pointer;padding:5px 10px;border-radius:8px;" style-hover="background:#F7F7F7;">Request a feature</span>
+        <span style="width:1px;height:14px;background:#EBEBEB;"></span>
+        <span style="font-size:12px;font-weight:550;color:#005BD3;cursor:pointer;padding:5px 10px;border-radius:8px;" style-hover="background:#F7F7F7;">What's new</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1240,&quot;height&quot;:2520},&quot;storeState&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;Active store&quot;,&quot;options&quot;:[&quot;Active store&quot;,&quot;New install&quot;],&quot;tsType&quot;:&quot;string&quot;},&quot;period&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;Last 30 days&quot;,&quot;options&quot;:[&quot;Last 7 days&quot;,&quot;Last 30 days&quot;,&quot;Last 90 days&quot;],&quot;tsType&quot;:&quot;string&quot;},&quot;currencySymbol&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;$&quot;,&quot;options&quot;:[&quot;$&quot;,&quot;€&quot;,&quot;£&quot;],&quot;tsType&quot;:&quot;string&quot;},&quot;showComparison&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;},&quot;installDate&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;2026-02-12&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;planCostSinceInstall&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:545,&quot;min&quot;:0,&quot;max&quot;:20000,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;ROI&quot;}}">
+class Component extends DCLogic {
+  ACCENT = '#1F8A5B';
+  state = { rangeOpen:false, dateRange:'Last 30 days', customFrom:null, customTo:null, funnelSeg:'All sessions', tip:null };
+
+  fmt(n){ return Math.round(n).toLocaleString('en-US'); }
+  sym(){ return this.props.currencySymbol ?? '$'; }
+  money(n){ return this.sym() + this.fmt(n); }
+  money2(n){ return this.sym() + n.toFixed(2); }
+  kfmt(n){ const s=this.sym(); return n>=1000 ? s+(n/1000).toFixed(1)+'K' : s+this.fmt(n); }
+
+  spark(vals, color){
+    const w=66,h=22,max=Math.max(...vals),min=Math.min(...vals),rng=(max-min)||1;
+    const d=vals.map((v,i)=>{const x=(i/(vals.length-1))*w;const y=h-2-((v-min)/rng)*(h-5);return (i?'L':'M')+x.toFixed(1)+' '+y.toFixed(1);}).join(' ');
+    return React.createElement('svg',{width:w,height:h,viewBox:'0 0 '+w+' '+h,style:{display:'block'}},
+      React.createElement('path',{d,fill:'none',stroke:color,strokeWidth:1.6,strokeLinejoin:'round',strokeLinecap:'round'}));
+  }
+
+  buildHeroGrid(){
+    const w=1240,h=380,vpx=w/2,vpy=-170,horizon=26,kids=[];
+    // horizontal floor lines — perspective compression toward the horizon
+    const n=13;
+    for(let i=1;i<=n;i++){
+      const t=i/n, y=horizon+(h-horizon)*Math.pow(t,1.85);
+      kids.push(React.createElement('line',{key:'h'+i,x1:0,x2:w,y1:y.toFixed(1),y2:y.toFixed(1),stroke:'#1A1A1A',strokeWidth:1,opacity:(0.045+t*0.055).toFixed(3)}));
+    }
+    // radial lines converging on the vanishing point
+    const m=18;
+    for(let j=0;j<=m;j++){
+      const xb=(j/m)*w*1.9-w*0.45;
+      const k=(horizon-vpy)/(h-vpy);
+      const xt=vpx+(xb-vpx)*k;
+      kids.push(React.createElement('line',{key:'v'+j,x1:xt.toFixed(1),y1:horizon,x2:xb.toFixed(1),y2:h,stroke:'#1A1A1A',strokeWidth:1,opacity:0.055}));
+    }
+    return React.createElement('svg',{width:'100%',height:'100%',viewBox:'0 0 '+w+' '+h,preserveAspectRatio:'none',style:{display:'block'}},...kids);
+  }
+
+  buildRevChart(){
+    const A=this.ACCENT,w=680,h=210,padL=6,padR=6,padT=14,padB=26,n=30;
+    const cur=[],prev=[];
+    for(let i=0;i<n;i++){
+      cur.push(2300 + i*72 + Math.sin(i/2.6)*240 + (i>19?(i-19)*70:0));
+      prev.push(2050 + i*40 + Math.sin(i/2.6+0.9)*190);
+    }
+    const max=Math.max(...cur,...prev)*1.12;
+    const X=i=>padL+(i/(n-1))*(w-padL-padR);
+    const Y=v=>padT+(1-v/max)*(h-padT-padB);
+    const line=arr=>arr.map((v,i)=>(i?'L':'M')+X(i).toFixed(1)+' '+Y(v).toFixed(1)).join(' ');
+    const y0=Y(0);
+    const area=line(cur)+' L '+X(n-1).toFixed(1)+' '+y0.toFixed(1)+' L '+X(0).toFixed(1)+' '+y0.toFixed(1)+' Z';
+    const grid=[0.25,0.5,0.75].map((g,i)=>React.createElement('line',{key:'g'+i,x1:padL,x2:w-padR,y1:(padT+g*(h-padT-padB)).toFixed(1),y2:(padT+g*(h-padT-padB)).toFixed(1),stroke:'#EEEEEE',strokeWidth:1}));
+    const labels=['Wk 1','Wk 2','Wk 3','Wk 4','Now'].map((t,i)=>React.createElement('text',{key:'t'+i,x:(padL+(i/4)*(w-padL-padR)).toFixed(1),y:h-7,fill:'#8A8A8A',fontSize:11,fontFamily:'Inter, sans-serif',textAnchor:i===0?'start':(i===4?'end':'middle')},t));
+    const showPrev=(this.props.showComparison ?? true);
+    const kids=[...grid,
+      React.createElement('line',{key:'base',x1:padL,x2:w-padR,y1:y0,y2:y0,stroke:'#E3E3E3',strokeWidth:1}),
+      React.createElement('defs',{key:'def'},React.createElement('linearGradient',{id:'revgrad',x1:0,y1:0,x2:0,y2:1},
+        React.createElement('stop',{offset:'0%',stopColor:A,stopOpacity:0.18}),
+        React.createElement('stop',{offset:'100%',stopColor:A,stopOpacity:0.012}))),
+      React.createElement('path',{key:'area',d:area,fill:'url(#revgrad)'})];
+    if(showPrev) kids.push(React.createElement('path',{key:'prev',d:line(prev),fill:'none',stroke:'#C9CCD0',strokeWidth:1.6,strokeDasharray:'4 4'}));
+    kids.push(React.createElement('path',{key:'cur',d:line(cur),fill:'none',stroke:A,strokeWidth:2.4,strokeLinejoin:'round',strokeLinecap:'round'}));
+    kids.push(...labels);
+    return React.createElement('svg',{width:'100%',viewBox:'0 0 '+w+' '+h,preserveAspectRatio:'xMidYMid meet',style:{display:'block'}},...kids);
+  }
+
+  renderVals(){
+    const A=this.ACCENT, G='#047B5D', RED='#C70A24';
+    const period=this.props.period ?? 'Last 30 days';
+    const showCompare=this.props.showComparison ?? true;
+    const isNew=(this.props.storeState ?? 'Active store')==='New install';
+    const showCmp=showCompare && !isNew;
+    const dStyle=(pos)=> 'font-size:12px;font-weight:650;color:'+(pos?G:RED)+';';
+
+    const heroKpis= isNew ? [
+      {label:'Checkout sessions', value:'0', delta:'', spark:null, deltaStyle:''},
+      {label:'Completion rate', value:'\u2014', delta:'', spark:null, deltaStyle:''},
+      {label:'Upsell revenue', value:this.money(0), delta:'', spark:null, deltaStyle:''},
+    ] : [
+      {label:'Checkout sessions', value:this.fmt(17958), delta:'\u22124%', spark:this.spark([25,24,25,23,24,22,23,22,21,21],RED), deltaStyle:dStyle(false)},
+      {label:'Completion rate', value:'28.7%', delta:'+1.8 pts', spark:this.spark([25,26,25,27,27,28,28,29,28,29],A), deltaStyle:dStyle(true)},
+      {label:'Upsell revenue', value:this.kfmt(28400), delta:'+22%', spark:this.spark([8,9,11,10,13,15,17,19,20,22],A), deltaStyle:dStyle(true)},
+    ];
+
+    const suggestBadge='font-size:12px;font-weight:550;color:#047B5D;background:#CDFED4;border-radius:8px;padding:2px 9px;font-variant-numeric:tabular-nums;';
+    const chips=[
+      {label:'Create a post-purchase funnel', badge:'+$2.1K/mo est.', dotStyle:'display:none;', badgeStyle:suggestBadge},
+      {label:'Add trust badges to checkout', badge:'+0.4 pts est.', dotStyle:'display:none;', badgeStyle:suggestBadge},
+      {label:'Set up a shipping upsell', badge:'+$1.3K/mo est.', dotStyle:'display:none;', badgeStyle:suggestBadge},
+    ];
+
+    const revTotal=65750;
+    const srcRaw=[
+      {name:'Upsells', value:28400, color:'#0F5C3C'},
+      {name:'Discount codes', value:31500, color:'#1F8A5B'},
+      {name:'Assisted / influenced', value:5850, color:'#C9CCD0'},
+    ];
+    const revSources=srcRaw.map(s=>({name:s.name, valueLabel:this.money(s.value), pctLabel:(s.value/revTotal*100).toFixed(0)+'%', barStyle:'height:100%;width:'+(s.value/revTotal*100).toFixed(1)+'%;background:'+s.color+';', dotStyle:'width:10px;height:10px;border-radius:3px;background:'+s.color+';flex-shrink:0;'}));
+
+    const FUNNEL={
+      'All sessions':{steps:[17958,12391,8922,6524,5154], caption:'31% of sessions never get past contact — the single biggest leak in the funnel.'},
+      'Mobile':{steps:[11134,6903,4693,3238,2450], caption:'Mobile loses 38% at contact — 1.9× desktop. Express checkout matters most here.'},
+      'Desktop':{steps:[6824,5459,4258,3280,2704], caption:'Desktop converts 39.6% — your checkout works when typing is easy.'},
+      'Express pay':{steps:[3412,3139,2825,2683,2456], caption:'Express sessions convert 72% — 3.9× manual checkout. Every shopper moved to express is a win.'},
+    };
+    const STEP_LABELS=['Checkout started','Contact submitted','Shipping selected','Payment reached','Order placed'];
+    const fseg=this.state.funnelSeg;
+    const funnelSegs=Object.keys(FUNNEL).map(label=>({
+      label,
+      onClick:()=>this.setState({funnelSeg:label}),
+      style:'font-family:inherit;font-size:12px;font-weight:'+(label===fseg?'650':'550')+';color:'+(label===fseg?'#303030':'#616161')+';background:'+(label===fseg?'#F1F1F1':'transparent')+';border:none;border-radius:8px;padding:5px 10px;cursor:pointer;'
+    }));
+    const fdata=FUNNEL[fseg];
+    const funnelSteps=fdata.steps.map((n,i)=>{
+      const pct=n/fdata.steps[0]*100;
+      const dropPct=i===0?null:Math.round((1-n/fdata.steps[i-1])*100);
+      const last=i===fdata.steps.length-1;
+      return {
+        label:STEP_LABELS[i],
+        count:n.toLocaleString('en-US'),
+        barStyle:'position:absolute;left:0;top:0;bottom:0;border-radius:6px;width:'+pct.toFixed(1)+'%;background:'+(last?'#047B5D':'#303030')+';opacity:'+(last?'1':(0.9-i*0.14).toFixed(2))+';',
+        drop:dropPct===null?'':'−'+dropPct+'%',
+        dropStyle:'font-size:12px;font-weight:550;font-variant-numeric:tabular-nums;width:44px;text-align:right;color:'+(dropPct>=30?'var(--p-color-text-critical)':'#8A8A8A')+';',
+      };
+    });
+
+    const bl=[
+      {name:'Shipping upsell - EU', type:'Upsell block', impr:8600, rev:11200, conv:'5.4%'},
+      {name:'Shipping upsell - US/CA', type:'Upsell block', impr:6900, rev:9400, conv:'4.8%'},
+      {name:'Cartline upsell', type:'Upsell block', impr:5400, rev:7800, conv:'4.1%'},
+      {name:'Auto Add to Cart', type:'Auto add', impr:4500, rev:5300, conv:'3.6%'},
+      {name:'Care kit upsell', type:'Post-purchase funnel', impr:2200, rev:4100, conv:'6.2%'},
+      {name:'Coffee grinder add-on', type:'Post-purchase funnel', impr:1700, rev:2900, conv:'4.7%'},
+    ];
+    const blocks=bl.map(b=>({name:b.name, type:b.type, impr:this.fmt(b.impr), rev:this.money(b.rev), conv:b.conv}));
+
+    const expRaw=[
+      {name:'Shipping upsell - EU · offer copy', status:'Running',
+       variants:[{key:'A',label:'“Free returns included”',conv:5.1},{key:'B',label:'“Arrives before Jul 12”',conv:5.8}],
+       meta:'4,210 sessions · B leading +0.7 pts · not yet significant'},
+      {name:'Trust badges · placement', status:'Winner applied',
+       variants:[{key:'A',label:'Below order summary',conv:27.9},{key:'B',label:'On payment step',conv:29.1}],
+       meta:'B won · +1.2 pts completion · applied Jun 18'},
+    ];
+    const experiments=expRaw.map(e=>{
+      const max=Math.max(...e.variants.map(v=>v.conv));
+      return {name:e.name, status:e.status, meta:e.meta,
+        statusStyle: e.status==='Running'
+          ? 'font-size:12px;font-weight:550;color:#005BD3;background:#F0F2FF;border-radius:8px;padding:2px 8px;white-space:nowrap;'
+          : 'font-size:12px;font-weight:550;color:#047B5D;background:#CDFED4;border-radius:8px;padding:2px 8px;white-space:nowrap;',
+        variants:e.variants.map(v=>({key:v.key, label:v.label, conv:v.conv.toFixed(1)+'%',
+          barStyle:'height:100%;border-radius:999px;background:'+(v.conv===max?'#1F8A5B':'#C9CCD0')+';width:'+(v.conv/max*100).toFixed(0)+'%;'}))};
+    });
+
+    const cd=[
+      {code:'WELCOME10', method:'Code', rev:11600, used:232},
+      {code:'CJ2Z2XO5OX', method:'Code', rev:9400, used:188},
+      {code:'FREESHIP65', method:'Automatic', rev:7200, used:360},
+      {code:'BUNDLE15', method:'Code', rev:3300, used:84},
+    ];
+    const codes=cd.map(c=>({code:c.code, method:c.method, rev:this.money(c.rev), used:this.fmt(c.used)}));
+
+    const health=isNew?34:82, C=2*Math.PI*52;
+
+    // Upsell revenue since install — a counted, app-attributed total (no store-wide inference)
+    const upsellRevTotal=156200;
+    const planCost=this.props.planCostSinceInstall ?? 545;
+    const roiX=planCost>0 ? Math.round(upsellRevTotal/planCost) : 0;
+    const healthFactors=(isNew?[
+      {label:'App embedded in checkout', ok:true},
+      {label:'Express checkout not configured', ok:false},
+      {label:'No checkout blocks added yet', ok:false},
+      {label:'Post-purchase funnel not set up', ok:false},
+      {label:'No active discounts', ok:false},
+    ]:[
+      {label:'Express checkout enabled', ok:true},
+      {label:'Free-shipping bar is live', ok:true},
+      {label:'Trust badges on payment step', ok:true},
+      {label:'Post-purchase funnel incomplete', ok:false},
+      {label:'1 discount code failing', ok:false},
+    ]).map(f=>({label:f.label, labelStyle:'font-size:13px;line-height:18px;color:'+(f.ok?'#303030':'#616161')+';',
+      iconStyle:'width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:700;color:#fff;background:'+(f.ok?'#047B5D':'#B98900')+';',
+      mark:f.ok?'\u2713':'!'}));
+
+    const cur=this.state.dateRange;
+    const rangePresets=['Today','Last 7 days','Last 30 days','Last 90 days','Last 12 months'];
+    const rangeOptions=rangePresets.map(label=>({
+      label,
+      onClick:()=>this.setState({dateRange:label, rangeOpen:false}),
+      style:'display:flex;align-items:center;justify-content:space-between;width:100%;text-align:left;font-family:inherit;background:'+(label===cur?'#F1F1F1':'transparent')+';border:none;border-radius:8px;padding:8px 10px;cursor:pointer;',
+      checkStyle:'font-size:12px;color:#047B5D;font-weight:700;visibility:'+(label===cur?'visible':'hidden')+';'
+    }));
+    const fmtDay=(s)=>{const d=new Date(s+'T00:00:00'); return d.toLocaleDateString('en-US',{month:'short',day:'numeric'});};
+    const setCustomFrom=(e)=>this.setState({customFrom:e.target.value});
+    const setCustomTo=(e)=>this.setState({customTo:e.target.value});
+    const applyCustom=()=>{ const f=this.state.customFrom, t=this.state.customTo; if(!f||!t) return; this.setState({dateRange:fmtDay(f)+' \u2013 '+fmtDay(t), rangeOpen:false}); };
+
+    const installD=new Date((this.props.installDate ?? '2026-02-12')+'T00:00:00');
+    const installLabel=isNew
+      ? 'today, '+new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})
+      : (isNaN(installD)?'Feb 12, 2026':installD.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}));
+
+    return {
+      installLabel,
+      dateRange:cur, rangeOpen:this.state.rangeOpen, rangeOptions, setCustomFrom, setCustomTo, applyCustom,
+      openRange:()=>this.setState({rangeOpen:true}),
+      closeRange:()=>this.setState({rangeOpen:false}),
+      period, showCompare:showCmp, isNew, isActive:!isNew,
+      baseline:[
+        {label:'Checkout conversion', value:'26.2%'},
+        {label:'Upsell revenue', value:this.money(0)},
+        {label:'Revenue per session', value:this.money2(15.69)},
+      ],
+      upsellRevenueTotal:this.money(isNew?0:upsellRevTotal),
+      trendCards:[
+        {label:'Upsell revenue', value:this.money(isNew?0:upsellRevTotal), delta:(isNew?0:roiX)+'\u00D7 ROI',
+         hasFrom:false, before:'',
+         tipLabel:'About upsell revenue', tipText:'Revenue from offers Checkout Boost showed at checkout and customers accepted. ROI compares it to your plan fees since install.',
+         tipLeft:this.state.tip==='upsell', tipRight:false, tipOn:()=>this.setState({tip:'upsell'})},
+        {label:'Checkout conversion', value:'28.7%', delta:'+2.5 pts',
+         hasFrom:true, before:'26.2%',
+         tipLabel:'About checkout conversion', tipText:'Share of checkout sessions that completed an order. This is a store-wide number, so Checkout Boost is one of several things moving it.',
+         tipLeft:this.state.tip==='conversion', tipRight:false, tipOn:()=>this.setState({tip:'conversion'})},
+        {label:'Revenue per session', value:this.money2(18.66), delta:'+18.9%',
+         hasFrom:true, before:this.money2(15.69),
+         tipLabel:'About revenue per session', tipText:'Total store revenue divided by checkout sessions. Traffic mix and seasonality shift this alongside Checkout Boost.',
+         tipLeft:false, tipRight:this.state.tip==='rps', tipOn:()=>this.setState({tip:'rps'})},
+      ],
+      upsellTipOpen:this.state.tip==='upsell',
+      upsellTipOn:()=>this.setState({tip:'upsell'}),
+      upsellTipOff:()=>this.setState({tip:null}),
+      tipRevenue:this.state.tip==='revenue',
+      tipOnRevenue:()=>this.setState({tip:'revenue'}),
+      tipExperiments:this.state.tip==='experiments',
+      tipOnExperiments:()=>this.setState({tip:'experiments'}),
+      tipOff:()=>this.setState({tip:null}),
+      upsellRoi:(isNew?0:roiX)+'\u00D7',
+      revChart:this.buildRevChart(), heroGrid:this.buildHeroGrid(),
+      heroKpis, chips,
+      heroValue:this.money(isNew?0:65750), heroDelta:'18%',
+      revTotalLabel:this.money(isNew?0:revTotal), revDelta:'+18%', revSources,
+      funnelSegs, funnelSteps, funnelCaption:fdata.caption,
+      insights:[
+        {label:'Checkout conversion', before:'26.2%', after:'28.7%', delta:'+2.5 pts',
+         tipLabel:'About checkout conversion', tipText:'Share of checkout sessions that completed an order. This is a store-wide number, so Checkout Boost is one of several things moving it.',
+         tipLeft:this.state.tip==='conversion', tipRight:false, tipOn:()=>this.setState({tip:'conversion'})},
+        {label:'Revenue per session', before:this.money2(15.69), after:this.money2(18.66), delta:'+18.9%',
+         tipLabel:'About revenue per session', tipText:'Total store revenue divided by checkout sessions. Traffic mix and seasonality shift this alongside Checkout Boost.',
+         tipLeft:false, tipRight:this.state.tip==='rps', tipOn:()=>this.setState({tip:'rps'})},
+      ],
+      insightOps: isNew?[
+        {label:'Active validation rules', value:'0'},
+        {label:'Risky checkouts blocked', value:'0'},
+      ]:[
+        {label:'Active validation rules', value:this.fmt(4)},
+        {label:'Risky checkouts blocked', value:this.fmt(142)},
+      ],
+      blocks, experiments, codes,
+      blockedLabel:isNew?'0':this.fmt(142),
+      validationRules:[
+        {name:'Block PO Box addresses', scope:'Address \u00B7 all countries', blocked:this.fmt(61)},
+        {name:'Unsupported shipping country', scope:'Geographic \u00B7 12 countries', blocked:this.fmt(38)},
+        {name:'ZIP/Postal code format', scope:'Address \u00B7 US, CA, GB', blocked:this.fmt(27)},
+        {name:'Suspicious email pattern', scope:'Fraud & risk \u00B7 all checkouts', blocked:this.fmt(16)},
+      ],
+      healthScore:health, healthTier:'Advanced', healthColor:health>=60?'#047B5D':'#B98900', healthDash:(health/100*C).toFixed(1)+' '+C.toFixed(1), healthFactors,
+    };
+  }
+}
+</script>
+</body>
+</html>

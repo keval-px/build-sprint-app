@@ -1,0 +1,368 @@
+/* ============================================================================
+   Shopify Polaris Design System — colors, type, spacing, shadows, motion
+   Token names match @shopify/polaris-tokens (CSS custom property layer).
+   --p-* prefix is preserved so Polaris components can drop in without rewiring.
+   ============================================================================ */
+
+/* ---------- Webfont: Inter (variable) ---------- */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('fonts/InterVariable.woff2') format('woff2-variations'),
+       url('fonts/InterVariable.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: italic;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('fonts/InterVariable-Italic.woff2') format('woff2-variations'),
+       url('fonts/InterVariable-Italic.woff2') format('woff2');
+}
+
+:root {
+  /* ====================================================================
+     COLOR — semantic tokens (mirrors @shopify/polaris-tokens, light theme)
+     ==================================================================== */
+
+  /* Surfaces / backgrounds */
+  --p-color-bg: rgba(241, 241, 241, 1);
+  --p-color-bg-inverse: rgba(26, 26, 26, 1);
+  --p-color-bg-surface: rgba(255, 255, 255, 1);
+  --p-color-bg-surface-hover: rgba(247, 247, 247, 1);
+  --p-color-bg-surface-active: rgba(243, 243, 243, 1);
+  --p-color-bg-surface-selected: rgba(241, 241, 241, 1);
+  --p-color-bg-surface-secondary: rgba(247, 247, 247, 1);
+  --p-color-bg-surface-secondary-hover: rgba(241, 241, 241, 1);
+  --p-color-bg-surface-secondary-active: rgba(235, 235, 235, 1);
+  --p-color-bg-surface-tertiary: rgba(243, 243, 243, 1);
+  --p-color-bg-surface-brand: rgba(227, 227, 227, 1);
+
+  /* Status surfaces */
+  --p-color-bg-surface-info: rgba(234, 244, 255, 1);
+  --p-color-bg-surface-success: rgba(205, 254, 212, 1);
+  --p-color-bg-surface-caution: rgba(255, 248, 219, 1);
+  --p-color-bg-surface-warning: rgba(255, 241, 227, 1);
+  --p-color-bg-surface-critical: rgba(254, 232, 235, 1);
+  --p-color-bg-surface-emphasis: rgba(240, 242, 255, 1);
+  --p-color-bg-surface-magic: rgba(248, 247, 255, 1);
+  --p-color-bg-surface-inverse: rgba(48, 48, 48, 1);
+
+  /* Fills (smaller surfaces — buttons, badges) */
+  --p-color-bg-fill: rgba(255, 255, 255, 1);
+  --p-color-bg-fill-hover: rgba(250, 250, 250, 1);
+  --p-color-bg-fill-active: rgba(247, 247, 247, 1);
+  --p-color-bg-fill-selected: rgba(204, 204, 204, 1);
+  --p-color-bg-fill-disabled: rgba(0, 0, 0, 0.05);
+  --p-color-bg-fill-secondary: rgba(241, 241, 241, 1);
+  --p-color-bg-fill-secondary-hover: rgba(235, 235, 235, 1);
+  --p-color-bg-fill-secondary-active: rgba(227, 227, 227, 1);
+  --p-color-bg-fill-tertiary: rgba(227, 227, 227, 1);
+
+  --p-color-bg-fill-brand: rgba(48, 48, 48, 1);
+  --p-color-bg-fill-brand-hover: rgba(26, 26, 26, 1);
+  --p-color-bg-fill-brand-active: rgba(26, 26, 26, 1);
+  --p-color-bg-fill-brand-disabled: rgba(0, 0, 0, 0.17);
+
+  --p-color-bg-fill-info: rgba(145, 208, 255, 1);
+  --p-color-bg-fill-success: rgba(4, 123, 93, 1);
+  --p-color-bg-fill-warning: rgba(255, 184, 0, 1);
+  --p-color-bg-fill-caution: rgba(255, 230, 0, 1);
+  --p-color-bg-fill-critical: rgba(199, 10, 36, 1);
+  --p-color-bg-fill-critical-secondary: rgba(254, 209, 215, 1);
+  --p-color-bg-fill-emphasis: rgba(0, 91, 211, 1);
+  --p-color-bg-fill-magic: rgba(128, 81, 255, 1);
+  --p-color-bg-fill-magic-secondary: rgba(233, 229, 255, 1);
+  --p-color-bg-fill-inverse: rgba(48, 48, 48, 1);
+  --p-color-bg-fill-transparent: rgba(0, 0, 0, 0.02);
+  --p-color-bg-fill-transparent-hover: rgba(0, 0, 0, 0.05);
+  --p-color-bg-fill-transparent-active: rgba(0, 0, 0, 0.08);
+
+  /* Text */
+  --p-color-text: rgba(48, 48, 48, 1);
+  --p-color-text-secondary: rgba(97, 97, 97, 1);
+  --p-color-text-disabled: rgba(181, 181, 181, 1);
+  --p-color-text-link: rgba(0, 91, 211, 1);
+  --p-color-text-link-hover: rgba(0, 66, 153, 1);
+  --p-color-text-brand: rgba(74, 74, 74, 1);
+  --p-color-text-brand-on-bg-fill: rgba(255, 255, 255, 1);
+  --p-color-text-info: rgba(0, 58, 90, 1);
+  --p-color-text-success: rgba(1, 75, 64, 1);
+  --p-color-text-caution: rgba(79, 71, 0, 1);
+  --p-color-text-warning: rgba(94, 66, 0, 1);
+  --p-color-text-critical: rgba(142, 11, 33, 1);
+  --p-color-text-emphasis: rgba(0, 91, 211, 1);
+  --p-color-text-magic: rgba(87, 0, 209, 1);
+  --p-color-text-inverse: rgba(227, 227, 227, 1);
+  --p-color-text-inverse-secondary: rgba(181, 181, 181, 1);
+
+  /* Borders */
+  --p-color-border: rgba(227, 227, 227, 1);
+  --p-color-border-hover: rgba(204, 204, 204, 1);
+  --p-color-border-disabled: rgba(235, 235, 235, 1);
+  --p-color-border-secondary: rgba(235, 235, 235, 1);
+  --p-color-border-tertiary: rgba(204, 204, 204, 1);
+  --p-color-border-focus: rgba(0, 91, 211, 1);
+  --p-color-border-info: rgba(168, 216, 255, 1);
+  --p-color-border-success: rgba(146, 252, 172, 1);
+  --p-color-border-caution: rgba(255, 235, 120, 1);
+  --p-color-border-warning: rgba(255, 200, 121, 1);
+  --p-color-border-critical: rgba(254, 193, 199, 1);
+  --p-color-border-emphasis: rgba(0, 91, 211, 1);
+  --p-color-border-magic: rgba(228, 222, 255, 1);
+  --p-color-border-inverse: rgba(97, 97, 97, 1);
+
+  /* Icons */
+  --p-color-icon: rgba(74, 74, 74, 1);
+  --p-color-icon-hover: rgba(48, 48, 48, 1);
+  --p-color-icon-active: rgba(26, 26, 26, 1);
+  --p-color-icon-secondary: rgba(138, 138, 138, 1);
+  --p-color-icon-disabled: rgba(204, 204, 204, 1);
+  --p-color-icon-brand: rgba(26, 26, 26, 1);
+  --p-color-icon-info: rgba(0, 148, 213, 1);
+  --p-color-icon-success: rgba(4, 123, 93, 1);
+  --p-color-icon-caution: rgba(153, 138, 0, 1);
+  --p-color-icon-warning: rgba(178, 132, 0, 1);
+  --p-color-icon-critical: rgba(226, 44, 56, 1);
+  --p-color-icon-emphasis: rgba(0, 91, 211, 1);
+  --p-color-icon-magic: rgba(128, 81, 255, 1);
+  --p-color-icon-inverse: rgba(227, 227, 227, 1);
+
+  /* Inputs / nav (component-scoped) */
+  --p-color-input-bg-surface: rgba(253, 253, 253, 1);
+  --p-color-input-bg-surface-hover: rgba(250, 250, 250, 1);
+  --p-color-input-border: rgba(138, 138, 138, 1);
+  --p-color-input-border-hover: rgba(97, 97, 97, 1);
+  --p-color-input-border-active: rgba(26, 26, 26, 1);
+  --p-color-nav-bg: rgba(235, 235, 235, 1);
+  --p-color-nav-bg-surface-hover: rgba(241, 241, 241, 1);
+  --p-color-nav-bg-surface-selected: rgba(250, 250, 250, 1);
+
+  /* Avatars (deterministic 7-color palette) */
+  --p-color-avatar-bg-fill: rgba(181, 181, 181, 1);
+  --p-color-avatar-one-bg-fill: rgba(197, 48, 197, 1);
+  --p-color-avatar-two-bg-fill: rgba(82, 244, 144, 1);
+  --p-color-avatar-three-bg-fill: rgba(44, 224, 212, 1);
+  --p-color-avatar-four-bg-fill: rgba(81, 192, 255, 1);
+  --p-color-avatar-five-bg-fill: rgba(253, 75, 146, 1);
+  --p-color-avatar-six-bg-fill: rgba(37, 232, 43, 1);
+  --p-color-avatar-seven-bg-fill: rgba(148, 116, 255, 1);
+
+  /* Backdrop / scrim */
+  --p-color-backdrop-bg: rgba(0, 0, 0, 0.71);
+
+  /* Brand mark green (logo only — NOT used for primary buttons) */
+  --p-color-brand-shopify-green: #008060;
+
+  /* ====================================================================
+     TYPOGRAPHY
+     ==================================================================== */
+
+  --p-font-family-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+                       Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --p-font-family-mono: ui-monospace, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+
+  /* Font sizes (px) */
+  --p-font-size-275: 11px;
+  --p-font-size-300: 12px;
+  --p-font-size-325: 13px;  /* default body in v11 */
+  --p-font-size-350: 14px;
+  --p-font-size-400: 16px;
+  --p-font-size-500: 20px;
+  --p-font-size-600: 24px;
+  --p-font-size-750: 30px;
+  --p-font-size-800: 32px;
+  --p-font-size-1000: 40px;
+
+  /* Line heights */
+  --p-font-line-height-300: 16px;
+  --p-font-line-height-400: 20px;
+  --p-font-line-height-500: 24px;
+  --p-font-line-height-600: 28px;
+  --p-font-line-height-700: 32px;
+  --p-font-line-height-800: 36px;
+  --p-font-line-height-1000: 44px;
+
+  /* Weights */
+  --p-font-weight-regular: 400;
+  --p-font-weight-medium: 500;
+  --p-font-weight-semibold: 600;
+  --p-font-weight-bold: 650;
+
+  /* Letter spacing */
+  --p-font-letter-spacing-densest: -0.04em;
+  --p-font-letter-spacing-denser: -0.02em;
+  --p-font-letter-spacing-dense: -0.01em;
+  --p-font-letter-spacing-normal: 0;
+
+  /* ====================================================================
+     SPACING (4px base)
+     ==================================================================== */
+  --p-space-0: 0;
+  --p-space-025: 1px;
+  --p-space-050: 2px;
+  --p-space-100: 4px;
+  --p-space-150: 6px;
+  --p-space-200: 8px;
+  --p-space-300: 12px;
+  --p-space-400: 16px;
+  --p-space-500: 20px;
+  --p-space-600: 24px;
+  --p-space-800: 32px;
+  --p-space-1000: 40px;
+  --p-space-1200: 48px;
+  --p-space-1600: 64px;
+  --p-space-2000: 80px;
+  --p-space-2400: 96px;
+  --p-space-3200: 128px;
+
+  /* ====================================================================
+     BORDER RADIUS
+     ==================================================================== */
+  --p-border-radius-050: 2px;
+  --p-border-radius-100: 4px;
+  --p-border-radius-150: 6px;
+  --p-border-radius-200: 8px;
+  --p-border-radius-300: 12px;   /* card default */
+  --p-border-radius-400: 16px;
+  --p-border-radius-500: 20px;
+  --p-border-radius-full: 9999px;
+
+  /* ====================================================================
+     BORDER WIDTH
+     ==================================================================== */
+  --p-border-width-025: 1px;     /* default */
+  --p-border-width-050: 2px;
+  --p-border-width-100: 4px;
+
+  /* ====================================================================
+     SHADOWS — soft, low, tinted neutrals
+     ==================================================================== */
+  --p-shadow-100: 0 1px 0 rgba(0, 0, 0, 0.05);
+  --p-shadow-200: 0 3px 6px -3px rgba(0, 0, 0, 0.08), 0 1px 0 rgba(0, 0, 0, 0.05);
+  --p-shadow-300: 0 4px 12px -4px rgba(0, 0, 0, 0.12), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  --p-shadow-400: 0 12px 24px -12px rgba(0, 0, 0, 0.16), 0 6px 12px -6px rgba(0, 0, 0, 0.08);
+  --p-shadow-500: 0 24px 48px -16px rgba(0, 0, 0, 0.2);
+
+  /* Signature Polaris primary-button inner shadow */
+  --p-shadow-button-primary: inset 0 -1px 0 rgba(0, 0, 0, 0.2),
+                             0 1px 0 rgba(0, 0, 0, 0.05);
+  --p-shadow-button-primary-inset: inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  --p-shadow-bevel-100: inset 0 -1px 0 rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.05);
+
+  /* Focus ring */
+  --p-focus-ring: 0 0 0 1px rgba(255, 255, 255, 1),
+                  0 0 0 3px var(--p-color-border-focus);
+
+  /* ====================================================================
+     MOTION
+     ==================================================================== */
+  --p-motion-duration-50: 50ms;
+  --p-motion-duration-100: 100ms;
+  --p-motion-duration-150: 150ms;
+  --p-motion-duration-200: 200ms;
+  --p-motion-duration-250: 250ms;
+  --p-motion-duration-300: 300ms;
+  --p-motion-duration-500: 500ms;
+
+  --p-motion-ease: cubic-bezier(0.25, 0.1, 0.25, 1);
+  --p-motion-ease-in: cubic-bezier(0.42, 0, 1, 1);
+  --p-motion-ease-out: cubic-bezier(0, 0, 0.58, 1);
+  --p-motion-ease-in-out: cubic-bezier(0.42, 0, 0.58, 1);
+
+  /* ====================================================================
+     Z-INDEX
+     ==================================================================== */
+  --p-z-1: 100;
+  --p-z-2: 400;
+  --p-z-3: 510;
+  --p-z-4: 512;
+  --p-z-modal: 519;
+  --p-z-toast: 520;
+
+  /* ====================================================================
+     SEMANTIC ALIASES (so authors can write h1, body, code naturally)
+     ==================================================================== */
+  --p-fg: var(--p-color-text);
+  --p-fg-secondary: var(--p-color-text-secondary);
+  --p-bg: var(--p-color-bg);
+  --p-surface: var(--p-color-bg-surface);
+}
+
+/* ====================================================================
+   BASE TYPOGRAPHY (semantic element styles)
+   ==================================================================== */
+html {
+  font-family: var(--p-font-family-sans);
+  font-size: var(--p-font-size-325);
+  line-height: var(--p-font-line-height-400);
+  color: var(--p-color-text);
+  background: var(--p-color-bg);
+  font-feature-settings: 'cv11', 'ss03', 'tnum';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body { margin: 0; }
+
+h1, .p-heading-2xl {
+  font-size: var(--p-font-size-800);
+  line-height: var(--p-font-line-height-800);
+  font-weight: var(--p-font-weight-bold);
+  letter-spacing: var(--p-font-letter-spacing-dense);
+  color: var(--p-color-text);
+  margin: 0;
+}
+h2, .p-heading-xl {
+  font-size: var(--p-font-size-600);
+  line-height: var(--p-font-line-height-700);
+  font-weight: var(--p-font-weight-bold);
+  letter-spacing: var(--p-font-letter-spacing-dense);
+  margin: 0;
+}
+h3, .p-heading-lg {
+  font-size: var(--p-font-size-500);
+  line-height: var(--p-font-line-height-600);
+  font-weight: var(--p-font-weight-bold);
+  margin: 0;
+}
+h4, .p-heading-md {
+  font-size: var(--p-font-size-400);
+  line-height: var(--p-font-line-height-500);
+  font-weight: var(--p-font-weight-bold);
+  margin: 0;
+}
+h5, .p-heading-sm {
+  font-size: var(--p-font-size-350);
+  line-height: var(--p-font-line-height-400);
+  font-weight: var(--p-font-weight-bold);
+  margin: 0;
+}
+h6, .p-heading-xs {
+  font-size: var(--p-font-size-300);
+  line-height: var(--p-font-line-height-300);
+  font-weight: var(--p-font-weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0;
+}
+
+.p-body-lg { font-size: var(--p-font-size-400); line-height: var(--p-font-line-height-500); }
+.p-body-md, p { font-size: var(--p-font-size-325); line-height: var(--p-font-line-height-400); margin: 0; }
+.p-body-sm { font-size: var(--p-font-size-300); line-height: var(--p-font-line-height-300); }
+.p-body-xs { font-size: var(--p-font-size-275); line-height: var(--p-font-line-height-300); }
+
+code, kbd, samp, pre, .p-code {
+  font-family: var(--p-font-family-mono);
+  font-size: 0.92em;
+  background: var(--p-color-bg-surface-secondary);
+  padding: 2px 6px;
+  border-radius: var(--p-border-radius-100);
+  border: 1px solid var(--p-color-border);
+}
+pre { padding: var(--p-space-400); overflow-x: auto; }
+
+a { color: var(--p-color-text-link); text-decoration: none; }
+a:hover { color: var(--p-color-text-link-hover); text-decoration: underline; }

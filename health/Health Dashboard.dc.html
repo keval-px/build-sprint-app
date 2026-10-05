@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="_ds/ShopifyPolarisDesignSystem_019df8/colors_and_type.css">
+  <script src="_ds/ShopifyPolarisDesignSystem_019df8/polaris-web-components.js"></script>
+  <script src="_ds/ShopifyPolarisDesignSystem_019df8/polaris-web-components-forms.js?v=2"></script>
+  <style>
+    body { margin: 0; background: #F1F1F1; }
+    ::selection { background: #B3D7FF; }
+  </style>
+</helmet>
+
+<div style="min-height:100vh;font-family:var(--p-font-family-sans);color:var(--p-color-text);background:#F1F1F1;">
+<div style="max-width:1080px;margin:0 auto;">
+<s-page fullwidth="" heading="Checkout overview" subtitle="Maple &amp; Stone · Updated Jun 5, 2026, 9:04 am">
+  <div slot="secondary-actions" style="position:relative;">
+    <button onClick="{{ toggleRange }}" style="display:flex;align-items:center;gap:8px;font-family:inherit;font-size:12px;font-weight:550;color:#303030;background:#fff;border:none;border-radius:8px;padding:7px 12px;cursor:pointer;box-shadow:var(--p-shadow-button);" style-hover="background:#FAFAFA;">
+      <span style="font-variant-numeric:tabular-nums;">{{ dateRange }}</span>
+      <svg width="11" height="11" viewBox="0 0 20 20" fill="none" style="flex-shrink:0;"><path d="M5 7.5L10 12.5L15 7.5" stroke="#8A8A8A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+    </button>
+    <sc-if value="{{ rangeOpen }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute;top:100%;right:0;margin-top:6px;width:200px;background:#fff;border-radius:12px;box-shadow:var(--p-shadow-300), var(--p-shadow-bevel-100);padding:6px;z-index:40;display:flex;flex-direction:column;gap:2px;">
+        <sc-for list="{{ rangeOptions }}" as="o" hint-placeholder-count="5">
+          <button onClick="{{ o.onClick }}" style="{{ o.style }}" style-hover="background:#F7F7F7;">
+            <span style="font-size:13px;color:#303030;">{{ o.label }}</span>
+            <span style="{{ o.checkStyle }}"><svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M4.5 10.5L8.5 14L15.5 6.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>
+          </button>
+        </sc-for>
+      </div>
+    </sc-if>
+  </div>
+
+  <!-- ============ Tabs ============ -->
+  <div style="display:flex;align-items:center;gap:4px;">
+    <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="2">
+      <button onClick="{{ t.onClick }}" style="{{ t.style }}">{{ t.label }}</button>
+    </sc-for>
+  </div>
+
+  <sc-if value="{{ showOverview }}" hint-placeholder-val="{{ true }}">
+  <div style="display:flex;flex-direction:column;gap:16px;">
+  <!-- ============ Summary (dark hero) ============ -->
+  <div data-screen-label="Summary" style="background:#1A1A1A;border-radius:12px;padding:24px 28px;display:flex;flex-direction:column;gap:20px;box-shadow:var(--p-shadow-100);">
+    <div style="display:grid;grid-template-columns:1.55fr 1fr;gap:28px;">
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <span style="font-size:12px;line-height:16px;color:#B5B5B5;">Revenue lost to abandonment · {{ rangeDates }}</span>
+        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+          <span style="font-size:42px;line-height:48px;font-weight:700;letter-spacing:-0.54px;color:#FFFFFF;font-variant-numeric:tabular-nums;">{{ lostLabel }}</span>
+          <span style="display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:550;color:#FFC453;background:rgba(255,184,0,0.14);border-radius:8px;padding:4px 11px;"><span style="width:7px;height:7px;border-radius:999px;background:#FFB800;"></span>Health 62 · Needs attention</span>
+        </div>
+        <p style="margin:0;font-size:13px;line-height:20px;color:#B5B5B5;max-width:52ch;text-wrap:pretty;"><span style="font-weight:650;color:#FFFFFF;">Part of this is winnable.</span> 31% of shoppers leave at the contact step — enabling express checkout there could recover an estimated <span style="font-weight:650;color:#FFFFFF;">$16,500 a month</span>. Your three biggest opportunities are below.</p>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:8px;">
+          <button onClick="{{ scrollToInsights }}" style="font-family:inherit;font-size:12px;font-weight:650;color:#1A1A1A;background:#FFFFFF;border:none;border-radius:8px;padding:9px 16px;cursor:pointer;" style-hover="background:#EBEBEB;">Review opportunities</button>
+          <button onClick="{{ goToDrilldown }}" style="font-family:inherit;font-size:12px;font-weight:550;color:#FFFFFF;background:transparent;border:none;border-radius:8px;padding:9px 16px;cursor:pointer;box-shadow:inset 0 0 0 1px rgba(255,255,255,0.28);" style-hover="background:rgba(255,255,255,0.08);">View full drilldown</button>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:14px;border-left:1px solid rgba(255,255,255,0.14);padding-left:28px;">
+        <span style="font-size:12px;line-height:16px;color:#B5B5B5;">Of 17,958 checkout sessions</span>
+        <div style="display:flex;align-items:center;gap:18px;">
+          <div style="position:relative;width:108px;height:108px;flex-shrink:0;">
+            <svg width="108" height="108" viewBox="0 0 108 108" style="display:block;transform:rotate(-90deg);">
+              <circle cx="54" cy="54" r="48" fill="none" stroke="rgba(255,255,255,0.16)" stroke-width="10"></circle>
+              <circle cx="54" cy="54" r="48" fill="none" stroke="#36C98E" stroke-width="10" stroke-linecap="round" stroke-dasharray="{{ donutDash }}"></circle>
+            </svg>
+            <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+              <span style="font-size:19px;line-height:20px;font-weight:700;color:#FFFFFF;font-variant-numeric:tabular-nums;">28.7%</span>
+              <span style="font-size:11px;color:#B5B5B5;">converted</span>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <span style="display:flex;align-items:center;gap:8px;font-size:12px;color:#B5B5B5;"><span style="width:10px;height:10px;border-radius:3px;background:#36C98E;flex-shrink:0;"></span><span style="font-weight:650;color:#FFFFFF;font-variant-numeric:tabular-nums;">5,154</span>completed</span>
+            <span style="display:flex;align-items:center;gap:8px;font-size:12px;color:#B5B5B5;"><span style="width:10px;height:10px;border-radius:3px;background:rgba(255,255,255,0.28);flex-shrink:0;"></span><span style="font-weight:650;color:#FFFFFF;font-variant-numeric:tabular-nums;">12,804</span>abandoned</span>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div style="display:flex;align-items:baseline;justify-content:space-between;">
+            <span style="font-size:12px;color:#B5B5B5;">Abandonment rate</span>
+            <span style="font-size:13px;font-weight:650;color:#FFFFFF;font-variant-numeric:tabular-nums;">71.3% <span style="font-weight:450;color:#8A8A8A;">vs 74% avg</span></span>
+          </div>
+          <div style="position:relative;height:6px;border-radius:999px;background:rgba(255,255,255,0.14);">
+            <span style="position:absolute;left:0;top:0;bottom:0;width:71.3%;border-radius:999px;background:#36C98E;"></span>
+            <span style="position:absolute;left:74%;top:-2px;width:2px;height:10px;border-radius:1px;background:#FFFFFF;"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px;border-top:1px solid rgba(255,255,255,0.14);padding-top:16px;">
+      <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <span style="font-size:12px;color:#B5B5B5;">Where you can win it back</span>
+        <span style="font-size:12px;color:#B5B5B5;"><span style="font-weight:650;color:#6FDCA8;font-variant-numeric:tabular-nums;">~$27,000</span> est. recoverable / month</span>
+      </div>
+      <div style="display:flex;height:10px;border-radius:999px;overflow:hidden;background:rgba(255,255,255,0.10);">
+        <sc-for list="{{ recoverSegs }}" as="r" hint-placeholder-count="3"><span style="{{ r.barStyle }}"></span></sc-for>
+      </div>
+      <div style="display:flex;align-items:center;gap:22px;flex-wrap:wrap;">
+        <sc-for list="{{ recoverSegs }}" as="r" hint-placeholder-count="3">
+          <span style="display:inline-flex;align-items:center;gap:7px;font-size:12px;color:#B5B5B5;"><span style="{{ r.dotStyle }}"></span>{{ r.label }}<span style="font-weight:650;color:#FFFFFF;font-variant-numeric:tabular-nums;">{{ r.value }}</span></span>
+        </sc-for>
+      </div>
+      <p style="margin:0;font-size:11px;line-height:16px;color:#8A8A8A;width:100%;">Estimates apply industry benchmarks (Baymard Institute checkout research, Shopify express-checkout studies) to your traffic and order value. Actual results vary by store.</p>
+    </div>
+  </div>
+
+  <!-- ============ Metrics vs industry ============ -->
+  <div data-screen-label="Metrics vs industry" style="display:flex;flex-direction:column;gap:8px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:4px 2px 0;">
+      <span style="font-size:13px;font-weight:650;color:#303030;">Your metrics vs industry</span>
+      <span style="display:flex;align-items:center;gap:14px;font-size:11px;color:#8A8A8A;">
+        <span style="display:inline-flex;align-items:center;gap:6px;"><span style="width:16px;height:5px;border-radius:999px;background:#8A8A8A;"></span>Your store</span>
+        <span style="display:inline-flex;align-items:center;gap:6px;"><span style="width:2px;height:10px;border-radius:1px;background:#303030;"></span>Industry average</span>
+      </span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;">
+      <sc-for list="{{ kpis }}" as="k" hint-placeholder-count="3">
+        <div style="background:#fff;border-radius:12px;padding:16px 18px;box-shadow:var(--p-shadow-100), var(--p-shadow-bevel-100);display:flex;flex-direction:column;gap:6px;">
+          <span style="font-size:12px;color:var(--p-color-text-secondary);">{{ k.label }}</span>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+            <span style="font-size:24px;line-height:32px;font-weight:700;color:#1A1A1A;font-variant-numeric:tabular-nums;letter-spacing:-0.2px;">{{ k.value }}</span>
+            <span style="display:flex;flex-shrink:0;">{{ k.spark }}</span>
+          </div>
+          <div style="display:flex;align-items:baseline;gap:7px;">
+            <span style="{{ k.deltaStyle }}">{{ k.delta }}</span>
+            <span style="font-size:11px;color:#8A8A8A;">{{ k.deltaNote }}</span>
+          </div>
+          <div style="{{ k.benchStyle }}">
+            <div style="display:flex;align-items:center;gap:8px;">
+              
+              <span style="font-size:11px;color:#8A8A8A;">{{ k.benchNote }}</span>
+            </div>
+            <div style="position:relative;height:6px;border-radius:999px;background:#F1F1F1;">
+              <span style="{{ k.benchFillStyle }}"></span>
+              <span style="{{ k.benchMarkStyle }}"></span>
+            </div>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <!-- ============ Insights & recommendations ============ -->
+  <div id="insights" data-screen-label="Insights" style="display:flex;flex-direction:column;gap:8px;">
+    <div style="display:flex;align-items:baseline;justify-content:space-between;padding:4px 2px 0;">
+      <span style="font-size:13px;font-weight:650;color:#303030;">Insights &amp; recommendations</span>
+      <span style="font-size:12px;color:var(--p-color-text-secondary);">Ranked by revenue impact · <span style="font-weight:650;color:var(--p-color-text-success);font-variant-numeric:tabular-nums;">~$27,000</span> est. recoverable</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <sc-for list="{{ insights }}" as="i" hint-placeholder-count="4">
+        <div style="background:#fff;border-radius:12px;box-shadow:var(--p-shadow-100), var(--p-shadow-bevel-100);overflow:hidden;">
+          <button onClick="{{ i.onToggle }}" style="display:flex;align-items:center;gap:14px;width:100%;text-align:left;font-family:inherit;background:transparent;border:none;padding:15px 20px;cursor:pointer;" style-hover="background:#FAFAFA;">
+            <span style="{{ i.tileStyle }}"><span style="{{ i.iconStyle }}"></span></span>
+            <div style="display:flex;flex-direction:column;gap:3px;flex:1;min-width:0;">
+              <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                <span style="font-size:13px;font-weight:650;color:#303030;">{{ i.title }}</span>
+                <s-badge tone="{{ i.tone }}">{{ i.sevLabel }}</s-badge>
+              </div>
+              <span style="font-size:12px;line-height:17px;color:var(--p-color-text-secondary);">{{ i.what }}</span>
+            </div>
+            <span style="display:flex;flex-direction:column;align-items:flex-end;gap:1px;flex-shrink:0;">
+              <span style="font-size:20px;line-height:24px;font-weight:700;letter-spacing:-0.2px;color:#1A1A1A;font-variant-numeric:tabular-nums;">{{ i.metric }}</span>
+              <span style="font-size:11px;color:#8A8A8A;">{{ i.metricSub }}</span>
+            </span>
+            <span style="{{ i.chevStyle }}"><svg width="12" height="12" viewBox="0 0 20 20" fill="none"><path d="M5 7.5L10 12.5L15 7.5" stroke="#8A8A8A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>
+          </button>
+          <div style="{{ i.bodyStyle }}">
+            <div style="display:flex;gap:12px;">
+              <span style="font-size:12px;font-weight:550;color:#616161;width:96px;flex-shrink:0;padding-top:1px;">Why it matters</span>
+              <span style="font-size:13px;line-height:20px;color:#303030;flex:1;">{{ i.why }}</span>
+            </div>
+            <div style="display:flex;gap:12px;">
+              <span style="font-size:12px;font-weight:550;color:#616161;width:96px;flex-shrink:0;padding-top:1px;">What to do</span>
+              <span style="font-size:13px;line-height:20px;color:#303030;flex:1;">{{ i.action }}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <sc-for list="{{ i.chips }}" as="c" hint-placeholder-count="2">
+                <span style="display:inline-flex;align-items:baseline;gap:6px;font-size:11px;color:#8A8A8A;background:#F7F7F7;border-radius:8px;padding:5px 10px;">{{ c.label }}<span style="font-size:12px;font-weight:650;color:#303030;font-variant-numeric:tabular-nums;">{{ c.val }}</span></span>
+              </sc-for>
+              <button onClick="{{ i.onSessions }}" style="{{ i.sessionsLinkStyle }}" style-hover="text-decoration:underline;">{{ i.sessionsLabel }}</button>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;border-top:1px solid var(--p-color-border-secondary);padding-top:14px;">
+              <span style="font-size:12px;color:var(--p-color-text-secondary);">{{ i.footNote }}<span style="{{ i.recoverStyle }}"><span style="font-weight:650;color:var(--p-color-text-success);font-variant-numeric:tabular-nums;">{{ i.recover }}</span></span></span>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <s-button variant="plain">{{ i.secondary }}</s-button>
+                <span style="{{ i.primaryStyle }}"><s-button variant="primary">{{ i.primary }}</s-button></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <!-- ============ Diagnostics ============ -->
+  <div data-screen-label="Diagnostics" style="display:flex;flex-direction:column;gap:12px;">
+    <div style="display:flex;align-items:baseline;justify-content:space-between;padding:4px 2px 0;">
+      <span style="font-size:13px;font-weight:650;color:#303030;">Diagnostics</span>
+      <span style="font-size:12px;color:var(--p-color-text-secondary);">The evidence behind the insights above</span>
+    </div>
+
+    <s-section heading="Top failed discount codes" data-screen-label="Failed codes">
+        <s-button slot="actions" variant="plain">Manage codes</s-button>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin:2px 0 14px;">
+          <sc-for list="{{ couponStats }}" as="s" hint-placeholder-count="3">
+            <div style="display:flex;flex-direction:column;gap:2px;background:#F7F7F7;border-radius:8px;padding:10px 14px;">
+              <span style="font-size:12px;line-height:16px;color:var(--p-color-text-secondary);">{{ s.label }}</span>
+              <span style="font-size:18px;line-height:24px;font-weight:700;color:#1A1A1A;font-variant-numeric:tabular-nums;">{{ s.value }}</span>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 130px 130px 100px 100px;gap:12px;padding:6px 0 8px;border-bottom:1px solid var(--p-color-border-secondary);">
+          <span style="font-size:12px;font-weight:550;color:#616161;">Code</span>
+          <span style="font-size:12px;font-weight:550;color:#616161;">First seen</span>
+          <span style="font-size:12px;font-weight:550;color:#616161;">Last seen</span>
+          <span style="font-size:12px;font-weight:550;color:#616161;text-align:right;">Error rate</span>
+          <span style="font-size:12px;font-weight:550;color:#616161;text-align:right;">Lost</span>
+        </div>
+        <sc-for list="{{ codes }}" as="c" hint-placeholder-count="5">
+          <div style="display: grid; grid-template-columns: 1fr 130px 130px 100px 100px; padding: 10px 0; border-bottom: 1px solid var(--p-color-border-secondary); align-items: center; padding-top: 10px; padding-bottom: 10px; justify-content: flex-start; gap: 10px; height: 20px">
+            <span><span style="font-size:12px;font-weight:650;color:#303030;background:#F7F7F7;border-radius:6px;padding:3px 8px;font-family:var(--p-font-family-mono, ui-monospace, monospace);">{{ c.code }}</span></span>
+            <span style="font-size:12px;color:var(--p-color-text-secondary);font-variant-numeric:tabular-nums;">{{ c.first }}</span>
+            <span style="font-size:12px;color:var(--p-color-text-secondary);font-variant-numeric:tabular-nums;">{{ c.last }}</span>
+            <span style="font-size:13px;color:#303030;text-align:right;font-variant-numeric:tabular-nums;">{{ c.rate }}</span>
+            <span style="font-size:13px;font-weight:650;color:#303030;text-align:right;font-variant-numeric:tabular-nums;">{{ c.lost }}</span>
+          </div>
+        </sc-for>
+        <p style="margin:0;font-size:12px;line-height:18px;color:var(--p-color-text-secondary);padding-top:12px;">Codes fail most on expiry dates and minimum-spend rules — start there.</p>
+    </s-section>
+
+    <s-section heading="Top checkout errors" data-screen-label="Checkout errors">
+        <s-button slot="actions" variant="plain">View all errors</s-button>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin:2px 0 14px;">
+          <sc-for list="{{ errorStats }}" as="s" hint-placeholder-count="3">
+            <div style="display:flex;flex-direction:column;gap:2px;background:#F7F7F7;border-radius:8px;padding:10px 14px;">
+              <span style="font-size:12px;line-height:16px;color:var(--p-color-text-secondary);">{{ s.label }}</span>
+              <span style="font-size:18px;line-height:24px;font-weight:700;color:#1A1A1A;font-variant-numeric:tabular-nums;">{{ s.value }}</span>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 100px 130px 130px 100px;gap:12px;padding:6px 0 8px;border-bottom:1px solid var(--p-color-border-secondary);">
+          <span style="font-size:12px;font-weight:550;color:#616161;">Message shown to customer</span>
+          <span style="font-size:12px;font-weight:550;color:#616161;">Source</span>
+          <span style="font-size:12px;font-weight:550;color:#616161;">First seen</span>
+          <span style="font-size:12px;font-weight:550;color:#616161;">Last seen</span>
+          <span style="font-size:12px;font-weight:550;color:#616161;text-align:right;">Error rate</span>
+        </div>
+        <sc-for list="{{ errors }}" as="e" hint-placeholder-count="5">
+          <div style="display:grid;grid-template-columns:1fr 100px 130px 130px 100px;gap:12px;padding:10px 0;border-bottom:1px solid var(--p-color-border-secondary);align-items:start;">
+            <span style="font-size:13px;line-height:20px;color:#303030;">{{ e.msg }}</span>
+            <span style="display:flex;align-items:center;height:20px;"><s-badge>{{ e.source }}</s-badge></span>
+            <span style="font-size:12px;line-height:20px;color:var(--p-color-text-secondary);font-variant-numeric:tabular-nums;">{{ e.first }}</span>
+            <span style="font-size:12px;line-height:20px;color:var(--p-color-text-secondary);font-variant-numeric:tabular-nums;">{{ e.last }}</span>
+            <span style="font-size:13px;line-height:20px;color:#303030;text-align:right;font-variant-numeric:tabular-nums;">{{ e.rate }}</span>
+          </div>
+        </sc-for>
+        <p style="margin:0;font-size:11px;line-height:16px;color:#8A8A8A;padding-top:10px;">Express payment errors aren't available due to Shopify platform limits.</p>
+    </s-section>
+
+    <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:16px;align-items:start;">
+    <s-section heading="No shipping rates returned" data-screen-label="No shipping rates">
+      <s-button slot="actions" variant="plain">View all addresses</s-button>
+      <div style="display:grid;grid-template-columns:56px 1.4fr 1fr 62px 70px;gap:10px;padding:6px 0 8px;border-bottom:1px solid var(--p-color-border-secondary);">
+        <span style="font-size:12px;font-weight:550;color:#616161;">Date</span>
+        <span style="font-size:12px;font-weight:550;color:#616161;">Address</span>
+        <span style="font-size:12px;font-weight:550;color:#616161;">City</span>
+        <span style="font-size:12px;font-weight:550;color:#616161;">ZIP</span>
+        <span style="font-size:12px;font-weight:550;color:#616161;">Location</span>
+      </div>
+      <sc-for list="{{ noShip }}" as="a" hint-placeholder-count="4">
+        <div style="display:grid;grid-template-columns:56px 1.4fr 1fr 62px 70px;gap:10px;padding:10px 0;border-bottom:1px solid var(--p-color-border-secondary);align-items:center;">
+          <span style="font-size:12px;color:var(--p-color-text-secondary);font-variant-numeric:tabular-nums;white-space:nowrap;">{{ a.date }}</span>
+          <span style="font-size:13px;color:#303030;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ a.address }}</span>
+          <span style="font-size:13px;color:#303030;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ a.city }}</span>
+          <span style="font-size:13px;color:#303030;font-variant-numeric:tabular-nums;">{{ a.zip }}</span>
+          <span style="font-size:13px;color:#303030;white-space:nowrap;">{{ a.loc }}</span>
+        </div>
+      </sc-for>
+      <p style="margin:0;font-size:12px;line-height:18px;color:var(--p-color-text-secondary);padding-top:12px;">Alaska and Hawaii appear most — carrier rates aren't configured for those zones, so these shoppers saw no shipping option at all.</p>
+    </s-section>
+
+    <s-section heading="Highest abandonment by region" data-screen-label="Abandonment by region">
+      <div style="display:flex;flex-direction:column;gap:12px;padding-top:4px;">
+        <sc-for list="{{ geo }}" as="g" hint-placeholder-count="5">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <span style="font-size:13px;color:#303030;width:84px;flex-shrink:0;">{{ g.place }}</span>
+            <div style="flex:1;height:8px;border-radius:999px;background:#F1F1F1;overflow:hidden;"><span style="{{ g.barStyle }}"></span></div>
+            <span style="font-size:13px;font-weight:650;color:#303030;font-variant-numeric:tabular-nums;width:38px;text-align:right;">{{ g.pct }}</span>
+          </div>
+        </sc-for>
+      </div>
+      <p style="margin:0;font-size:12px;line-height:18px;color:var(--p-color-text-secondary);padding-top:14px;">Illinois abandons far above the rest — worth testing a regional shipping promo.</p>
+    </s-section>
+    </div>
+  </div>
+  </div>
+  </sc-if>
+
+  <!-- ============ Checkout drilldown ============ -->
+  <sc-if value="{{ showDrilldown }}" hint-placeholder-val="{{ false }}">
+  <div data-screen-label="Checkout drilldown" style="display:flex;flex-direction:column;gap:16px;">
+    <div style="display:grid;grid-template-columns:repeat(5, 1fr);gap:12px;">
+      <sc-for list="{{ patternCards }}" as="p" hint-placeholder-count="5">
+        <button onClick="{{ p.onClick }}" style="{{ p.cardStyle }}">
+          <span style="display:flex;align-items:flex-start;min-height:34px;">
+            <span style="font-size:12px;line-height:16px;font-weight:550;color:#616161;">{{ p.title }}</span>
+          </span>
+          <span style="display:flex;flex-direction:column;gap:1px;">
+            <span style="font-size:18px;line-height:24px;font-weight:700;color:#1A1A1A;font-variant-numeric:tabular-nums;">{{ p.sessions }}</span>
+            <span style="font-size:11px;color:#8A8A8A;font-variant-numeric:tabular-nums;">{{ p.value }}</span>
+          </span>
+        </button>
+      </sc-for>
+    </div>
+
+    <s-section heading="Checkout sessions">
+      <s-button slot="actions" variant="plain">Export</s-button>
+      <div style="display:flex;align-items:center;gap:4px;margin:2px 0 12px;">
+        <sc-for list="{{ sessionFilters }}" as="f" hint-placeholder-count="3">
+          <button onClick="{{ f.onClick }}" style="{{ f.style }}" style-hover="background:#F1F1F1;">{{ f.label }}</button>
+        </sc-for>
+        <sc-if value="{{ patternChip }}" hint-placeholder-val="{{ false }}">
+          <span style="display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:550;color:#303030;background:#F1F1F1;border-radius:8px;padding:5px 8px 5px 12px;margin-left:6px;">{{ patternChipLabel }}<button onClick="{{ clearPatternFilter }}" aria-label="Clear pattern filter" style="display:flex;align-items:center;font-family:inherit;color:#616161;background:transparent;border:none;padding:0 2px;cursor:pointer;" style-hover="color:#303030;"><svg width="10" height="10" viewBox="0 0 20 20" fill="none"><path d="M5 5L15 15M15 5L5 15" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></button></span>
+        </sc-if>
+        <span style="margin-left:auto;font-size:12px;color:#8A8A8A;">Latest first · Jun 5, 2026</span>
+      </div>
+      <div style="display:grid;grid-template-columns:76px 76px 172px 1fr 84px 104px 28px;gap:12px;padding:6px 0 8px;border-bottom:1px solid var(--p-color-border-secondary);">
+        <span style="font-size:12px;font-weight:550;color:#616161;">Started</span>
+        <span style="font-size:12px;font-weight:550;color:#616161;">Order</span>
+        <span style="font-size:12px;font-weight:550;color:#616161;">Status</span>
+        <span style="font-size:12px;font-weight:550;color:#616161;">Signal</span>
+        <span style="font-size:12px;font-weight:550;color:#616161;text-align:right;">Total</span>
+        <span style="font-size:12px;font-weight:550;color:#616161;">Location</span>
+        <span></span>
+      </div>
+      <sc-for list="{{ sessions }}" as="s" hint-placeholder-count="6">
+        <div style="border-bottom:1px solid var(--p-color-border-secondary);">
+          <button onClick="{{ s.onToggle }}" style="display:grid;grid-template-columns:76px 76px 172px 1fr 84px 104px 28px;gap:12px;align-items:center;width:100%;text-align:left;font-family:inherit;background:transparent;border:none;padding:10px 0;cursor:pointer;" style-hover="background:#FAFAFA;">
+            <span style="font-size:12px;color:var(--p-color-text-secondary);font-variant-numeric:tabular-nums;">{{ s.time }}</span>
+            <span style="{{ s.orderStyle }}">{{ s.order }}</span>
+            <span><s-badge tone="{{ s.tone }}">{{ s.statusLabel }}</s-badge></span>
+            <span style="display:flex;align-items:center;gap:7px;min-width:0;">
+              <span style="{{ s.signalDotStyle }}"></span>
+              <span style="{{ s.signalTextStyle }}">{{ s.signal }}</span>
+            </span>
+            <span style="font-size:13px;color:#303030;text-align:right;font-variant-numeric:tabular-nums;">{{ s.total }}</span>
+            <span style="font-size:12px;color:var(--p-color-text-secondary);white-space:nowrap;">{{ s.loc }}</span>
+            <span style="{{ s.chevStyle }}"><svg width="12" height="12" viewBox="0 0 20 20" fill="none"><path d="M5 7.5L10 12.5L15 7.5" stroke="#8A8A8A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>
+          </button>
+          <sc-if value="{{ s.expanded }}" hint-placeholder-val="{{ false }}">
+            <div style="background:#FAFAFA;border-radius:8px;padding:16px;margin:0 0 12px;display:grid;grid-template-columns:1.55fr 1fr;gap:20px;align-items:start;">
+              <div style="display:flex;flex-direction:column;gap:12px;min-width:0;">
+                <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+                  <span style="font-size:12px;font-weight:650;color:#303030;">Session events</span>
+                  <span style="font-size:11px;color:#8A8A8A;font-variant-numeric:tabular-nums;">{{ s.meta }}</span>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:10px;">
+                  <sc-for list="{{ s.events }}" as="e" hint-placeholder-count="5">
+                    <div style="display:grid;grid-template-columns:60px 78px 1fr;gap:12px;align-items:baseline;">
+                      <span style="font-size:12px;color:#8A8A8A;font-variant-numeric:tabular-nums;">{{ e.t }}</span>
+                      <span><span style="{{ e.badgeStyle }}">{{ e.kind }}</span></span>
+                      <span style="min-width:0;">
+                        <span style="display:block;font-size:12px;line-height:17px;color:#303030;">{{ e.text }}<span style="color:#8A8A8A;"> {{ e.sub }}</span></span>
+                        <span style="{{ e.dStyle }}">{{ e.d }}</span>
+                      </span>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+              <div style="background:#FFFFFF;border-radius:8px;box-shadow:var(--p-shadow-100), var(--p-shadow-bevel-100);padding:14px 16px;display:flex;flex-direction:column;gap:12px;">
+                <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;">
+                  <span style="font-size:12px;font-weight:650;color:#303030;">Time per step</span>
+                  <span style="font-size:11px;color:#8A8A8A;font-variant-numeric:tabular-nums;">{{ s.totalTime }} total</span>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:8px;">
+                  <sc-for list="{{ s.steps }}" as="st" hint-placeholder-count="3">
+                    <div style="display:flex;flex-direction:column;gap:4px;">
+                      <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;">
+                        <span style="{{ st.labelStyle }}">{{ st.label }}</span>
+                        <span style="{{ st.valStyle }}">{{ st.dur }}</span>
+                      </div>
+                      <div style="position:relative;height:4px;border-radius:999px;background:#F1F1F1;">
+                        <span style="{{ st.barStyle }}"></span>
+                      </div>
+                    </div>
+                  </sc-for>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:7px;border-top:1px solid var(--p-color-border-secondary);padding-top:12px;">
+                  <sc-for list="{{ s.facts }}" as="f" hint-placeholder-count="3">
+                    <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;">
+                      <span style="font-size:12px;color:#616161;flex-shrink:0;">{{ f.label }}</span>
+                      <span style="font-size:12px;font-weight:650;color:#303030;font-variant-numeric:tabular-nums;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ f.val }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;border-top:1px solid var(--p-color-border-secondary);padding-top:12px;">
+                  <span style="font-size:11px;color:#8A8A8A;font-family:var(--p-font-family-mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ s.token }}</span>
+                  <button onClick="{{ s.onCopy }}" style="flex-shrink:0;font-family:inherit;font-size:11px;font-weight:550;color:#303030;background:#fff;border:none;border-radius:6px;padding:4px 9px;cursor:pointer;box-shadow:var(--p-shadow-button);" style-hover="background:#FAFAFA;">{{ s.copyLabel }}</button>
+                </div>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+      </sc-for>
+      <p style="margin:0;font-size:12px;line-height:18px;color:var(--p-color-text-secondary);padding-top:12px;">{{ sessionsFootnote }}</p>
+    </s-section>
+  </div>
+  </sc-if>
+
+  <!-- ============ Impact ============ -->
+  <sc-if value="{{ showImpact }}" hint-placeholder-val="{{ false }}">
+  <div data-screen-label="Impact" style="display:flex;flex-direction:column;gap:16px;">
+
+    <div style="background:#fff;border-radius:12px;padding:20px 24px;box-shadow:var(--p-shadow-100), var(--p-shadow-bevel-100);display:grid;grid-template-columns:1.3fr 1fr 1fr 170px;gap:24px;align-items:start;">
+      <div style="display:flex;flex-direction:column;gap:4px;">
+        <span style="font-size:12px;color:var(--p-color-text-secondary);">Recovered by Checkout Boost</span>
+        <span style="font-size:30px;line-height:36px;font-weight:700;letter-spacing:-0.3px;color:#1A1A1A;font-variant-numeric:tabular-nums;">$19,400</span>
+        <span style="font-size:12px;color:var(--p-color-text-secondary);">from verified fixes since Apr 14, 2026</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;border-left:1px solid var(--p-color-border-secondary);padding-left:24px;">
+        <span style="font-size:12px;color:var(--p-color-text-secondary);">Now recovering</span>
+        <span style="font-size:30px;line-height:36px;font-weight:700;letter-spacing:-0.3px;color:#1A1A1A;font-variant-numeric:tabular-nums;">$12,100<span style="font-size:14px;font-weight:550;color:#616161;">/mo</span></span>
+        <span style="font-size:12px;color:var(--p-color-text-secondary);">run rate of verified fixes</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;border-left:1px solid var(--p-color-border-secondary);padding-left:24px;">
+        <span style="font-size:12px;color:var(--p-color-text-secondary);">Return on subscription</span>
+        <span style="font-size:30px;line-height:36px;font-weight:700;letter-spacing:-0.3px;color:var(--p-color-text-success);font-variant-numeric:tabular-nums;">9.7×</span>
+        <span style="font-size:12px;color:var(--p-color-text-secondary);">recovered vs plan cost to date</span>
+      </div>
+      
+    </div>
+
+    <s-section heading="Fix ledger">
+      <div style="display:grid;grid-template-columns:96px 1fr 92px 250px 120px;gap:12px;padding:6px 0 8px;border-bottom:1px solid var(--p-color-border-secondary);">
+        <span style="font-size:12px;font-weight:550;color:#616161;">Status</span>
+        <span style="font-size:12px;font-weight:550;color:#616161;">Fix</span>
+        <span style="font-size:12px;font-weight:550;color:#616161;">Applied</span>
+        <span style="font-size:12px;font-weight:550;color:#616161;">Result</span>
+        <span style="font-size:12px;font-weight:550;color:#616161;text-align:right;">Recovered</span>
+      </div>
+      <sc-for list="{{ fixes }}" as="f" hint-placeholder-count="4">
+        <div style="display:grid;grid-template-columns:96px 1fr 92px 250px 120px;gap:12px;padding:12px 0;border-bottom:1px solid var(--p-color-border-secondary);align-items:center;">
+          <span><s-badge tone="{{ f.tone }}">{{ f.status }}</s-badge></span>
+          <div style="display:flex;flex-direction:column;gap:1px;min-width:0;">
+            <span style="font-size:13px;font-weight:550;color:#303030;">{{ f.title }}</span>
+            <span style="font-size:11px;color:#8A8A8A;">{{ f.source }}</span>
+          </div>
+          <span style="font-size:12px;color:var(--p-color-text-secondary);font-variant-numeric:tabular-nums;">{{ f.applied }}</span>
+          <span style="font-size:12px;line-height:17px;color:#303030;font-variant-numeric:tabular-nums;">{{ f.result }}</span>
+          <span style="{{ f.recoveredStyle }}">{{ f.recovered }}</span>
+        </div>
+      </sc-for>
+      <p style="margin:0;font-size:11px;line-height:16px;color:#8A8A8A;padding-top:12px;">Recovered revenue compares the 28 days before each fix with the period after, adjusted for traffic. A fix is marked Verified once the lift holds for a full billing cycle.</p>
+    </s-section>
+  </div>
+  </sc-if>
+
+  <!-- ============ Slack alerts ============ -->
+  <sc-if value="{{ showSlack }}" hint-placeholder-val="{{ false }}">
+  <div data-screen-label="Slack alerts" style="display:flex;flex-direction:column;gap:16px;">
+
+    <s-section heading="Slack connection">
+      <sc-if value="{{ slackConnected }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;align-items:center;gap:14px;padding-top:4px;">
+          <span style="width:40px;height:40px;border-radius:10px;background:#F7F7F7;box-shadow:inset 0 0 0 1px rgba(0,0,0,0.06);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <svg width="22" height="22" viewBox="0 0 122.8 122.8"><path d="M25.8 77.6c0 7.1-5.8 12.9-12.9 12.9S0 84.7 0 77.6s5.8-12.9 12.9-12.9h12.9v12.9zm6.5 0c0-7.1 5.8-12.9 12.9-12.9s12.9 5.8 12.9 12.9v32.3c0 7.1-5.8 12.9-12.9 12.9s-12.9-5.8-12.9-12.9V77.6z" fill="#E01E5A"></path><path d="M45.2 25.8c-7.1 0-12.9-5.8-12.9-12.9S38.1 0 45.2 0s12.9 5.8 12.9 12.9v12.9H45.2zm0 6.5c7.1 0 12.9 5.8 12.9 12.9s-5.8 12.9-12.9 12.9H12.9C5.8 58.1 0 52.3 0 45.2s5.8-12.9 12.9-12.9h32.3z" fill="#36C5F0"></path><path d="M97 45.2c0-7.1 5.8-12.9 12.9-12.9s12.9 5.8 12.9 12.9-5.8 12.9-12.9 12.9H97V45.2zm-6.5 0c0 7.1-5.8 12.9-12.9 12.9s-12.9-5.8-12.9-12.9V12.9C64.7 5.8 70.5 0 77.6 0s12.9 5.8 12.9 12.9v32.3z" fill="#2EB67D"></path><path d="M77.6 97c7.1 0 12.9 5.8 12.9 12.9s-5.8 12.9-12.9 12.9-12.9-5.8-12.9-12.9V97h12.9zm0-6.5c-7.1 0-12.9-5.8-12.9-12.9s5.8-12.9 12.9-12.9h32.3c7.1 0 12.9 5.8 12.9 12.9s-5.8 12.9-12.9 12.9H77.6z" fill="#ECB22E"></path></svg>
+          </span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="font-size:13px;font-weight:650;color:#303030;">Maple &amp; Stone workspace</span>
+              <s-badge tone="success">Connected</s-badge>
+            </div>
+            <span style="font-size:12px;color:var(--p-color-text-secondary);">Alerts post to <span style="font-weight:550;color:#303030;">#checkout-alerts</span> · Connected May 12, 2026</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+            <button onClick="{{ disconnectSlack }}" style="font-family:inherit;font-size:12px;font-weight:550;color:#616161;background:transparent;border:none;border-radius:8px;padding:8px 12px;cursor:pointer;" style-hover="background:#F1F1F1;">Disconnect</button>
+            <button onClick="{{ sendTest }}" style="font-family:inherit;font-size:12px;font-weight:650;color:#303030;background:#fff;border:none;border-radius:8px;padding:8px 14px;cursor:pointer;box-shadow:var(--p-shadow-button);" style-hover="background:#FAFAFA;">{{ testLabel }}</button>
+          </div>
+        </div>
+        <sc-if value="{{ testSent }}" hint-placeholder-val="{{ false }}">
+          <p style="margin:10px 0 0;font-size:12px;line-height:16px;color:var(--p-color-text-success);">Test alert sent to #checkout-alerts — check Slack to confirm it arrived.</p>
+        </sc-if>
+      </sc-if>
+      <sc-if value="{{ slackDisconnected }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;align-items:center;gap:14px;padding-top:4px;">
+          <span style="width:40px;height:40px;border-radius:10px;background:#F7F7F7;box-shadow:inset 0 0 0 1px rgba(0,0,0,0.06);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <svg width="22" height="22" viewBox="0 0 122.8 122.8" style="filter:grayscale(1);opacity:0.55;"><path d="M25.8 77.6c0 7.1-5.8 12.9-12.9 12.9S0 84.7 0 77.6s5.8-12.9 12.9-12.9h12.9v12.9zm6.5 0c0-7.1 5.8-12.9 12.9-12.9s12.9 5.8 12.9 12.9v32.3c0 7.1-5.8 12.9-12.9 12.9s-12.9-5.8-12.9-12.9V77.6z" fill="#E01E5A"></path><path d="M45.2 25.8c-7.1 0-12.9-5.8-12.9-12.9S38.1 0 45.2 0s12.9 5.8 12.9 12.9v12.9H45.2zm0 6.5c7.1 0 12.9 5.8 12.9 12.9s-5.8 12.9-12.9 12.9H12.9C5.8 58.1 0 52.3 0 45.2s5.8-12.9 12.9-12.9h32.3z" fill="#36C5F0"></path><path d="M97 45.2c0-7.1 5.8-12.9 12.9-12.9s12.9 5.8 12.9 12.9-5.8 12.9-12.9 12.9H97V45.2zm-6.5 0c0 7.1-5.8 12.9-12.9 12.9s-12.9-5.8-12.9-12.9V12.9C64.7 5.8 70.5 0 77.6 0s12.9 5.8 12.9 12.9v32.3z" fill="#2EB67D"></path><path d="M77.6 97c7.1 0 12.9 5.8 12.9 12.9s-5.8 12.9-12.9 12.9-12.9-5.8-12.9-12.9V97h12.9zm0-6.5c-7.1 0-12.9-5.8-12.9-12.9s5.8-12.9 12.9-12.9h32.3c7.1 0 12.9 5.8 12.9 12.9s-5.8 12.9-12.9 12.9H77.6z" fill="#ECB22E"></path></svg>
+          </span>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="font-size:13px;font-weight:650;color:#303030;">Slack</span>
+              <s-badge>Not connected</s-badge>
+            </div>
+            <span style="font-size:12px;color:var(--p-color-text-secondary);">Get checkout alerts where your team already works. Takes about a minute.</span>
+          </div>
+          <span style="flex-shrink:0;"><button onClick="{{ connectSlack }}" style="font-family:inherit;font-size:12px;font-weight:650;color:#FFFFFF;background:#303030;border:none;border-radius:8px;padding:9px 16px;cursor:pointer;box-shadow:var(--p-shadow-button-primary);" style-hover="background:#1A1A1A;">Connect Slack</button></span>
+        </div>
+      </sc-if>
+    </s-section>
+
+    <s-section heading="Alert types">
+      <p style="margin:2px 0 6px;font-size:12px;line-height:18px;color:var(--p-color-text-secondary);">{{ alertTypesHint }}</p>
+      <sc-for list="{{ alertTypes }}" as="a" hint-placeholder-count="6">
+        <div style="display:flex;align-items:center;gap:14px;padding:13px 0;border-bottom:1px solid var(--p-color-border-secondary);">
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="{{ a.titleStyle }}">{{ a.title }}</span>
+              <span style="{{ a.freqStyle }}">{{ a.freq }}</span>
+            </div>
+            <span style="{{ a.descStyle }}">{{ a.desc }}</span>
+          </div>
+          <button onClick="{{ a.onToggle }}" role="switch" aria-checked="{{ a.on }}" style="{{ a.trackStyle }}">
+            <span style="{{ a.knobStyle }}"></span>
+          </button>
+        </div>
+      </sc-for>
+      <p style="margin:0;font-size:11px;line-height:16px;color:#8A8A8A;padding-top:12px;">Spike alerts fire at most once per hour. Summaries send at 8:00 am in your store's timezone.</p>
+    </s-section>
+  </div>
+  </sc-if>
+
+  <!-- ============ Footer ============ -->
+  <div style="display:flex;align-items:center;justify-content:center;gap:6px;padding:8px 0 0;font-size:12px;color:#8A8A8A;">
+    <span>Learn more about</span>
+    <span style="font-weight:550;color:var(--p-color-text-link, #005BD3);cursor:pointer;">Checkout Boost</span>
+    <span>·</span>
+    <span>Need help?</span>
+    <span style="font-weight:550;color:var(--p-color-text-link, #005BD3);cursor:pointer;">Contact support</span>
+  </div>
+
+</s-page>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{
+  &quot;$preview&quot;: { &quot;width&quot;: 1100, &quot;height&quot;: 1400 },
+  &quot;showProjectedRecovery&quot;: { &quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot; }
+}">
+class Component extends DCLogic {
+  state = { openId: 'email', rangeOpen: false, dateRange: 'Last 30 days', activeTab: 'Overview', sessionFilter: 'All', expandedSession: 's1',
+    funnelSeg: 'All sessions', sessionPatternFilter: null,
+    slackConnected: true, testSent: false,
+    alertPrefs: { spike: true, code: true, noRates: true, errors: false, daily: true, weekly: false } };
+
+  fmt(n){ return Math.round(n).toLocaleString('en-US'); }
+  money(n){ return '$' + this.fmt(n); }
+
+  spark(vals, color){
+    const w=64,h=24,max=Math.max(...vals),min=Math.min(...vals),rng=(max-min)||1;
+    const pts=vals.map((v,i)=>{const x=1+(i/(vals.length-1))*(w-2);const y=h-3-((v-min)/rng)*(h-7);return [x,y];});
+    const d=pts.map((p,i)=>(i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' ');
+    const area=d+' L '+pts[pts.length-1][0].toFixed(1)+' '+(h-1)+' L '+pts[0][0].toFixed(1)+' '+(h-1)+' Z';
+    return React.createElement('svg',{width:w,height:h,viewBox:'0 0 '+w+' '+h,style:{display:'block'}},
+      React.createElement('path',{d:area,fill:color,opacity:0.09}),
+      React.createElement('path',{d,fill:'none',stroke:color,strokeWidth:1.6,strokeLinejoin:'round',strokeLinecap:'round'}));
+  }
+
+  renderVals(){
+    const showRecover = this.props.showProjectedRecovery ?? true;
+
+    // ---- tabs ----
+    const tab = this.state.activeTab;
+    const tabs = ['Overview','Checkout drilldown','Impact','Slack alerts'].map(label=>({
+      label,
+      onClick:()=>this.setState({activeTab:label}),
+      style:'font-family:inherit;font-size:13px;font-weight:'+(label===tab?'650':'550')+';color:'+(label===tab?'#303030':'#616161')+';background:'+(label===tab?'#FFFFFF':'transparent')+';border:none;border-radius:8px;padding:7px 14px;cursor:pointer;'+(label===tab?'box-shadow:var(--p-shadow-button);':'')
+    }));
+
+    // ---- drilldown sessions ----
+    const BADGE={
+      Step:{bg:'#CDFED4',fg:'#0C5132'},
+      Behavior:{bg:'#EAF4FF',fg:'#00527C'},
+      Alert:{bg:'#FEE8EB',fg:'#8E1F0B'},
+    };
+    const ev=(t,kind,text,sub,d)=>({t,kind,text,sub:sub||'',d:d||'',dStyle:'display:'+(d?'block':'none')+';font-size:11px;line-height:15px;color:#8A8A8A;font-family:var(--p-font-family-mono);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;',badgeStyle:'display:inline-block;font-size:11px;font-weight:550;color:'+BADGE[kind].fg+';background:'+BADGE[kind].bg+';border-radius:6px;padding:2px 8px;'});
+    const rawSessions=[
+      {id:'s1', pattern:'p_email', time:'9:02 am', order:null, step:'Contact', signal:'Email re-entered 3×', sev:'warning', total:'$47.97', loc:'Texas, US', meta:'Session b621ec…dcd7ca · 1 item · 2m 26s on checkout', events:[
+        ev('9:02:05','Step','Checkout started','· US'),
+        ev('9:02:11','Behavior','Focused email field'),
+        ev('9:02:19','Behavior','Re-entered email 3 times','· 42s on field','contact_email · “maria.g@gmial.com” · corrected twice'),
+        ev('9:03:01','Alert','“Enter a valid email” shown'),
+        ev('9:04:31','Alert','Session ended — contact never submitted'),
+      ]},
+      {id:'s2', time:'8:57 am', order:'#2861', step:null, signal:null, total:'$182.40', loc:'Ontario, CA', meta:'Session 91c4a7…0b6cd · 3 items · 2m 40s on checkout', events:[
+        ev('8:57:02','Step','Checkout started','· CA'),
+        ev('8:57:26','Step','Contact info submitted','· 24s'),
+        ev('8:58:28','Step','Shipping selected — Standard','· 1m 02s'),
+        ev('8:59:42','Step','Order #2861 placed · Shop Pay','· 2m 40s total'),
+      ]},
+      {id:'s3', pattern:'p_rates', time:'8:44 am', order:null, step:'Shipping', signal:'Rates took 4.2s to load', sev:'warning', total:'$96.10', loc:'Illinois, US', meta:'Session 4f81de…7a2e1 · 2 items · 2m 51s on checkout', events:[
+        ev('8:44:10','Step','Checkout started','· US'),
+        ev('8:44:41','Step','Contact info submitted','· 31s'),
+        ev('8:44:45','Alert','Shipping rates took 4.2s to load'),
+        ev('8:45:19','Behavior','Idle on shipping step','· 1m 20s'),
+        ev('8:47:01','Alert','Session ended at shipping'),
+      ]},
+      {id:'s4', pattern:'p_code', time:'8:31 am', order:null, step:'Payment', signal:'Code HELLO20 failed', sev:'critical', total:'$54.25', loc:'Florida, US', meta:'Session c209bb…3fe08 · 1 item · 3m 12s on checkout', events:[
+        ev('8:31:44','Step','Checkout started','· US'),
+        ev('8:32:12','Step','Contact info submitted','· 28s'),
+        ev('8:33:07','Step','Shipping selected — Standard','· 55s'),
+        ev('8:33:48','Behavior','Entered discount code HELLO20','','discount_code · HELLO20 · min. spend not met'),
+        ev('8:33:49','Alert','“Discount code isn’t valid” shown'),
+        ev('8:34:20','Behavior','Retried code 2 times'),
+        ev('8:34:56','Alert','Session ended at payment'),
+      ]},
+      {id:'s5', time:'8:17 am', order:'#2860', step:null, signal:null, total:'$47.97', loc:'New York, US', meta:'Session e77c02…b91d4 · 1 item · 1m 58s on checkout', events:[
+        ev('8:17:20','Step','Checkout started','· US'),
+        ev('8:17:39','Step','Contact info submitted','· 19s'),
+        ev('8:18:19','Step','Shipping selected — Express','· 40s'),
+        ev('8:19:18','Step','Order #2860 placed · Card','· 1m 58s total'),
+      ]},
+      {id:'s6', pattern:'p_norates', time:'8:02 am', order:null, step:'Shipping', signal:'No shipping rates returned', sev:'critical', total:'$129.99', loc:'Alaska, US', meta:'Session 08aa31…c4479 · 4 items · 1m 44s on checkout', events:[
+        ev('8:02:33','Step','Checkout started','· US'),
+        ev('8:03:18','Step','Contact info submitted','· 45s'),
+        ev('8:03:24','Alert','No shipping rates returned','· Craig, AK 99921'),
+        ev('8:04:17','Alert','Session ended at shipping'),
+      ]},
+      {id:'s7', pattern:'p_bounce', time:'7:48 am', order:null, step:'Contact', signal:'Bounced in 15s', sev:'warning', total:'$38.50', loc:'Georgia, US', meta:'Session 5d2f90…a1b37 · 1 item · 15s on checkout', events:[
+        ev('7:48:12','Step','Checkout started','· US'),
+        ev('7:48:14','Behavior','No field interaction'),
+        ev('7:48:27','Alert','Session ended after 15s'),
+      ]},
+      {id:'s8', time:'7:36 am', order:'#2859', step:null, signal:null, total:'$74.00', loc:'California, US', meta:'Session b3e615…7d9c2 · 2 items · 2m 05s on checkout', events:[
+        ev('7:36:41','Step','Checkout started','· US'),
+        ev('7:37:03','Step','Contact info submitted','· 22s'),
+        ev('7:37:51','Step','Shipping selected — Standard','· 48s'),
+        ev('7:38:46','Step','Order #2859 placed · Apple Pay','· 2m 05s total'),
+      ]},
+    ];
+    const SESSION_DETAIL={
+      s1:{token:'b621ec57ac618bdf3c28d0c116dcd7ca', secs:[146,-1,-1], facts:[
+        {label:'Subtotal', val:'$47.97'},{label:'Shipping', val:'—'},{label:'Email', val:'—'}]},
+      s2:{token:'91c4a7de22f04b8a9d1c55e7f30b6cd0', secs:[24,62,74], facts:[
+        {label:'Subtotal', val:'$168.90'},{label:'Shipping', val:'$13.50'},{label:'Email', val:'m.chen@gmail.com'},{label:'Payment', val:'Shop Pay'}]},
+      s3:{token:'4f81de09b7a34c619e2d80f4517a2e10', secs:[31,140,-1], facts:[
+        {label:'Subtotal', val:'$96.10'},{label:'Shipping', val:'—'},{label:'Email', val:'dana.w@gmail.com'}]},
+      s4:{token:'c209bb41e86f4d2a8b3c90d1673fe082', secs:[28,55,109], facts:[
+        {label:'Subtotal', val:'$49.35'},{label:'Shipping', val:'$4.90'},{label:'Email', val:'tomas.r@outlook.com'}]},
+      s5:{token:'e77c02f9a1b84e669cd327a805b91d43', secs:[19,40,59], facts:[
+        {label:'Subtotal', val:'$43.98'},{label:'Shipping', val:'$3.99'},{label:'Email', val:'j.alvarez@gmail.com'},{label:'Payment', val:'Card'}]},
+      s6:{token:'08aa3175cc2e4f0b8a61d94e23c44790', secs:[45,59,-1], facts:[
+        {label:'Subtotal', val:'$129.99'},{label:'Shipping', val:'—'},{label:'Email', val:'kmarch@yahoo.com'}]},
+      s7:{token:'5d2f9083ab1c47e5b9d206c8f4a1b372', secs:[15,-1,-1], facts:[
+        {label:'Subtotal', val:'$38.50'},{label:'Shipping', val:'—'},{label:'Email', val:'—'}]},
+      s8:{token:'b3e61529dd7f48c1a0be3541967d9c25', secs:[22,48,55], facts:[
+        {label:'Subtotal', val:'$67.51'},{label:'Shipping', val:'$6.49'},{label:'Email', val:'s.okafor@gmail.com'},{label:'Payment', val:'Apple Pay'}]},
+    };
+    const fmtDur=(sec)=>{ if(sec<60) return sec+'s'; const m=Math.floor(sec/60), r=sec%60; return m+'m '+String(r).padStart(2,'0')+'s'; };
+    const sf=this.state.sessionFilter;
+    const pf=this.state.sessionPatternFilter;
+    const base=pf?rawSessions.filter(s=>s.pattern===pf):rawSessions;
+    const counts={All:base.length, Abandoned:base.filter(s=>!s.order).length, Completed:base.filter(s=>s.order).length};
+    const sessionFilters=['All','Abandoned','Completed'].map(f=>({
+      label:f+' ('+counts[f]+')',
+      onClick:()=>this.setState({sessionFilter:f}),
+      style:'font-family:inherit;font-size:12px;font-weight:'+(f===sf?'650':'550')+';color:'+(f===sf?'#303030':'#616161')+';background:'+(f===sf?'#F1F1F1':'transparent')+';border:none;border-radius:8px;padding:6px 12px;cursor:pointer;'
+    }));
+    const exp=this.state.expandedSession;
+    const SEV_DOT={warning:'#FFB800', critical:'#C70A24'};
+    const sessions=base.filter(s=>sf==='All'||((sf==='Completed')===!!s.order)).map(s=>{
+      const det=SESSION_DETAIL[s.id]||{secs:[],facts:[],token:''};
+      const totalSec=det.secs.reduce((a,b)=>a+Math.max(b,0),0);
+      const endIdx=s.order?-1:det.secs.reduce((a,b,i)=>b>=0?i:a,-1);
+      const steps=['Contact','Shipping','Payment'].map((label,i)=>{
+        const sec=det.secs[i]!==undefined?det.secs[i]:-1;
+        const reached=sec>=0;
+        const ended=i===endIdx;
+        const w=reached&&totalSec>0?Math.max(sec/totalSec*100,3):0;
+        return {label,
+          labelStyle:'font-size:12px;color:'+(reached?'#616161':'#B5B5B5')+';',
+          dur:reached?(fmtDur(sec)+(ended?' · ended':'')):'Not reached',
+          valStyle:'font-size:12px;font-weight:'+(reached?'650':'450')+';font-variant-numeric:tabular-nums;color:'+(ended?'#C70A24':(reached?'#303030':'#B5B5B5'))+';',
+          barStyle:reached?'position:absolute;left:0;top:0;bottom:0;border-radius:999px;width:'+w.toFixed(1)+'%;background:'+(ended?'#C70A24':'#303030')+';':'display:none;'};
+      });
+      return {
+      time:s.time,
+      order:s.order||'No order',
+      orderStyle:'font-size:13px;font-variant-numeric:tabular-nums;'+(s.order?'font-weight:550;color:var(--p-color-text-link, #005BD3);':'color:#8A8A8A;'),
+      tone:s.order?'success':'default',
+      statusLabel:s.order?'Completed':'Abandoned · '+s.step,
+      signal:s.signal||'—',
+      signalDotStyle:s.signal?'width:7px;height:7px;border-radius:999px;background:'+SEV_DOT[s.sev]+';flex-shrink:0;':'display:none;',
+      signalTextStyle:'font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;'+(s.signal?'color:#303030;':'color:#B5B5B5;'),
+      total:s.total, loc:s.loc, meta:s.meta, events:s.events,
+      steps, totalTime:fmtDur(totalSec), facts:det.facts,
+      token:det.token?det.token.slice(0,6)+'…'+det.token.slice(-6):'',
+      copyLabel:this.state.copiedSession===s.id?'Copied':'Copy',
+      onCopy:()=>{ try{navigator.clipboard.writeText(det.token);}catch(e){}
+        this.setState({copiedSession:s.id});
+        clearTimeout(this._copyTimer);
+        this._copyTimer=setTimeout(()=>this.setState({copiedSession:null}),1600); },
+      expanded: exp===s.id,
+      onToggle:()=>this.setState({expandedSession: this.state.expandedSession===s.id?null:s.id}),
+      chevStyle:'display:flex;justify-content:center;transition:transform 150ms cubic-bezier(0.25,0.1,0.25,1);transform:rotate('+(exp===s.id?'180deg':'0deg')+');',
+      };
+    });
+
+    // ---- date range ----
+    const cur = this.state.dateRange;
+    const rangeOptions = ['Today','Last 7 days','Last 30 days','Last 90 days','This year'].map(label=>({
+      label,
+      onClick:()=>this.setState({dateRange:label, rangeOpen:false}),
+      style:'display:flex;align-items:center;justify-content:space-between;width:100%;text-align:left;font-family:inherit;background:'+(label===cur?'#F1F1F1':'transparent')+';border:none;border-radius:8px;padding:8px 10px;cursor:pointer;',
+      checkStyle:'display:flex;color:#303030;visibility:'+(label===cur?'visible':'hidden')+';'
+    }));
+
+    // ---- summary donut ----
+    const C1 = 2*Math.PI*48;
+    const donutDash = (28.7/100*C1).toFixed(1)+' '+C1.toFixed(1);
+
+    // ---- KPI cards ----
+    const G='var(--p-color-text-success)', RED='var(--p-color-text-critical)';
+    const dStyle=(good)=>'font-size:12px;font-weight:650;font-variant-numeric:tabular-nums;color:'+(good?G:RED)+';';
+    const benchBox='display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--p-color-border-secondary);margin-top:6px;padding-top:10px;';
+    const fill=(tone,w)=>'position:absolute;left:0;top:0;bottom:0;border-radius:999px;width:'+w+'%;background:var(--p-color-bg-fill-'+tone+');';
+    const mark=(m)=>'position:absolute;left:'+m+'%;top:-2px;width:2px;height:10px;border-radius:1px;background:#303030;';
+    const SPARK_RED='#C70A24', SPARK_GREEN='#047B5D', SPARK_YELLOW='#FFB800';
+    const kpis=[
+      {label:'Checkout conversion', value:'28.7%', delta:'+1.8 pts', deltaStyle:dStyle(true), deltaNote:'vs prev period',
+       spark:this.spark([26.2,26.5,26.4,27.0,27.2,27.6,27.9,28.2,28.5,28.7],SPARK_GREEN),
+       benchStyle:benchBox, benchTone:'success', benchLabel:'Above average', benchNote:'vs 26% industry avg',
+       benchFillStyle:fill('success',(28.7/40*100).toFixed(1)), benchMarkStyle:mark((26/40*100).toFixed(1))},
+
+      {label:'Avg. time to purchase', value:'5.1 min', delta:'Median 3.4 min', deltaStyle:'font-size:12px;color:#616161;', deltaNote:'· 1.7 visits to buy',
+       spark:this.spark([4.6,4.7,4.9,4.8,5.0,4.9,5.1,5.2,5.0,5.1],SPARK_YELLOW),
+       benchStyle:benchBox, benchTone:'warning', benchLabel:'Slightly above average', benchNote:'vs 4.5 min industry avg',
+       benchFillStyle:fill('warning',(5.1/10*100).toFixed(1)), benchMarkStyle:mark((4.5/10*100).toFixed(1))},
+      {label:'Failed discount codes', value:'8.7%', delta:'$18,120 lost', deltaStyle:dStyle(false), deltaNote:'this period',
+       spark:this.spark([6.2,6.8,6.5,7.1,7.4,7.9,7.7,8.2,8.5,8.7],SPARK_RED),
+       benchStyle:benchBox, benchTone:'critical', benchLabel:'Needs attention', benchNote:'vs 3% industry avg',
+       benchFillStyle:fill('critical',(8.7/12*100).toFixed(1)), benchMarkStyle:mark((3/12*100).toFixed(1))},
+    ];
+
+    // ---- recoverable segments (hero) ----
+    const segTotal=27000;
+    const recoverSegs=[
+      {label:'Email field friction', value:16500, color:'#36C98E'},
+      {label:'Shipping rate speed', value:4500, color:'#1F8A5B'},
+      {label:'Failing discount codes', value:6000, color:'#A8E5C9'},
+    ].map(s=>({label:s.label, value:this.money(s.value),
+      barStyle:'display:block;height:100%;width:'+(s.value/segTotal*100).toFixed(1)+'%;background:'+s.color+';',
+      dotStyle:'width:10px;height:10px;border-radius:3px;background:'+s.color+';flex-shrink:0;'}));
+
+    // ---- insights ----
+    const raw=[
+      {id:'email', sessKey:'p_email', sessN:'2,241', tone:'critical', sevLabel:'Critical', title:'Customers stall at the email field',
+       metric:'31%', metricSub:'abandon at contact',
+       what:'The contact step is your single biggest leak — the email field is the most-struggled-with field on the page.',
+       why:'Customers hesitate, re-type, and abandon at the very first field. That friction sits in front of every other step, so it caps the conversion of everything downstream.',
+       action:'Turn on accelerated checkout (Shop Pay, Apple Pay) above the form and relax email validation so autofill works cleanly.',
+       chips:[{label:'Lost here', val:'$55,900'},{label:'Field friction', val:'61% of sessions'}],
+       recover:16500, primary:'Enable express checkout', secondary:'See field analysis'},
+      {id:'shipping', sessKey:'p_rates', sessN:'1,904', tone:'warning', sevLabel:'Needs attention', title:'Shipping rates load too slowly',
+       metric:'3.0s', metricSub:'avg rate load time',
+       what:'Shipping options take about 3 seconds to appear, and 28% of shoppers drop at the shipping step while they wait.',
+       why:'A blank, loading screen at a price-sensitive moment gives hesitant buyers a reason to leave. Speed here directly protects mid-funnel conversion.',
+       action:'Cache carrier rates or switch to flat-rate tiers so options render instantly when the step opens.',
+       chips:[{label:'Lost here', val:'$34,200'},{label:'Step drop', val:'28%'}],
+       recover:4500, primary:'Optimize shipping rates', secondary:'View shipping report'},
+      {id:'codes', sessKey:'p_code', sessN:'386', tone:'warning', sevLabel:'Needs attention', title:'3 discount codes are failing at checkout',
+       metric:'8.7%', metricSub:'of sessions hit an error',
+       what:'HELLO20 and HELLO15 error the most — customers who came to redeem a promo get blocked instead.',
+       why:'A failed code at checkout reads as "the deal is gone." These are high-intent shoppers ready to pay, and the error sends them away frustrated.',
+       action:'Review and fix the 3 top-failing codes — check expiry dates, eligibility rules, and minimum-spend thresholds.',
+       chips:[{label:'Revenue lost', val:'$18,120'},{label:'Top code', val:'HELLO20'}],
+       recover:6000, primary:'Review failing codes', secondary:'How codes fail'},
+      {id:'payment', tone:'success', sevLabel:'Healthy', title:'Your payment step is healthy',
+       metric:'79%', metricSub:'reach purchase from payment',
+       what:'Once shoppers reach payment, 79% complete the order. Express-pay adoption is at 9% and trending up.',
+       why:'The bottom of your funnel is working. Fixing the upper steps will send more qualified shoppers into a step that already converts well.',
+       action:'No action needed — keep express pay enabled and monitor processing time.',
+       chips:[{label:'Step completion', val:'79%'},{label:'Express pay', val:'9%'}],
+       recover:0, primary:null, secondary:'View payment report'},
+    ];
+    const open=this.state.openId;
+    const TILE={
+      critical:{bg:'#FEE8EB', fg:'#C70A24'},
+      warning:{bg:'#FFF1E3', fg:'#B98900'},
+      success:{bg:'#CDFED4', fg:'#047B5D'},
+    };
+    const ICONS={email:'EmailIcon', shipping:'ClockIcon', codes:'DiscountIcon', payment:'CheckCircleIcon'};
+    const insights=raw.map((r,i)=>({
+      rank:i+1, title:r.title, tone:r.tone, sevLabel:r.sevLabel,
+      tileStyle:'width:36px;height:36px;border-radius:8px;background:'+TILE[r.tone].bg+';display:flex;align-items:center;justify-content:center;flex-shrink:0;',
+      iconStyle:'width:20px;height:20px;background:'+TILE[r.tone].fg+';-webkit-mask:url("icons/'+ICONS[r.id]+'.svg") center / contain no-repeat;mask:url("icons/'+ICONS[r.id]+'.svg") center / contain no-repeat;',
+      what:r.what, why:r.why, action:r.action, chips:r.chips,
+      onSessions:()=>{ if(!r.sessKey) return; this.setState({activeTab:'Checkout drilldown', sessionPatternFilter:r.sessKey, sessionFilter:'All', expandedSession:({p_email:'s1',p_rates:'s3',p_code:'s4',p_bounce:'s7',p_norates:'s6'})[r.sessKey]||null}); window.scrollTo({top:0, behavior:'smooth'}); },
+      sessionsLabel: r.sessKey ? 'See '+r.sessN+' affected sessions →' : '',
+      sessionsLinkStyle: r.sessKey ? 'font-family:inherit;font-size:12px;font-weight:550;color:var(--p-color-text-link, #005BD3);background:transparent;border:none;padding:5px 4px;cursor:pointer;' : 'display:none;',
+      metric:r.metric, metricSub:r.metricSub,
+      onToggle:()=>this.setState({openId: this.state.openId===r.id ? null : r.id}),
+      chevStyle:'display:flex;flex-shrink:0;transition:transform 150ms cubic-bezier(0.25,0.1,0.25,1);transform:rotate('+(open===r.id?'180deg':'0deg')+');',
+      bodyStyle:(open===r.id?'display:flex;':'display:none;')+'flex-direction:column;gap:12px;padding:2px 20px 16px 70px;',
+      footNote:r.recover>0?'Est. recovery ':'On track — no action needed',
+      recover:'~'+this.money(r.recover)+'/mo',
+      recoverStyle:(r.recover>0 && showRecover)?'':'display:none;',
+      secondary:r.secondary,
+      primary:r.primary||'',
+      primaryStyle:r.primary?'':'display:none;',
+    }));
+
+    // ---- detail tables ----
+    const codes=[
+      {code:'HELLO20', first:'Jun 22, 2025', last:'Jun 5, 2026', rate:'3.1%', lost:this.money(7240)},
+      {code:'HELLO15', first:'Jun 24, 2025', last:'Jun 5, 2026', rate:'2.4%', lost:this.money(5310)},
+      {code:'SAVEMORE', first:'Jun 24, 2025', last:'Jun 4, 2026', rate:'1.6%', lost:this.money(3180)},
+      {code:'CRABBY', first:'Sep 3, 2025', last:'Jun 2, 2026', rate:'1.0%', lost:this.money(1390)},
+      {code:'WELCOME', first:'Sep 3, 2025', last:'May 28, 2026', rate:'0.6%', lost:this.money(1000)},
+    ];
+    const couponStats=[
+      {label:'Sessions that enter a failing code', value:'8.7%'},
+      {label:'Abandonments caused by coupon failures', value:'10.1%'},
+      {label:'Revenue lost from failed codes', value:this.money(18120)},
+    ];
+    const errors=[
+      {msg:'"Enter an email"', source:'Form', rate:'2.2%', first:'Nov 12, 2025', last:'Jun 5, 2026'},
+      {msg:'"The shipping options have changed for your order. Review your selection."', source:'Shipping', rate:'2.5%', first:'Feb 8, 2026', last:'Jun 4, 2026'},
+      {msg:'"Some items are no longer available and will be removed from your cart."', source:'Cart', rate:'2.1%', first:'Jan 22, 2026', last:'Jun 5, 2026'},
+      {msg:'"Invalid address"', source:'Form', rate:'1.8%', first:'Oct 3, 2025', last:'Jun 3, 2026'},
+      {msg:'Script error in shipping-date-label extension (deliveryOptions undefined)', source:'Extension', rate:'1.2%', first:'May 19, 2026', last:'Jun 5, 2026'},
+    ];
+    const errorStats=[
+      {label:'Sessions with at least one error', value:'14.0%'},
+      {label:'Form field errors', value:'10.6% of sessions'},
+      {label:'Payment errors', value:'3.4% of sessions'},
+    ];
+    const noShip=[
+      {date:'Jun 4', address:'100 School Rd', city:'Craig', zip:'99921', loc:'AK, US'},
+      {date:'Jun 3', address:'478 S King St', city:'Honolulu', zip:'96813', loc:'HI, US'},
+      {date:'Jun 1', address:'7209 Old Clinton Pike', city:'Knoxville', zip:'37921', loc:'TN, US'},
+      {date:'May 30', address:'2 Prinz Cir', city:'Saint Charles', zip:'63303', loc:'MO, US'},
+    ];
+    const geo=[
+      {place:'Illinois', pct:92},
+      {place:'Texas', pct:71},
+      {place:'Georgia', pct:66},
+      {place:'Ohio', pct:58},
+      {place:'California', pct:49},
+    ].map(g=>({place:g.place, pct:g.pct+'%',
+      barStyle:'display:block;height:100%;border-radius:999px;background:var(--p-color-bg-fill-critical);width:'+g.pct+'%;'}));
+
+    // ---- patterns & drill views ----
+    const PATTERNS=[
+      {key:'p_email', sev:'warning', title:'Struggled with the email field', sessions:'2,241', value:'$55,900 at stake', ex:'s1'},
+      {key:'p_rates', sev:'warning', title:'Waited over 3s for shipping rates', sessions:'1,904', value:'$34,200 at stake', ex:'s3'},
+      {key:'p_bounce', sev:'warning', title:'Left within 30 seconds', sessions:'1,067', value:'$21,300 at stake', ex:'s7'},
+      {key:'p_code', sev:'critical', title:'Discount code failed', sessions:'386', value:'$18,120 at stake', ex:'s4'},
+      {key:'p_norates', sev:'critical', title:'No shipping rates for address', sessions:'214', value:'$12,400 at stake', ex:'s6'},
+    ];
+    const patternCards=PATTERNS.map(p=>{
+      const sel=pf===p.key;
+      return {
+        title:p.title, sessions:p.sessions, value:p.value,
+        onClick:()=>this.setState({sessionPatternFilter: this.state.sessionPatternFilter===p.key?null:p.key, sessionFilter:'All', expandedSession:p.ex}),
+        cardStyle:'display:flex;flex-direction:column;align-items:stretch;gap:6px;text-align:left;font-family:inherit;border:none;border-radius:12px;padding:13px 14px;cursor:pointer;background:'+(sel?'#FFFFFF':'#FFFFFF')+';box-shadow:'+(sel?'inset 0 0 0 2px #303030, var(--p-shadow-100)':'var(--p-shadow-100), var(--p-shadow-bevel-100)')+';transition:box-shadow 150ms cubic-bezier(0.25,0.1,0.25,1);',
+      };
+    });
+    const pfDef=PATTERNS.find(p=>p.key===pf);
+
+    // ---- impact ----
+    const impactBars=[
+      {month:'Apr', value:'$4.6k', h:34, c:'#36C98E'},
+      {month:'May', value:'$10.9k', h:64, c:'#36C98E'},
+      {month:'Jun', value:'$3.9k', h:28, c:'#A8E5C9'},
+    ].map(b=>({month:b.month, value:b.value, barStyle:'display:block;width:26px;height:'+b.h+'px;border-radius:6px 6px 2px 2px;background:'+b.c+';'}));
+    const fixes=[
+      {tone:'success', status:'Verified', title:'Relaxed email validation', source:'From insight: Customers stall at the email field', applied:'Apr 14', result:'Contact drop 36% → 31%', recovered:'+$8,200/mo', good:true},
+      {tone:'success', status:'Verified', title:'Fixed WELCOME code expiry', source:'From insight: Discount codes failing at checkout', applied:'May 2', result:'Code error rate 11.2% → 8.7%', recovered:'+$3,900/mo', good:true},
+      {tone:'info', status:'Measuring', title:'Cached carrier shipping rates', source:'From insight: Shipping rates load too slowly', applied:'May 28', result:'Rate load 3.0s → 1.1s · 8 of 14 days measured', recovered:'Est. +$4,500/mo', good:false},
+      {tone:'attention', status:'Suggested', title:'Enable express checkout', source:'From insight: Customers stall at the email field', applied:'—', result:'Projected contact drop 31% → 24%', recovered:'Est. +$16,500/mo', good:false},
+    ].map(f=>({tone:f.tone, status:f.status, title:f.title, source:f.source, applied:f.applied, result:f.result, recovered:f.recovered,
+      recoveredStyle:'font-size:13px;font-weight:650;text-align:right;font-variant-numeric:tabular-nums;color:'+(f.good?'var(--p-color-text-success)':'#616161')+';'}));
+
+    // ---- slack alerts ----
+    const connected = this.state.slackConnected;
+    const prefs = this.state.alertPrefs;
+    const ALERT_TYPES = [
+      {key:'spike',  title:'Abandonment spike',        freq:'Real time', desc:'When abandonment runs unusually high for an hour'},
+      {key:'code',   title:'Discount code failing',    freq:'Real time', desc:'When a code starts erroring for customers at checkout'},
+      {key:'noRates',title:'No shipping rates',        freq:'Real time', desc:'When a shopper sees no shipping options for their address'},
+      {key:'errors', title:'Checkout error spike',     freq:'Real time', desc:'When one error affects multiple sessions in a short window'},
+      {key:'daily',  title:'Daily summary',            freq:'8:00 am',   desc:'Sessions, conversion, and revenue lost — every morning'},
+      {key:'weekly', title:'Weekly health report',     freq:'Mondays',   desc:'Health score, trends, and top opportunities for the week'},
+    ];
+    const alertTypes = ALERT_TYPES.map(t=>{
+      const on = connected && prefs[t.key];
+      return {
+        title:t.title, desc:t.desc, freq:t.freq, on:String(on),
+        titleStyle:'font-size:13px;font-weight:550;color:'+(connected?'#303030':'#B5B5B5')+';',
+        descStyle:'font-size:12px;line-height:17px;color:'+(connected?'var(--p-color-text-secondary)':'#B5B5B5')+';',
+        freqStyle:'font-size:11px;color:'+(connected?'#8A8A8A':'#B5B5B5')+';background:'+(connected?'#F7F7F7':'#FAFAFA')+';border-radius:6px;padding:2px 8px;',
+        onToggle:()=>{ if(!connected) return; this.setState({alertPrefs:{...this.state.alertPrefs,[t.key]:!this.state.alertPrefs[t.key]}}); },
+        trackStyle:'position:relative;width:32px;height:18px;border-radius:999px;border:none;padding:0;flex-shrink:0;cursor:'+(connected?'pointer':'default')+';transition:background 150ms cubic-bezier(0.25,0.1,0.25,1);background:'+(on?'#303030':(connected?'#E3E3E3':'#F1F1F1'))+';',
+        knobStyle:'position:absolute;top:2px;left:'+(on?'16px':'2px')+';width:14px;height:14px;border-radius:999px;background:#FFFFFF;box-shadow:0 1px 2px rgba(26,26,26,0.20);transition:left 150ms cubic-bezier(0.25,0.1,0.25,1);',
+      };
+    });
+
+    // ---- funnel ----
+    const FUNNEL={
+      'All sessions':{steps:[17958,12391,8922,6524,5154], caption:'31% of sessions never get past contact — the single biggest leak in the funnel.'},
+      'Mobile':{steps:[11134,6903,4693,3238,2450], caption:'Mobile loses 38% at contact — 1.9× desktop. Express checkout matters most here.'},
+      'Desktop':{steps:[6824,5459,4258,3280,2704], caption:'Desktop converts 39.6% — your checkout works when typing is easy.'},
+      'Express pay':{steps:[3412,3139,2825,2683,2456], caption:'Express sessions convert 72% — 3.9× manual checkout. Every shopper moved to express is a win.'},
+      'Manual checkout':{steps:[14546,9252,6097,3841,2698], caption:'Manual checkout converts 18.5% vs 72% for express — typing is where you lose people.'},
+    };
+    const STEP_LABELS=['Checkout started','Contact submitted','Shipping selected','Payment reached','Order placed'];
+    const fseg=this.state.funnelSeg;
+    const funnelSegs=Object.keys(FUNNEL).map(label=>({
+      label,
+      onClick:()=>this.setState({funnelSeg:label}),
+      style:'font-family:inherit;font-size:12px;font-weight:'+(label===fseg?'650':'550')+';color:'+(label===fseg?'#303030':'#616161')+';background:'+(label===fseg?'#F1F1F1':'transparent')+';border:none;border-radius:8px;padding:5px 10px;cursor:pointer;'
+    }));
+    const fdata=FUNNEL[fseg];
+    const funnelSteps=fdata.steps.map((n,i)=>{
+      const pct=n/fdata.steps[0]*100;
+      const dropPct=i===0?null:Math.round((1-n/fdata.steps[i-1])*100);
+      const last=i===fdata.steps.length-1;
+      return {
+        label:STEP_LABELS[i],
+        count:n.toLocaleString('en-US'),
+        barStyle:'position:absolute;left:0;top:0;bottom:0;border-radius:6px;width:'+pct.toFixed(1)+'%;background:'+(last?'#047B5D':'#303030')+';opacity:'+(last?'1':(0.9-i*0.14).toFixed(2))+';',
+        drop:dropPct===null?'':'−'+dropPct+'%',
+        dropStyle:'font-size:12px;font-weight:550;font-variant-numeric:tabular-nums;width:44px;text-align:right;color:'+(dropPct>=30?'var(--p-color-text-critical)':'#8A8A8A')+';',
+      };
+    });
+
+    return {
+      funnelSegs, funnelSteps, funnelCaption:fdata.caption,
+      goToDrilldown: ()=>this.setState({activeTab:'Checkout drilldown'}),
+      tabs, showOverview: tab==='Overview', showDrilldown: tab==='Checkout drilldown', showSlack: tab==='Slack alerts', showImpact: tab==='Impact',
+      slackConnected: connected, slackDisconnected: !connected,
+      testSent: this.state.testSent,
+      testLabel: this.state.testSent ? 'Send again' : 'Send test alert',
+      sendTest: ()=>this.setState({testSent:true}),
+      connectSlack: ()=>this.setState({slackConnected:true, testSent:false}),
+      disconnectSlack: ()=>this.setState({slackConnected:false, testSent:false}),
+      alertTypes,
+      alertTypesHint: connected ? 'Choose what posts to #checkout-alerts.' : 'Connect Slack above to turn alerts on.',
+      patternCards,
+      patternChip: !!pfDef, patternChipLabel: pfDef ? 'Pattern: '+pfDef.title : '',
+      clearPatternFilter: ()=>this.setState({sessionPatternFilter:null}),
+      sessionsFootnote: pfDef ? 'Showing example sessions for this pattern — '+pfDef.sessions+' sessions match it in total.' : 'Showing 8 of 17,958 sessions. Session events are kept for 60 days.',
+      impactBars, fixes,
+      sessionFilters, sessions,
+      dateRange:cur, rangeOpen:this.state.rangeOpen, rangeOptions,
+      toggleRange:()=>this.setState({rangeOpen:!this.state.rangeOpen}),
+      rangeDates:'May 6 – Jun 5, 2026',
+      lostLabel:this.money(128470),
+      donutDash, kpis, insights, codes, geo, couponStats, errors, errorStats, noShip, recoverSegs,
+      scrollToInsights:()=>{ const el=document.getElementById('insights'); if(el) window.scrollTo({top:el.getBoundingClientRect().top+window.scrollY-16, behavior:'smooth'}); },
+    };
+  }
+}
+</script>
+</body>
+</html>
