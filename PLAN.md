@@ -16,13 +16,14 @@ This section is the current execution plan; dated notes below are history. Build
 - [x] Linked it through Shopify CLI 4.8.4; generated gitignored shopify.app.toml and a sanitized committed template. CLI configuration validation passed.
 - [x] Generated and built the checkout-evidence app pixel extension with analytics consent and no buyer data.
 - [x] Implemented App Bridge HTML, signed-session verification, offline token exchange/renewal, private snapshots, and signed uninstall/scope-change handling in Convex.
-- [x] Published the Convex development backend/frontend. Missing credentials return503; unauthenticated store requests return401. These checks do not prove successful Shopify authorization.
+- [x] Published the Convex development backend/frontend. Missing credentials show a readable Shopify-embedded setup screen; unauthenticated store requests return401. These checks do not prove successful Shopify authorization.
 - [x] Added source-aware browser subtotal pricing and removed action-card AOV fallback. Legacy public demo and new private pixel/server data are stored separately.
-- [x] Typechecking, Polaris manifest checks, Shopify query validation, pixel build and25isolated tests passed.
+- [x] Typechecking, Polaris manifest checks, Shopify query validation, pixel build and28isolated tests passed.
 - [ ] User sets SHOPIFY_CLIENT_ID and SHOPIFY_CLIENT_SECRET from keval-test-app in Convex.
-- [ ] Release the new pixel/configuration version, install on build-sprint-demo, and verify authenticated reads/token lifecycle.
+- [x] Shopify CLI app dev preview created for keval-test-app on build-sprint-demo; app appears and opens inside Shopify admin.
+- [ ] Release approval is pending for the persistent new pixel/configuration version. Verify authenticated reads/token lifecycle after user-set credentials.
 - [ ] Verify one new completed and one new unfinished actual browser checkout, then disconnect the old custom pixel after new collection is proven.
-- [ ] Finish code review, phone/browser verification, and commit.
+- [x] Code review completed on Standards and Spec axes. Fixed sandbox hashing, overlapping-pixel deduplication, and revoked evidence access; both reviewers confirmed the fixes. Public preview checked at desktop and390px phone width with no overflow. Installed app verified inside Shopify with the pending-settings screen; authenticated flow remains untested. Implementation and fixes committed on main.
 
 Current app URL: https://neighborly-nightingale-843.convex.site/api/shopify/app. Public demo stays at the root URL. Shopify CLI deployment releases configuration/extensions; Convex uploads publish frontend assets. Neither git push nor Shopify app deploy publishes the Convex web app.
 
@@ -253,3 +254,7 @@ User requested alignment with facts and probability after challenging unknown am
 ### One consistent priced cohort — 6 October 2026
 
 User requested priced baskets only or Unknown. Removed AOV substitution and its estimate helper/tests. Summary now uses recordedImpact's deduplicated session-linked subtotal, exactly like actions: USD600,1of41unfinished sessions linked,40unlinked excluded, illustrative1–5%USD6–30. Payment group with no linked basket shows Unknown. Exported31-record/USD18,600snapshot remains stored but is no longer presented as the linked-session summary. Test-purchase AOV is context only.22tests and native component/build checks passed; no data/identity writes.
+
+### Review and verification — Shopify connection
+
+Standards review found two issues (revoked evidence reads and duplicate pixel IDs); Spec review found those plus unsupported strict-sandbox hashing globals. All three were fixed, targeted tests passed, and both reviewers confirmed the fixes. Full suite28passed, typechecking/Polaris checks/pixel build/config validation passed. No real credentials entered by the agent; actual app TOML is gitignored. New browser test checkouts and authenticated Shopify reads are pending the user setting credentials, so the integration is not declared complete.

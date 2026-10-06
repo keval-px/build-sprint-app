@@ -1,5 +1,6 @@
 import {register} from '@shopify/web-pixels-extension';
-import {recordDigest,usdCents} from '../../../shared/shopifyRecords';
+import {usdCents} from '../../../shared/shopifyRecords';
+import {checkoutIdentity} from '../../../shared/checkoutIdentity';
 const store='build-sprint-demo.myshopify.com';
 const endpoint='https://neighborly-nightingale-843.convex.site/api/shopify/pixel-events';
 type SafeEvent={id:string;name:string;timestamp:string;context:{document:{location:{hostname:string}}};data?:{checkout?:{token?:string|null;subtotalPrice?:{amount:number;currencyCode:string}|null};alert?:{type?:string}}};
@@ -15,8 +16,7 @@ register(({analytics,browser,settings})=>{
       let sessionId:string|null=null;
       if(token){
         // Preserve the legacy checkout hash convention for exact identities.
-        const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(`${store}:${token}`));
-        sessionId=[...new Uint8Array(bytes)].map(n=>n.toString(16).padStart(2,'0')).join('');
+        sessionId=checkoutIdentity(token);
         await browser.sessionStorage.setItem(storage,JSON.stringify({sessionId,at:Date.now()}));
       }else if(event.name==='alert_displayed'){
         const saved=await browser.sessionStorage.getItem(storage);
@@ -27,7 +27,7 @@ register(({analytics,browser,settings})=>{
       const category=type==='DISCOUNT_ERROR'?'discount':type==='PAYMENT_ERROR'?'payment':type==='DELIVERY_ERROR'?'delivery':['INPUT_INVALID','INPUT_REQUIRED','CONTACT_ERROR'].includes(type??'')?'validation':null;
       const money=event.data?.checkout?.subtotalPrice;
       const subtotalCents=money?usdCents({amount:String(money.amount),currencyCode:money.currencyCode}):null;
-      const payload={eventId:await recordDigest('pixel-event',event.id),sessionId,name:event.name,timestamp:Date.parse(event.timestamp),category:event.name==='alert_displayed'?category:null,...(subtotalCents===null?{}:{subtotalCents,currency:'USD'})};
+      const payload={eventId:checkoutIdentity(event.id),sessionId,name:event.name,timestamp:Date.parse(event.timestamp),category:event.name==='alert_displayed'?category:null,...(subtotalCents===null?{}:{subtotalCents,currency:'USD'})};
       await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload),keepalive:true});
       if(event.name==='checkout_completed')await browser.sessionStorage.removeItem(storage);
     }).catch(()=>{/* Never log Shopify payloads or buyer data. */});

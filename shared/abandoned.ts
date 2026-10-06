@@ -23,4 +23,3 @@ export function recordedImpact(events:CheckoutEvent[],missions:Mission[],snapsho
   const actions=missions.map(m=>{const ids=[...new Set(m.sessionIds)].filter(id=>unfinished.has(id));ids.forEach(id=>combined.add(id));return{id:m.id,...amount(ids)}});
   return{actions,combined:amount([...combined])};
 }
-

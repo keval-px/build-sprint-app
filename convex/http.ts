@@ -8,6 +8,7 @@ import { isViewerId, isActionStep } from "../shared/actions";
 import {authorizedAccess,syncStore,adminRead} from './shopify';
 import {verifyMerchant,verifyLifecycle} from './lib/shopifyAuth';
 import {pixelQuery,pixelCreate} from './lib/shopifyQueries';
+import {canReadShopifyEvidence,mergeCheckoutEvents} from '../shared/checkoutIdentity';
 import {STORE,parseTestEvent as parsePixelBase} from '../shared/evidence';
 
 const http = httpRouter();
@@ -15,7 +16,7 @@ const privateReply=(body:unknown,status=200)=>new Response(JSON.stringify(body),
 const bearer=(request:Request)=>request.headers.get('Authorization')?.match(/^Bearer ([^\s]+)$/)?.[1]??'';
 http.route({path:'/shopify/app',method:'GET',handler:httpAction(async(ctx,request)=>{
   const id=process.env.SHOPIFY_CLIENT_ID;
-  if(!id)return new Response('Set SHOPIFY_CLIENT_ID and SHOPIFY_CLIENT_SECRET in Convex, then reopen this app.',{status:503});
+  if(!id || !process.env.SHOPIFY_CLIENT_SECRET)return new Response(`<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><title>Connect keval-test-app</title><script src="https://cdn.shopify.com/shopifycloud/polaris-2.0-rc.js"></script></head><body><s-page heading="Connect keval-test-app"><s-section heading="Add the app settings in Convex"><s-paragraph>Set SHOPIFY_CLIENT_ID and SHOPIFY_CLIENT_SECRET from keval-test-app's Overview in Convex Settings → Environment Variables. Keep both values private. Then reopen this app from Shopify.</s-paragraph></s-section></s-page></body></html>`,{headers:{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','Content-Security-Policy':`frame-ancestors https://${STORE} https://admin.shopify.com;`}});
   const shop=new URL(request.url).searchParams.get('shop');
   if(shop && shop!==STORE)return new Response('This test app supports build-sprint-demo only.',{status:403});
   const asset=await ctx.runQuery(components.staticHosting.lib.resolveAssetForHttp,{path:'/index.html'});
@@ -43,12 +44,13 @@ for(const operation of ['status','sync','evidence','pixel/enable']){
       const connection=await ctx.runQuery(internal.shopify.connection,{});
       const snapshot=await ctx.runQuery(internal.shopify.snapshot,{});
       if(operation==='status')return privateReply({store:STORE,connected:!!connection,lastSyncedAt:snapshot?.syncedAt??null});
+      if(!canReadShopifyEvidence(connection))return privateReply({error:'Shopify installation is disconnected or permissions were removed.'},403);
       const original=await ctx.runQuery(internal.events.readTestEvidence,{});
       const pixel=await ctx.runQuery(internal.shopifyEvents.read,{});
       const catalogModel=await ctx.runQuery(internal.catalog.read,{});
       const abandonedCheckouts=await ctx.runQuery(internal.abandoned.read,{});
       const observedPurchases=await ctx.runQuery(internal.purchases.read,{});
-      return privateReply({...original,events:[...original.events,...pixel.events],truncated:original.truncated||pixel.truncated,totalStored:original.totalStored+pixel.events.length,catalogModel,abandonedCheckouts,observedPurchases,shopifySnapshot:snapshot?{syncedAt:snapshot.syncedAt,periodStart:snapshot.periodStart,orders:snapshot.orders,abandoned:snapshot.abandoned}:null,enabled:true,source:'Demo Shopify browser and server evidence.',sampledAt:Date.now()});
+      return privateReply({...original,events:mergeCheckoutEvents(original.events,pixel.events),truncated:original.truncated||pixel.truncated,totalStored:original.totalStored+pixel.events.length,catalogModel,abandonedCheckouts,observedPurchases,shopifySnapshot:snapshot?{syncedAt:snapshot.syncedAt,periodStart:snapshot.periodStart,orders:snapshot.orders,abandoned:snapshot.abandoned}:null,enabled:true,source:'Demo Shopify browser and server evidence.',sampledAt:Date.now()});
     }catch{return privateReply({error:'Shopify connection needs attention. Check credentials, installation and permissions; previous results are retained.'},503);}
   })});
 }

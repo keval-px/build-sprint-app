@@ -49,7 +49,7 @@
             <s-stack gap="base">
               <s-paragraph id="catalog-summary">Reading the saved product-price model…</s-paragraph>
               <s-query-container><s-grid id="catalog-metrics" gridTemplateColumns="@container (inline-size > 600px) 1fr 1fr, 1fr" gap="base">
-                <s-stack id="abandoned-value-metric" gap="small" hidden><s-text color="subdued">Linked abandoned basket value</s-text><s-number id="abandoned-value" fontSize="large-100" fontWeight="bold">—</s-number><s-text id="abandoned-count" color="subdued"></s-text></s-stack>
+                <s-stack id="abandoned-value-metric" gap="small" hidden><s-text id="abandoned-value-label" color="subdued">Linked abandoned basket value</s-text><s-number id="abandoned-value" fontSize="large-100" fontWeight="bold">—</s-number><s-text id="abandoned-count" color="subdued"></s-text></s-stack>
                 <s-stack gap="small"><s-text color="subdued" id="catalog-aov-label">Modeled average order value</s-text><s-number id="catalog-aov" fontSize="large-100" fontWeight="bold">—</s-number></s-stack>
                 <s-stack gap="small"><s-text color="subdued" id="catalog-recovery-label">Recovery scenario · 1–5%</s-text><s-number id="catalog-recovery" tone="success" fontSize="large-100" fontWeight="bold">—</s-number><s-text id="catalog-dedup" color="subdued"></s-text></s-stack>
               </s-grid></s-query-container>

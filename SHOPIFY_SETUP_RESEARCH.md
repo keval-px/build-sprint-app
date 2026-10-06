@@ -20,3 +20,7 @@ User enters SHOPIFY_CLIENT_ID and SHOPIFY_CLIENT_SECRET in Convex themselves. Th
 ## Implementation checkpoints
 
 Connection, SDK/Convex runtime compatibility, correct-store read, token renewal, signed lifecycle notifications, new pixel collection and phone layout must each be verified before declaring the integration complete. Existing demo evidence remains historical and milestone 1 still needs live-merchant validation.
+
+## Strict-sandbox correction from review
+
+Shopify guarantees only a limited set of globals in app pixels; do not depend on crypto or TextEncoder there: https://shopify.dev/docs/apps/build/marketing/pixels . The extension now bundles pure-JavaScript SHA-256 from js-sha256, whose implementation supports UTF-8 directly: https://github.com/emn178/js-sha256 . A browser bundle test runs with only self/console and confirms hashing without those globals. Legacy and app collectors now use identical event hashes; the private combined reader prefers the app pixel's richer price evidence.

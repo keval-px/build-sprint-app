@@ -16,7 +16,8 @@
     "@convex-dev/static-hosting": "0.2.1",
     "@shopify/shopify-api": "^15.0.0",
     "@shopify/web-pixels-extension": "^2.18.0",
-    "convex": "^1.46.0"
+    "convex": "^1.46.0",
+    "js-sha256": "^1.0.0"
   },
   "devDependencies": {
     "@shopify/cli": "^4.8.4",

@@ -236,6 +236,7 @@ function render(data: EvidenceResponse) {
   element("catalog-metrics").setAttribute("gridTemplateColumns",abandonedCheckouts ? "@container (inline-size > 600px) 1fr 1fr 1fr, 1fr" : "@container (inline-size > 600px) 1fr 1fr, 1fr");
   renderCatalog(data.catalogModel ?? null,data.events,data.truncated,data.observedPurchases ?? null);
   {const snap=abandonedCheckouts ?? {importedOn:"",emailSent:0,emailNotSent:0,records:[]};const priced=recordedImpact(data.events,buildMissions(data.events),snap); const total=priced.combined.atRiskCents;
+    text("abandoned-value-label",priced.combined.browserPricedSessions ? "Observed unfinished basket value" : "Linked abandoned basket value");
     text("abandoned-value",priced.combined.matchedSessions ? money(total) : "Unknown");
     text("abandoned-count",`${priced.combined.matchedSessions} of ${priced.combined.eligibleSessions} unfinished checkouts priced`);
     element("abandoned-source").hidden=false;
