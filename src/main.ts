@@ -20,7 +20,7 @@ const element = (id: string) => document.getElementById(id)!;
 const text = (id: string, value: string | number) => { element(id).textContent = String(value); };
 const escape = (value: string) => value.replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]!);
 const time = (timestamp: number) => new Date(timestamp).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit" });
-const approximateMoney = (cents:number) => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',currencyDisplay:'code',maximumFractionDigits:0,minimumFractionDigits:0}).format(cents/100);
+const approximateMoney = (cents:number) => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',currencyDisplay:'narrowSymbol',maximumFractionDigits:0,minimumFractionDigits:0}).format(cents/100);
 const recoveryRange = (cents:number) => `${approximateMoney(cents*.01)}–${approximateMoney(cents*.05)}`;
 const eventLabels: Record<CheckoutEvent["name"], string> = {
   checkout_started: "Checkout started", checkout_contact_info_submitted: "Contact information submitted",
@@ -77,7 +77,7 @@ function renderProgress() {
     }
   }
 }
-const money = (cents: number) => new Intl.NumberFormat(undefined,{style:"currency",currency:"USD",currencyDisplay:"code"}).format(cents/100);
+const money = (cents: number) => new Intl.NumberFormat('en-US',{style:"currency",currency:"USD",currencyDisplay:"narrowSymbol"}).format(cents/100);
 function renderCatalog(model: CatalogModel | null, events: CheckoutEvent[], partial: boolean, observed: ObservedPurchases | null) {
   catalogModel = model; observedPurchases = observed;
   if (!model) {
@@ -330,7 +330,13 @@ async function shopifyRequest(path:string,method='GET') {
   if(!bridge)throw Error('Open this app inside Shopify admin.');
   const token=await bridge.idToken();
   const response=await fetch(`${backendOrigin}/api/shopify/${path}`,{method,headers:{Authorization:`Bearer ${token}`},cache:'no-store',signal:AbortSignal.timeout(90000)});
-  if(!response.ok)throw Error('Shopify connection needs attention.');
+  if(!response.ok){
+    const body=await response.json().catch(()=>null);
+    const reasons=['Shopify authorization failed. Check installation and permissions.','Install the requested Shopify permissions first.','Shopify could not return data. Check permissions and retry; previous results are retained.','Unexpected store or missing Shopify permissions.'];
+    const safeBlock=typeof body?.error==='string'&&/^Shopify blocked (abandoned checkouts|orders|app settings): (protected customer data approval required|access denied|query rejected)\.$/.test(body.error);
+    text('shopify-status',response.status===401 ? 'Shopify sign-in verification failed. Check that the Convex settings belong to keval-test-app.' : reasons.includes(body?.error)||safeBlock?body.error:`${path==='sync'?'Shopify data refresh':'Shopify request'} failed (${response.status}).`);
+    throw Error('Shopify connection needs attention.');
+  }
   return response;
 }
 if(embeddedShopify){

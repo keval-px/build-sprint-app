@@ -52,13 +52,23 @@ export async function authorizedAccess(ctx:ActionCtx,idToken:string):Promise<str
   return storeSession(ctx,await exchangeMerchant(idToken),issuedAt);
 }
 export async function adminRead<T>(accessToken:string,query:string,variables:Record<string,unknown>={}):Promise<T>{
+  const operation=query===abandonedQuery?'abandoned checkouts':query===ordersQuery?'orders':'app settings';
   try{
     const response=await fetch(`https://${STORE}/admin/api/2026-10/graphql.json`,{method:'POST',redirect:'error',signal:AbortSignal.timeout(15000),headers:{'Content-Type':'application/json','X-Shopify-Access-Token':accessToken},body:JSON.stringify({query,variables})});
     if(!response.ok)throw Error();
     const text=await response.text();if(text.length>1500000)throw Error();
-    const result=JSON.parse(text);if(result.errors?.length || !result.data)throw Error();
+    const result=JSON.parse(text);
+    if(result.errors?.length){
+      const protectedData=result.errors.some((e:{message?:unknown})=>typeof e.message==='string'&&/protected customer|approved.*customer|customer data/i.test(e.message));
+      const denied=result.errors.some((e:{extensions?:{code?:unknown}})=>e.extensions?.code==='ACCESS_DENIED');
+      throw Error(`Shopify blocked ${operation}: ${protectedData?'protected customer data approval required':denied?'access denied':'query rejected'}.`);
+    }
+    if(!result.data)throw Error();
     return result.data as T;
-  }catch{throw Error('Shopify could not return data. Check permissions and retry; previous results are retained.');}
+  }catch(error){
+    if(error instanceof Error && /^Shopify blocked (abandoned checkouts|orders|app settings): (protected customer data approval required|access denied|query rejected)\.$/.test(error.message))throw error;
+    throw Error('Shopify could not return data. Check permissions and retry; previous results are retained.');
+  }
 }
 type Money={amount:string;currencyCode:string};
 type NativeRecord={id:string;createdAt:string;completedAt?:string|null;currentSubtotalPriceSet?:{shopMoney:Money};subtotalPriceSet?:{shopMoney:Money};test?:boolean;cancelledAt?:string|null;displayFinancialStatus?:string};

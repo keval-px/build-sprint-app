@@ -51,7 +51,12 @@ for(const operation of ['status','sync','evidence','pixel/enable']){
       const abandonedCheckouts=await ctx.runQuery(internal.abandoned.read,{});
       const observedPurchases=await ctx.runQuery(internal.purchases.read,{});
       return privateReply({...original,events:mergeCheckoutEvents(original.events,pixel.events),truncated:original.truncated||pixel.truncated,totalStored:original.totalStored+pixel.events.length,catalogModel,abandonedCheckouts,observedPurchases,shopifySnapshot:snapshot?{syncedAt:snapshot.syncedAt,periodStart:snapshot.periodStart,orders:snapshot.orders,abandoned:snapshot.abandoned}:null,enabled:true,source:'Demo Shopify browser and server evidence.',sampledAt:Date.now()});
-    }catch{return privateReply({error:'Shopify connection needs attention. Check credentials, installation and permissions; previous results are retained.'},503);}
+    }catch(error){
+      const message=error instanceof Error ? error.message : '';
+      const reasons=['Shopify authorization failed. Check installation and permissions.','Install the requested Shopify permissions first.','Shopify could not return data. Check permissions and retry; previous results are retained.','Unexpected store or missing Shopify permissions.'];
+      const safeBlock=/^Shopify blocked (abandoned checkouts|orders|app settings): (protected customer data approval required|access denied|query rejected)\.$/.test(message);
+      return privateReply({error:reasons.includes(message)||safeBlock?message:'Shopify connection needs attention. Check credentials, installation and permissions; previous results are retained.'},503);
+    }
   })});
 }
 http.route({path:'/shopify/webhooks',method:'POST',handler:httpAction(async(ctx,request)=>{

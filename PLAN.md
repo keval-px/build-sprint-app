@@ -263,3 +263,9 @@ Standards review found two issues (revoked evidence reads and duplicate pixel ID
 ### Persistent Shopify release — 6 October 2026
 
 User approved release. Shopify CLI built and validated checkout-evidence, then confirmed keval-test-app-2 released successfully: https://dev.shopify.com/dashboard/129333258/apps/432119382017/versions/1156594204673 . Only keval-test-app was targeted. Pixel activation and real browser delivery remain pending the user-set Convex credentials; release alone does not enable collection. The embedded page still shows the credential setup screen.
+
+### Credential verification and protected-data blocker — 6 October 2026
+
+User set both Convex app settings. Browser verification now passes Shopify session verification and token exchange, but the abandoned-checkout query is rejected because protected customer-data access has not been selected. Added allowlisted connection errors so only fixed diagnostic labels reach the UI; raw Shopify errors and credentials remain private. All 28 tests and the native Polaris/type/build checks pass. Amounts now display the dollar symbol instead of the USD code; published amounts were checked in the browser.
+
+The Partner Dashboard's Protected customer data form is open, with Analytics available as a reason. No optional name, email, phone or address access is needed. Automatic approval review blocked selecting Analytics because it expands permissions; awaiting explicit approval before selecting and saving. Pixel activation and new browser checkout delivery remain unverified. No new records are claimed.
