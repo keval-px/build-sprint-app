@@ -122,7 +122,7 @@ function renderCatalog(model: CatalogModel | null, events: CheckoutEvent[], part
     text("catalog-details-heading","Observed test basket mix");
     text("catalog-mix-description",`${observed.orderCount} paid test purchases across ${observed.baskets.length} observed basket type${observed.baskets.length===1 ? "" : "s"}. Shares below come from the exported orders, replacing the assumed basket weights.`);
     text("catalog-method",`${money(observed.totalProductCents)} in product subtotals ÷ ${observed.orderCount} paid test orders = ${money(aov)} observed test-order average. All orders used the test gateway; these amounts are not real sales revenue.`);
-    text("catalog-exclusions","Only paid, uncancelled, unrefunded USD test-gateway orders without discounts are included. Shipping and tax are excluded. Buyer details and order identifiers are not stored. This is an imported snapshot; Refresh test data does not fetch new Shopify orders.");
+    text("catalog-exclusions","Only paid, uncancelled, unrefunded USD test-gateway orders without discounts are included. Shipping and tax are excluded. Buyer details and order identifiers are not stored. This public demo uses a saved purchase snapshot.");
     element("catalog-source-link").setAttribute("href","https://admin.shopify.com/store/build-sprint-demo/orders");
     text("catalog-source-link","View demo store orders in Shopify");
   }
@@ -145,7 +145,7 @@ function renderSyncedPurchases(snapshot:NonNullable<EvidenceResponse['shopifySna
   text('catalog-summary',`${purchases.orderCount} priced paid test orders · Selected dates · Updated ${time(snapshot.syncedAt)}.`);
   text('catalog-mix-description',`Read directly from Shopify. ${purchases.unpricedCount} eligible orders without a valid USD subtotal are excluded.`);
   text('catalog-method',purchases.aovCents===null?'No priced paid test orders are available in the synced period.':`${money(purchases.totalProductCents)} in current product subtotals ÷ ${purchases.orderCount} paid test orders = ${money(purchases.aovCents)}. These are test purchases, not real revenue.`);
-  text('catalog-exclusions','Paid, uncancelled test orders in the selected dates. Shipping and tax excluded. The average updates when you refresh; it is not used to fill missing basket values.');
+  text('catalog-exclusions','Paid, uncancelled test orders in the selected dates. Shipping and tax excluded. The average updates when you open the app or apply dates; it is not used to fill missing basket values.');
   element('catalog-source-link').setAttribute('href','https://admin.shopify.com/store/build-sprint-demo/orders');
   text('catalog-source-link','View demo store orders in Shopify');
   element('catalog-baskets').innerHTML='';
@@ -395,11 +395,9 @@ if(embeddedShopify){
   });
 }
 let loading = false;
-async function refresh() {
+async function loadEvidence() {
   if (loading) return;
   loading = true;
-  element("refresh").setAttribute("loading", "");
-  element("refresh").setAttribute("disabled", "");
   element("request-error").hidden = true;
   text("request-status", "Loading checkout evidence…");
   try {
@@ -423,15 +421,12 @@ async function refresh() {
     }
   } catch {
     element("request-error").hidden = false;
-    text("request-error", "Could not load the test evidence. Check your connection, then tap Refresh test data. Previous results, if shown, have not been updated.");
+    text("request-error", "Could not load checkout data. Check your connection and apply the dates again. Previous results, if shown, have not been updated.");
     text("request-status", "Evidence could not be refreshed.");
   } finally {
-    element("refresh").removeAttribute("loading");
-    element("refresh").removeAttribute("disabled");
     loading = false;
   }
 }
-element("refresh").addEventListener("click", refresh);
 element("journey-list").addEventListener("click", event => {
   const button = (event.target as HTMLElement).closest<HTMLElement>("s-button[data-timeline]");
   if (button) { togglePanel(button, button.dataset.timeline!); button.setAttribute("accessibilityLabel", `${element(button.dataset.timeline!).hidden ? "Show" : "Hide"} details: ${button.closest("s-box")?.querySelector("s-heading")?.textContent}`); }
@@ -447,7 +442,8 @@ element('apply-date-range').addEventListener('click',()=>{
     const bounds=dateBounds(datePicker.value),available=dateBounds(recentRange(30));
     if(bounds.start<available.start||bounds.end>available.end)throw Error('Choose dates within the last 30 days.');
     updateDateSelection(datePicker.value);element('date-range-error').hidden=true;
+    void loadEvidence();
   }catch(error){text('date-range-error',error instanceof Error?error.message:'Choose valid dates.');element('date-range-error').hidden=false;}
 });
 void loadProgress();
-void refresh();
+void loadEvidence();
