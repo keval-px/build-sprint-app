@@ -7,6 +7,9 @@ const components = new Map(manifest.modules.flatMap(module => module.declaration
 const sources = ['index.html', 'src/main.ts'];
 let checked = 0;
 const failures = [];
+// The generated manifest drops template-literal pixel/percentage units from
+// sizing unions. Shopify's polaris.d.ts includes them as SizeUnits.
+const isSizingUnit=(name,value)=>/^(inlineSize|blockSize|minInlineSize|maxInlineSize|minBlockSize|maxBlockSize)$/i.test(name)&&/^\d+(?:\.\d+)?(?:px|%)$/.test(value);
 for (const file of sources) {
   const source = fs.readFileSync(file, 'utf8');
   for (const match of source.matchAll(/<(s-[a-z-]+)((?:[^>"']|"[^"]*"|'[^']*')*)>/g)) {
@@ -28,7 +31,7 @@ for (const file of sources) {
       const type = definition.type?.text;
       if (value !== undefined && type && /^("[^"]*"\s*(\|\s*)?)+$/.test(type)) {
         const allowed = [...type.matchAll(/"([^"]*)"/g)].map(item => item[1]);
-        if (!allowed.includes(value)) failures.push(`${file}: ${tag}.${name}=${value}, expected ${allowed.join(' | ')}`);
+        if (!allowed.includes(value)&&!isSizingUnit(name,value)) failures.push(`${file}: ${tag}.${name}=${value}, expected ${allowed.join(' | ')} or a supported sizing unit`);
       }
     }
   }
@@ -57,7 +60,7 @@ if (process.argv[2]) {
       const type = definition.type?.text;
       if (type && /^("[^"]*"\s*(\|\s*)?)+$/.test(type)) {
         const allowed = [...type.matchAll(/"([^"]*)"/g)].map(item => item[1]);
-        if (!allowed.includes(value)) throw new Error(`Invalid rendered value ${element.tag}.${name}=${value}`);
+        if (!allowed.includes(value)&&!isSizingUnit(name,value)) throw new Error(`Invalid rendered value ${element.tag}.${name}=${value}`);
       }
     }
   }

@@ -289,7 +289,7 @@ function render(data: EvidenceResponse) {
     text("abandoned-source",`Legacy Shopify snapshot imported ${snap.importedOn || "not available"}. ${snap.emailSent} recovery emails sent, ${snap.emailNotSent} not sent. Summary and action values include server-linked baskets and browser-observed subtotals for unfinished tracked sessions. Browser values are unverified client evidence. Unlinked basket values are unknown and excluded; the test-order average is context only. Overlapping action groups are counted once in the summary.`);
     text("catalog-recovery-label","Recovery scenario · 1–5%");
     text("catalog-recovery",priced.combined.matchedSessions ? recoveryRange(total) : "Unknown");
-    text("catalog-dedup",`${priced.combined.matchedSessions} baskets valued · ${priced.combined.unknownSessions} without a recorded value`);
+    text("catalog-dedup",`${priced.combined.matchedSessions} basket${priced.combined.matchedSessions===1?'':'s'} valued · ${priced.combined.unknownSessions} without a recorded value`);
     element("catalog-scenario").setAttribute("heading","Abandoned checkout value");
   }
   text("session-count", summary.sessionCount);
