@@ -21,7 +21,8 @@ This section is the current execution plan; dated notes below are history. Build
 - [x] Typechecking, Polaris manifest checks, Shopify query validation, pixel build and28isolated tests passed.
 - [ ] User sets SHOPIFY_CLIENT_ID and SHOPIFY_CLIENT_SECRET from keval-test-app in Convex.
 - [x] Shopify CLI app dev preview created for keval-test-app on build-sprint-demo; app appears and opens inside Shopify admin.
-- [ ] Release approval is pending for the persistent new pixel/configuration version. Verify authenticated reads/token lifecycle after user-set credentials.
+- [x] User approved the persistent release. Shopify CLI released keval-test-app-2 with checkout-evidence and lifecycle notifications on6October2026.
+- [ ] Verify authenticated reads/token lifecycle after user-set credentials.
 - [ ] Verify one new completed and one new unfinished actual browser checkout, then disconnect the old custom pixel after new collection is proven.
 - [x] Code review completed on Standards and Spec axes. Fixed sandbox hashing, overlapping-pixel deduplication, and revoked evidence access; both reviewers confirmed the fixes. Public preview checked at desktop and390px phone width with no overflow. Installed app verified inside Shopify with the pending-settings screen; authenticated flow remains untested. Implementation and fixes committed on main.
 
@@ -258,3 +259,7 @@ User requested priced baskets only or Unknown. Removed AOV substitution and its 
 ### Review and verification — Shopify connection
 
 Standards review found two issues (revoked evidence reads and duplicate pixel IDs); Spec review found those plus unsupported strict-sandbox hashing globals. All three were fixed, targeted tests passed, and both reviewers confirmed the fixes. Full suite28passed, typechecking/Polaris checks/pixel build/config validation passed. No real credentials entered by the agent; actual app TOML is gitignored. New browser test checkouts and authenticated Shopify reads are pending the user setting credentials, so the integration is not declared complete.
+
+### Persistent Shopify release — 6 October 2026
+
+User approved release. Shopify CLI built and validated checkout-evidence, then confirmed keval-test-app-2 released successfully: https://dev.shopify.com/dashboard/129333258/apps/432119382017/versions/1156594204673 . Only keval-test-app was targeted. Pixel activation and real browser delivery remain pending the user-set Convex credentials; release alone does not enable collection. The embedded page still shows the credential setup screen.
