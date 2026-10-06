@@ -9,7 +9,7 @@
   </head>
   <body>
     <s-grid id="app-frame" gridTemplateColumns="minmax(0, min(100%, 1100px))" justifyContent="center">
-    <s-page heading="Checkout overview" inlineSize="large">
+    <s-page inlineSize="large">
       <s-popover id="date-range-popover" inlineSize="340px" maxInlineSize="100%">
         <s-stack padding="base" gap="base">
           <s-stack direction="inline" gap="small"><s-button id="last-7-days" variant="secondary">Last 7 days</s-button><s-button id="last-30-days" variant="secondary">Last 30 days</s-button></s-stack>
@@ -20,9 +20,7 @@
         </s-stack>
       </s-popover>
       <s-stack gap="base">
-        <s-stack direction="inline" justifyContent="end" gap="base">
-          <s-button id="date-range-button" variant="secondary" icon="calendar" commandFor="date-range-popover">Last 30 days</s-button>
-        </s-stack>
+        <s-heading id="page-title" fontSize="large-200">Checkout overview</s-heading>
         <s-section id="shopify-connection" heading="Shopify connection" hidden>
           <s-stack gap="base">
             <s-paragraph id="shopify-status">Connecting to build-sprint-demo…</s-paragraph>
@@ -37,7 +35,12 @@
         <s-paragraph id="request-status" color="subdued" role="status" aria-live="polite">Loading checkout evidence…</s-paragraph>
         <s-banner id="request-error" heading="Evidence could not be refreshed" tone="critical" hidden></s-banner>
         <s-stack id="overview" gap="base">
-          <s-section heading="Checkout activity">
+          <s-stack gap="base">
+          <s-stack direction="inline" justifyContent="space-between" alignItems="center" gap="base">
+            <s-heading>Checkout activity</s-heading>
+            <s-button id="date-range-button" variant="secondary" icon="calendar" commandFor="date-range-popover">Last 30 days</s-button>
+          </s-stack>
+          <s-section>
             <s-stack gap="base">
               <s-heading id="summary-title">Checking test collection</s-heading>
               <s-stack gap="small" id="completion-summary" hidden>
@@ -55,6 +58,7 @@
               <s-button id="open-journeys" variant="secondary" disabled>View checkout evidence</s-button>
             </s-stack>
           </s-section>
+          </s-stack>
           <s-section heading="Catalog-based revenue estimate" id="catalog-scenario">
             <s-button slot="secondary-actions" variant="secondary" id="catalog-details-button" aria-expanded="false" aria-controls="catalog-details">See basket assumptions</s-button>
             <s-stack gap="base">

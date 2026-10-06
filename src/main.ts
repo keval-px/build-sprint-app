@@ -68,7 +68,7 @@ function showView(view: "overview" | "journeys", focus = false) {
     element(`${name}-tab`).setAttribute("aria-pressed", String(name === view));
     element(`${name}-tab`).setAttribute("variant", name === view ? "primary" : "secondary");
   }
-  document.querySelector("s-page")!.setAttribute("heading", view === "journeys" ? "Checkout drill-down" : "Checkout overview");
+  text('page-title',view === 'journeys' ? 'Checkout drill-down' : 'Checkout overview');
   if (focus) element(`${view}-tab`).focus();
 }
 for (const view of ["overview", "journeys"] as const) element(`${view}-tab`).addEventListener("click", () => showView(view));
@@ -298,7 +298,7 @@ function render(data: EvidenceResponse) {
   text("event-count", summary.eventCount);
   text("stored-count", data.totalStored);
   text("collection-state", data.enabled ? "Enabled" : "Paused");
-  text("request-status", `Updated ${time(data.sampledAt)} · ${summary.eventCount} test events in this view`);
+  text("request-status",'');element('request-status').hidden=true;
   text("coverage-note", `${data.truncated ? `Partial view: only the latest ${EVIDENCE_EVENT_LIMIT.toLocaleString()} events are available. Earlier session steps may be missing.` : "Checkouts are grouped by their start date in the selected period."} Later recorded completions are retained. A missing completion is not proof of abandonment.`);
   element("open-journeys").toggleAttribute("disabled", summary.sessionCount === 0);
 
@@ -400,6 +400,7 @@ async function loadEvidence() {
   loading = true;
   element("request-error").hidden = true;
   text("request-status", "Loading checkout evidence…");
+  element('request-status').hidden=false;
   try {
     if(embeddedShopify){
       await shopifyRequest('sync','POST');
