@@ -1,8 +1,15 @@
 import { internalMutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 import { eventFields } from "./schema";
-import { STORE, parseTestEvent } from "../shared/evidence";
+import { STORE, parseTestEvent, EVIDENCE_EVENT_LIMIT } from "../shared/evidence";
 import type { CheckoutEvent } from "../shared/evidence";
+
+// All retained non-audit starts, independent of the capped dashboard view.
+export const matchableSessions = internalQuery({args: {}, returns: v.array(v.string()), handler: async ctx => {
+  const rows = await ctx.db.query('testCheckoutEvents').withIndex('by_store_timestamp', q => q.eq('store', STORE))
+    .filter(q => q.and(q.neq(q.field('auditOnly'), true), q.eq(q.field('name'), 'checkout_started'))).collect();
+  return [...new Set(rows.map(row => row.sessionId))];
+}});
 
 export const recordTestEvent = internalMutation({
   args: eventFields,
@@ -24,11 +31,10 @@ export const readTestEvidence = internalQuery({
   args: {},
   returns: v.object({ store: v.literal("build-sprint-demo.myshopify.com"), totalStored: v.number(), events: v.array(v.object(eventFields)), truncated: v.boolean() }),
   handler: async (ctx): Promise<{ store: typeof STORE; totalStored: number; events: CheckoutEvent[]; truncated: boolean }> => {
-    const rows = await ctx.db.query("testCheckoutEvents").withIndex("by_store_timestamp", q => q.eq("store", STORE)).order("desc").take(501);
-    const state = await ctx.db.query("testCollectionState").withIndex("by_store", q => q.eq("store", STORE)).unique();
+    const rows = await ctx.db.query("testCheckoutEvents").withIndex("by_store_timestamp", q => q.eq("store", STORE)).filter(q=>q.neq(q.field("auditOnly"),true)).order("desc").take(EVIDENCE_EVENT_LIMIT + 1);
     return {
-      store: STORE, totalStored: state?.eventCount ?? 0, truncated: rows.length > 500,
-      events: rows.slice(0, 500).map(({ eventId, sessionId, name, timestamp, category }) => ({ eventId, sessionId, name, timestamp, category })),
+      store: STORE, totalStored: (await ctx.db.query("testCheckoutEvents").withIndex("by_store_timestamp",q=>q.eq("store",STORE)).filter(q=>q.neq(q.field("auditOnly"),true)).collect()).length, truncated: rows.length > EVIDENCE_EVENT_LIMIT,
+      events: rows.slice(0, EVIDENCE_EVENT_LIMIT).map(({ eventId, sessionId, name, timestamp, category }) => ({ eventId, sessionId, name, timestamp, category })),
     };
   },
 });

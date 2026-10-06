@@ -8,8 +8,18 @@
  * @module
  */
 
+import type * as abandoned from "../abandoned.js";
+import type * as catalog from "../catalog.js";
+import type * as checkoutMatching from "../checkoutMatching.js";
 import type * as events from "../events.js";
 import type * as http from "../http.js";
+import type * as lib_checkoutMatching from "../lib/checkoutMatching.js";
+import type * as lib_shopifyAuth from "../lib/shopifyAuth.js";
+import type * as lib_shopifyQueries from "../lib/shopifyQueries.js";
+import type * as progress from "../progress.js";
+import type * as purchases from "../purchases.js";
+import type * as shopify from "../shopify.js";
+import type * as shopifyEvents from "../shopifyEvents.js";
 
 import type {
   ApiFromModules,
@@ -18,8 +28,18 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  abandoned: typeof abandoned;
+  catalog: typeof catalog;
+  checkoutMatching: typeof checkoutMatching;
   events: typeof events;
   http: typeof http;
+  "lib/checkoutMatching": typeof lib_checkoutMatching;
+  "lib/shopifyAuth": typeof lib_shopifyAuth;
+  "lib/shopifyQueries": typeof lib_shopifyQueries;
+  progress: typeof progress;
+  purchases: typeof purchases;
+  shopify: typeof shopify;
+  shopifyEvents: typeof shopifyEvents;
 }>;
 
 /**

@@ -1,3 +1,4 @@
+export const EVIDENCE_EVENT_LIMIT = 1000;
 export const STORE = "build-sprint-demo.myshopify.com";
 export const EVENT_NAMES = [
   "checkout_started", "checkout_contact_info_submitted",
@@ -12,6 +13,8 @@ export interface CheckoutEvent {
   name: EventName;
   timestamp: number;
   category: ErrorCategory | null;
+  subtotalCents?: number;
+  currency?: "USD";
 }
 
 export function describeJourney(events: CheckoutEvent[]) {

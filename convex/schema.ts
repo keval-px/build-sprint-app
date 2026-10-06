@@ -13,8 +13,35 @@ export const eventFields = {
   category: v.union(v.null(), v.literal("discount"), v.literal("payment"), v.literal("delivery"), v.literal("validation")),
 };
 
+// Legacy optional assumptions remain readable for existing demo rows only.
+// The calculator API and UI have been removed; these values are no longer used.
+const projectionFields = { averageOrderValue: v.number(), currency: v.string(), recoveryPercent: v.number() };
+const projectionValue = v.union(v.object(projectionFields), v.null());
+
+export const catalogFields = {
+  store: v.literal("build-sprint-demo.myshopify.com"), currency: v.literal("USD"), checkedOn: v.string(), recoveryPercent: v.number(),
+  products: v.array(v.object({id:v.string(),name:v.string(),handle:v.string(),priceCents:v.number()})),
+  baskets: v.array(v.object({weight:v.number(),items:v.array(v.object({productId:v.string(),quantity:v.number()}))})),
+};
+
+export const observedPurchaseFields = {
+  store:v.literal("build-sprint-demo.myshopify.com"),currency:v.literal("USD"),source:v.literal("shopify-admin-csv-test-orders"),
+  importedOn:v.string(),periodStart:v.string(),periodEnd:v.string(),orderCount:v.number(),totalProductCents:v.number(),
+  baskets:v.array(v.object({label:v.string(),orderCount:v.number(),itemCount:v.number(),totalProductCents:v.number()})),
+};
+
+export const abandonedFields={importedOn:v.string(),emailSent:v.number(),emailNotSent:v.number(),records:v.array(v.object({recordHash:v.string(),sessionId:v.union(v.string(),v.null()),subtotalCents:v.number(),currency:v.literal("USD"),recovered:v.boolean()}))};
 export default defineSchema({
-  testCheckoutEvents: defineTable({ ...eventFields, store: v.literal("build-sprint-demo.myshopify.com"), receivedAt: v.number() })
+  shopifyCheckoutEvents:defineTable({...eventFields,subtotalCents:v.optional(v.number()),currency:v.optional(v.literal("USD")),store:v.literal("build-sprint-demo.myshopify.com"),receivedAt:v.number()}).index("by_event",["eventId"]).index("by_timestamp",["timestamp"]),
+  shopifyInstallState: defineTable({store:v.literal("build-sprint-demo.myshopify.com"),revokedAt:v.number()}).index("by_store",["store"]),
+  shopifyConnections: defineTable({store:v.literal("build-sprint-demo.myshopify.com"), accessToken:v.string(), refreshToken:v.optional(v.string()), expiresAt:v.optional(v.number()), refreshExpiresAt:v.optional(v.number()), scopes:v.array(v.string()), connectedAt:v.number()}).index("by_store",["store"]),
+  shopifySnapshots: defineTable({store:v.literal("build-sprint-demo.myshopify.com"), syncedAt:v.number(), periodStart:v.string(), orders:v.array(v.object({recordHash:v.string(),createdAt:v.string(),subtotalCents:v.union(v.number(),v.null()),test:v.boolean(),paid:v.boolean(),cancelled:v.boolean()})), abandoned:v.array(v.object({recordHash:v.string(),createdAt:v.string(),subtotalCents:v.union(v.number(),v.null()),recovered:v.boolean()}))}).index("by_store",["store"]),
+  shopifyLifecycleEvents: defineTable({eventId:v.string(),receivedAt:v.number()}).index("by_event",["eventId"]),
+  demoAbandonedSnapshots:defineTable(abandonedFields),
+  demoPurchaseSnapshots: defineTable(observedPurchaseFields).index("by_store",["store"]),
+  catalogScenarios: defineTable(catalogFields).index("by_store", ["store"]),
+  demoActionProgress: defineTable({ viewerId: v.string(), completed: v.array(v.string()), updatedAt: v.number(), assumptions: v.optional(projectionValue) }).index("by_viewer", ["viewerId"]),
+  testCheckoutEvents: defineTable({ ...eventFields, auditOnly:v.optional(v.boolean()), store: v.literal("build-sprint-demo.myshopify.com"), receivedAt: v.number() })
     .index("by_store_timestamp", ["store", "timestamp"])
     .index("by_store_event", ["store", "eventId"]),
   testCollectionState: defineTable({ store: v.literal("build-sprint-demo.myshopify.com"), eventCount: v.number() })

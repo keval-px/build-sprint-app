@@ -5,61 +5,94 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="light" />
     <title>Checkout test evidence · Build Sprint</title>
-    <script src="https://cdn.shopify.com/shopifycloud/polaris-1.js"></script>
+    <script src="https://cdn.shopify.com/shopifycloud/polaris-2.0-rc.js"></script>
   </head>
   <body>
-    <a class="skip-link" href="#evidence">Skip to checkout evidence</a>
-    <main class="page">
-      <s-page heading="Checkout overview" inline-size="large">
-        <s-button id="refresh" slot="primary-action" variant="primary">Refresh test data</s-button>
-        <div class="store-line"><span>build-sprint-demo.myshopify.com</span><s-badge>Test store</s-badge></div>
-        <p class="test-notice">Browser test sessions only. These results do not prove a previously unknown problem at a live merchant.</p>
-        <div class="tabs" role="tablist" aria-label="Checkout evidence views">
-          <button id="overview-tab" role="tab" aria-selected="true" aria-controls="overview" tabindex="0">Overview</button>
-          <button id="journeys-tab" role="tab" aria-selected="false" aria-controls="journeys" tabindex="-1">Checkout drill-down</button>
-        </div>
-        <p id="request-status" class="request-status" role="status" aria-live="polite">Loading checkout evidence…</p>
-        <p id="request-error" class="error" role="alert" hidden></p>
-        <div id="overview" role="tabpanel" aria-labelledby="overview-tab">
-          <section class="summary" aria-labelledby="summary-title">
-            <div>
-              <h2 id="summary-title">Checking test collection</h2>
-              <p id="summary-description">Reading the events saved in Convex.</p>
+    <s-grid id="app-frame" gridTemplateColumns="minmax(0, min(100%, 1100px))" justifyContent="center">
+    <s-page heading="Checkout overview" inlineSize="large">
+      <s-button id="refresh" slot="primary-action" variant="primary">Refresh test data</s-button>
+      <s-stack gap="base">
+        <s-section id="shopify-connection" heading="Shopify connection" hidden>
+          <s-stack gap="base">
+            <s-paragraph id="shopify-status">Connecting to build-sprint-demo…</s-paragraph>
+            <s-paragraph id="shopify-records" hidden></s-paragraph>
+            <s-button id="enable-pixel" variant="secondary">Enable checkout collection</s-button>
+          </s-stack>
+        </s-section>
+        <s-stack direction="inline" gap="base" accessibilityRole="navigation" accessibilityLabel="Checkout evidence views">
+          <s-button id="overview-tab" variant="primary" aria-pressed="true">Overview</s-button>
+          <s-button id="journeys-tab" variant="secondary" aria-pressed="false">Checkout drill-down</s-button>
+        </s-stack>
+        <s-paragraph id="request-status" color="subdued" role="status" aria-live="polite">Loading checkout evidence…</s-paragraph>
+        <s-banner id="request-error" heading="Evidence could not be refreshed" tone="critical" hidden></s-banner>
+        <s-stack id="overview" gap="base">
+          <s-section heading="Checkout activity">
+            <s-stack gap="base">
+              <s-heading id="summary-title">Checking test collection</s-heading>
+              <s-stack gap="small" id="completion-summary" hidden>
+                <s-stack direction="inline" justifyContent="space-between" gap="base"><s-text>Checkout completion</s-text><s-text id="completion-label"></s-text></s-stack>
+                <s-progress id="completion-progress" value="0" max="1" accessibilityLabel="Checkout completion"></s-progress>
+              </s-stack>
+              <s-paragraph id="summary-description" hidden></s-paragraph>
+              <s-query-container>
+                <s-grid gridTemplateColumns="@container (inline-size > 600px) 1fr 1fr 1fr, 1fr" gap="base">
+                  <s-stack gap="small"><s-text color="subdued">Checkout sessions</s-text><s-number id="session-count" fontSize="large-100" fontWeight="bold">—</s-number></s-stack>
+                  <s-stack gap="small"><s-text color="subdued">Completion observed</s-text><s-number id="completed-count" fontSize="large-100" fontWeight="bold">—</s-number></s-stack>
+                  <s-stack gap="small"><s-text color="subdued">No completion observed</s-text><s-number id="incomplete-count" fontSize="large-100" fontWeight="bold">—</s-number></s-stack>
+                </s-grid>
+              </s-query-container>
               <s-button id="open-journeys" variant="secondary" disabled>View checkout evidence</s-button>
-            </div>
-            <dl class="summary-stats">
-              <div><dt>Checkout sessions</dt><dd id="session-count">—</dd></div>
-              <div><dt>Completion observed</dt><dd id="completed-count">—</dd></div>
-              <div><dt>No completion observed</dt><dd id="incomplete-count">—</dd></div>
-            </dl>
-          </section>
-          <div class="content-grid" id="evidence">
-            <s-section heading="What the evidence shows">
-              <div id="observation" class="observation"><p>Waiting for data.</p></div>
-            </s-section>
-            <s-section heading="Collection coverage">
-              <dl class="coverage">
-                <div><dt>Events in this view</dt><dd id="event-count">—</dd></div>
-                <div><dt>Events stored</dt><dd id="stored-count">—</dd></div>
-                <div><dt>Collection</dt><dd id="collection-state">Checking</dd></div>
-                <div><dt>Revenue impact</dt><dd>Not measured</dd></div>
-              </dl>
-              <p class="small" id="coverage-note">The view is limited to the latest 500 events.</p>
-            </s-section>
-          </div>
-        </div>
-        <div id="journeys" role="tabpanel" aria-labelledby="journeys-tab" hidden>
-          <s-section heading="Observed checkout journeys">
-            <p class="section-description">Open a test checkout to see the events Shopify reported, in time order.</p>
-            <div id="journey-list"><p>No test checkouts collected yet.</p></div>
+            </s-stack>
           </s-section>
-        </div>
-        <footer>
-          <p>Source: anonymous browser events from Shopify Customer events. Event origin is not server-verified. Missing events can reflect consent, browser limits, or an unfinished test.</p>
-          <p>Milestone 1: test collection in progress. Live-merchant validation is pending.</p>
-        </footer>
-      </s-page>
-    </main>
+          <s-section heading="Catalog-based revenue estimate" id="catalog-scenario">
+            <s-button slot="secondary-actions" variant="secondary" id="catalog-details-button" aria-expanded="false" aria-controls="catalog-details">See basket assumptions</s-button>
+            <s-stack gap="base">
+              <s-paragraph id="catalog-summary">Reading the saved product-price model…</s-paragraph>
+              <s-query-container><s-grid id="catalog-metrics" gridTemplateColumns="@container (inline-size > 600px) 1fr 1fr, 1fr" gap="base">
+                <s-stack id="abandoned-value-metric" gap="small" hidden><s-text color="subdued">Linked abandoned basket value</s-text><s-number id="abandoned-value" fontSize="large-100" fontWeight="bold">—</s-number><s-text id="abandoned-count" color="subdued"></s-text></s-stack>
+                <s-stack gap="small"><s-text color="subdued" id="catalog-aov-label">Modeled average order value</s-text><s-number id="catalog-aov" fontSize="large-100" fontWeight="bold">—</s-number></s-stack>
+                <s-stack gap="small"><s-text color="subdued" id="catalog-recovery-label">Recovery scenario · 1–5%</s-text><s-number id="catalog-recovery" tone="success" fontSize="large-100" fontWeight="bold">—</s-number><s-text id="catalog-dedup" color="subdued"></s-text></s-stack>
+              </s-grid></s-query-container>
+              <s-paragraph color="subdued">If 1–5% converts. This is a scenario, not measured savings or a proven recovery rate.</s-paragraph>
+              <s-stack id="catalog-details" gap="base" hidden>
+                <s-paragraph id="abandoned-source" color="subdued" hidden></s-paragraph>
+                <s-heading id="catalog-details-heading">Assumed basket mix, not actual orders</s-heading>
+                <s-paragraph id="catalog-mix-description">80% one snowboard, 12% one snowboard plus wax, 6% two snowboards, and 2% three snowboards. That means 92% of modeled purchases contain just one snowboard.</s-paragraph>
+                <s-paragraph id="catalog-method" color="subdued"></s-paragraph>
+                <s-stack id="catalog-baskets" gap="base"></s-stack>
+                <s-paragraph id="catalog-exclusions" color="subdued">Uses listed selling prices, including the current sale price; excludes sold-out products, gift cards, subscriptions, shipping, taxes, and additional discounts. The product mix is assumed, not a claim about demand. No modeled baskets are inserted as checkout sessions or orders.</s-paragraph>
+                <s-link id="catalog-source-link" href="https://build-sprint-demo.myshopify.com/collections/all" target="_blank">View the source catalog</s-link>
+              </s-stack>
+            </s-stack>
+          </s-section>
+          <s-paragraph id="progress-status" color="subdued" role="status" aria-live="polite"></s-paragraph>
+          <s-banner id="progress-error" heading="Action checklist unavailable" tone="critical" hidden><s-paragraph id="progress-error-message"></s-paragraph><s-button id="retry-progress" variant="secondary">Retry loading progress</s-button></s-banner>
+          <s-heading fontSize="large">Insights &amp; recommendations</s-heading>
+          <s-stack id="mission-list" gap="base"><s-paragraph>Reading the checkout evidence…</s-paragraph></s-stack>
+        </s-stack>
+        <s-stack id="journeys" gap="base" hidden>
+          <s-section heading="Observed checkout journeys" subheading="Open a test checkout to see the actual events, in time order.">
+            <s-stack gap="base">
+              <s-stack id="mission-filter" gap="small" hidden><s-text id="mission-filter-label" type="strong"></s-text><s-button id="clear-mission-filter" variant="secondary">Show all checkouts</s-button></s-stack>
+              <s-stack direction="inline" justifyContent="space-between" gap="base"><s-text id="journey-count" type="strong"></s-text><s-text color="subdued">Newest first</s-text></s-stack>
+              <s-divider></s-divider>
+              <s-stack id="journey-list" gap="base" accessibilityRole="unordered-list" accessibilityLabel="Test checkout journeys"><s-paragraph>No test evidence loaded.</s-paragraph></s-stack>
+            </s-stack>
+          </s-section>
+        </s-stack>
+        <s-divider></s-divider>
+        <s-button id="coverage-details-button" variant="tertiary" aria-expanded="false" aria-controls="coverage-details">Data details</s-button>
+        <s-stack id="coverage-details" gap="small" hidden>
+          <s-stack direction="inline" justifyContent="space-between" gap="base"><s-text>Events in this view</s-text><s-number id="event-count">—</s-number></s-stack>
+          <s-stack direction="inline" justifyContent="space-between" gap="base"><s-text>Events stored</s-text><s-number id="stored-count">—</s-number></s-stack>
+          <s-stack direction="inline" justifyContent="space-between" gap="base"><s-text>Collection</s-text><s-text id="collection-state">Checking</s-text></s-stack>
+          <s-paragraph id="coverage-note" color="subdued"></s-paragraph>
+          <s-paragraph color="subdued">Anonymous Shopify browser events. Consent and browser limits can leave gaps; event origin is not server-verified.</s-paragraph>
+        </s-stack>
+        <s-paragraph color="subdued">Demo store · saved test data · live-store validation pending.</s-paragraph>
+      </s-stack>
+    </s-page>
+    </s-grid>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

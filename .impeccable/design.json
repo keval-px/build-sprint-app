@@ -1,0 +1,148 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-06T06:00:10.310554+00:00",
+  "title": "Design System: Build Sprint Checkout Evidence",
+  "extensions": {
+    "runtime": {
+      "provider": "Shopify App Home",
+      "scriptUrl": "https://cdn.shopify.com/shopifycloud/polaris-2.0-rc.js",
+      "typesPackage": "@shopify/polaris-types@2.0.0-rc.0",
+      "previewRequirement": "Load the approved global custom-element runtime before rendering these snippets. Without it the panel cannot show Shopify component visuals. No custom CSS approximation or copied shadow-root styles are supplied.",
+      "stateOwnership": "Official components own hover, focus, active, disabled, loading, and internal animation styles."
+    },
+    "typographyMeta": {
+      "metric": {
+        "displayName": "Metric Number",
+        "purpose": "Counts, percentages, observed test-order averages, and explicitly labeled modeled monetary values via s-number; fontSize is an official component keyword, not a CSS length."
+      }
+    },
+    "containerQueries": [
+      {
+        "name": "metrics",
+        "condition": "inline-size > 600px",
+        "value": "1fr 1fr 1fr, 1fr",
+        "purpose": "Three metric columns above the container threshold, one below."
+      },
+      {
+        "name": "evidence-coverage",
+        "condition": "inline-size > 700px",
+        "value": "1fr 1fr, 1fr",
+        "purpose": "Two evidence sections above the container threshold, one below."
+      }
+    ],
+    "pageFrame": {
+      "refersTo": "page-frame",
+      "component": "s-grid",
+      "gridTemplateColumns": "minmax(0, min(100%, 1100px))",
+      "justifyContent": "center",
+      "purpose": "Use the frontmatter maximum width in the native grid column; shrink to available width on smaller screens. No custom visual CSS.",
+      "measured": [
+        {
+          "viewportWidth": 1440,
+          "columnWidth": 1100
+        },
+        {
+          "viewportWidth": 390,
+          "columnWidth": 390
+        }
+      ]
+    }
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "description": "Main action; Shopify owns hover, focus, active, loading, and disabled states.",
+      "html": "<s-button variant=\"primary\">Investigate payment errors</s-button>",
+      "css": ""
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "description": "Supporting evidence or disclosure action with official states.",
+      "html": "<s-button variant=\"secondary\">Show details</s-button>",
+      "css": ""
+    },
+    {
+      "name": "Investigation Checkbox",
+      "kind": "input",
+      "description": "Self-reported step; use checked and disabled properties.",
+      "html": "<s-checkbox label=\"I reviewed a payment-alert timeline\"></s-checkbox>",
+      "css": ""
+    },
+    {
+      "name": "View Navigation",
+      "kind": "nav",
+      "description": "Button navigation; selected state uses primary variant and aria-pressed.",
+      "html": "<s-stack direction=\"inline\" gap=\"base\" accessibilityRole=\"navigation\" accessibilityLabel=\"Checkout evidence views\"><s-button variant=\"primary\" aria-pressed=\"true\">Overview</s-button><s-button variant=\"secondary\" aria-pressed=\"false\">Checkout drill-down</s-button></s-stack>",
+      "css": ""
+    },
+    {
+      "name": "Caution Badge",
+      "kind": "chip",
+      "description": "Investigation status, not a reward or verified incident.",
+      "html": "<s-badge tone=\"caution\" size=\"base\" color=\"base\">Needs attention</s-badge>",
+      "css": ""
+    },
+    {
+      "name": "Evidence Section",
+      "kind": "card",
+      "description": "Official heading and content surface.",
+      "html": "<s-section heading=\"What the evidence shows\"><s-paragraph>Review the actual browser events.</s-paragraph></s-section>",
+      "css": ""
+    },
+    {
+      "name": "Information Banner",
+      "kind": "custom",
+      "description": "Scope or data availability notice.",
+      "html": "<s-banner heading=\"Test store evidence\" tone=\"info\">These browser test sessions do not prove a previously unknown live merchant problem.</s-banner>",
+      "css": ""
+    },
+    {
+      "name": "Metric Number",
+      "kind": "custom",
+      "description": "Count, percentage, or clearly labeled modeled amount using the metric typography keyword.",
+      "html": "<s-number fontSize=\"large-100\" fontWeight=\"bold\">52</s-number>",
+      "css": "",
+      "refersTo": "metric-number"
+    },
+    {
+      "name": "Page Frame",
+      "kind": "custom",
+      "refersTo": "page-frame",
+      "description": "Centered official grid, capped at the approved maximum and responsive to smaller screens.",
+      "html": "<s-grid gridTemplateColumns=\"minmax(0, min(100%, 1100px))\" justifyContent=\"center\"><s-page heading=\"Checkout overview\" inlineSize=\"large\"><s-paragraph>Review the checkout evidence.</s-paragraph></s-page></s-grid>",
+      "css": ""
+    }
+  ],
+  "narrative": {
+    "northStar": "Shopify App Home",
+    "overview": "Use Shopify App Home v2.0 web components for every visible interface element. This is the user-approved system change: official components own typography, colors, shapes, elevation, interaction states, and responsive behavior. The shipped runtime is https://cdn.shopify.com/shopifycloud/polaris-2.0-rc.js; local component definitions are pinned to @shopify/polaris-types@2.0.0-rc.0.\n\nThe health dashboard reference (health/Health Dashboard.dc.html) continues to guide information order and section purpose. Express that structure with official components; do not reproduce its custom HTML controls, dark hero, font files, palette, or card CSS. The screen should feel familiar and useful for investigating checkout evidence.",
+    "keyCharacteristics": [
+      "Official Shopify components throughout.",
+      "Clear section headings, readable evidence, and restrained status emphasis.",
+      "Component keyword scales instead of custom visual values.",
+      "Responsive layouts composed with stacks, grids, and query containers."
+    ],
+    "rules": [
+      {
+        "name": "The Component Ownership Rule",
+        "body": "Use official component properties; do not assign custom CSS colors or copy internal shadow-root styles.",
+        "section": "colors"
+      }
+    ],
+    "dos": [
+      "Do use Shopify App Home v2.0 web components for every visible element.",
+      "Do use documented component properties and keyword scales checked against the pinned official manifest.",
+      "Do preserve the health reference’s useful section purposes through official components.",
+      "Do keep uncertainty and unavailable values visibly explained with official text and banners.",
+      "Do check populated overview and drill-down states at desktop and phone widths after component changes."
+    ],
+    "donts": [
+      "Don’t reintroduce custom visual CSS, native styled controls, copied font files, or a separate palette.",
+      "Don’t recreate the removed calculator, visible points, or reward badges.",
+      "Don’t use status styling to imply a verified merchant incident, fix, or recovered money.",
+      "Don’t add Impact or Slack screens during milestone 1; their product plans remain in PRODUCT.md and PLAN.md."
+    ]
+  }
+}
