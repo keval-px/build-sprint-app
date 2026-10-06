@@ -11,6 +11,16 @@
     <s-grid id="app-frame" gridTemplateColumns="minmax(0, min(100%, 1100px))" justifyContent="center">
     <s-page heading="Checkout overview" inlineSize="large">
       <s-button id="refresh" slot="primary-action" variant="primary">Refresh test data</s-button>
+      <s-button id="date-range-button" slot="secondary-actions" variant="secondary" icon="calendar" commandFor="date-range-popover">Last 30 days</s-button>
+      <s-popover id="date-range-popover">
+        <s-stack padding="base" gap="base">
+          <s-stack direction="inline" gap="small"><s-button id="last-7-days" variant="secondary">Last 7 days</s-button><s-button id="last-30-days" variant="secondary">Last 30 days</s-button></s-stack>
+          <s-date-picker id="date-range-picker" type="range" visibleMonths="1"></s-date-picker>
+          <s-text color="subdued">Available dates: last 30 days</s-text>
+          <s-paragraph id="date-range-error" tone="critical" hidden></s-paragraph>
+          <s-button id="apply-date-range" variant="primary" commandFor="date-range-popover" command="--hide">Apply dates</s-button>
+        </s-stack>
+      </s-popover>
       <s-stack gap="base">
         <s-section id="shopify-connection" heading="Shopify connection" hidden>
           <s-stack gap="base">
@@ -49,7 +59,7 @@
             <s-stack gap="base">
               <s-paragraph id="catalog-summary">Reading the saved product-price model…</s-paragraph>
               <s-query-container><s-grid id="catalog-metrics" gridTemplateColumns="@container (inline-size > 600px) 1fr 1fr, 1fr" gap="base">
-                <s-stack id="abandoned-value-metric" gap="small" hidden><s-text id="abandoned-value-label" color="subdued">Linked abandoned basket value</s-text><s-number id="abandoned-value" fontSize="large-100" fontWeight="bold">—</s-number><s-text id="abandoned-count" color="subdued"></s-text></s-stack>
+                <s-stack id="abandoned-value-metric" gap="small" hidden><s-text id="abandoned-value-label" color="subdued">Total abandoned basket value</s-text><s-number id="abandoned-value" fontSize="large-100" fontWeight="bold">—</s-number><s-text id="abandoned-count" color="subdued"></s-text></s-stack>
                 <s-stack gap="small"><s-text color="subdued" id="catalog-aov-label">Modeled average order value</s-text><s-number id="catalog-aov" fontSize="large-100" fontWeight="bold">—</s-number></s-stack>
                 <s-stack gap="small"><s-text color="subdued" id="catalog-recovery-label">Recovery scenario · 1–5%</s-text><s-number id="catalog-recovery" tone="success" fontSize="large-100" fontWeight="bold">—</s-number><s-text id="catalog-dedup" color="subdued"></s-text></s-stack>
               </s-grid></s-query-container>

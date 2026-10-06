@@ -1,5 +1,6 @@
 /// <reference types="@shopify/polaris-types" />
 import "./style.css";
+import {recentRange,dateBounds,checkoutCohort} from '../shared/dateRange';
 import {recordedImpact} from "../shared/abandoned";
 import type {AbandonedSnapshot} from "../shared/abandoned";
 import { STORE, summarize, describeJourney, EVIDENCE_EVENT_LIMIT } from "../shared/evidence";
@@ -15,7 +16,7 @@ declare global { interface ImportMeta { readonly env: Record<string, string | un
 interface EvidenceResponse {
   store: string; events: CheckoutEvent[]; totalStored: number; truncated: boolean;
   abandonedCheckouts?:AbandonedSnapshot|null; enabled: boolean; sampledAt: number; catalogModel?: CatalogModel | null; observedPurchases?: ObservedPurchases | null;
-  shopifySnapshot?:{syncedAt:number;periodStart:string;orders:SyncedPurchase[];abandoned:{subtotalCents:number|null;recovered:boolean}[]}|null;
+  shopifySnapshot?:{syncedAt:number;periodStart:string;orders:(SyncedPurchase&{createdAt:string})[];abandoned:{createdAt:string;subtotalCents:number|null;recovered:boolean}[]}|null;
 }
 const element = (id: string) => document.getElementById(id)!;
 const text = (id: string, value: string | number) => { element(id).textContent = String(value); };
@@ -29,6 +30,21 @@ const eventLabels: Record<CheckoutEvent["name"], string> = {
   payment_info_submitted: "Payment information submitted", checkout_completed: "Checkout completed", alert_displayed: "Checkout alert displayed",
 };
 const backendOrigin = ["localhost", "127.0.0.1"].includes(location.hostname) ? "https://neighborly-nightingale-843.convex.site" : location.origin;
+let selectedRange=recentRange(30);
+let latestEvidence:EvidenceResponse|null=null;
+function filteredEvidence(data:EvidenceResponse):EvidenceResponse{
+  const {start,end}=dateBounds(selectedRange);
+  const within=(value:string)=>{const at=Date.parse(value);return at>=start&&at<end;};
+  const observed=data.observedPurchases;
+  return {...data,events:checkoutCohort(data.events,selectedRange),observedPurchases:observed&&within(observed.periodStart)&&within(observed.periodEnd)?observed:null,
+    shopifySnapshot:data.shopifySnapshot?{...data.shopifySnapshot,orders:data.shopifySnapshot.orders.filter(row=>within(row.createdAt)),abandoned:data.shopifySnapshot.abandoned.filter(row=>within(row.createdAt))}:null};
+}
+function updateDateSelection(value:string){
+  selectedRange=value;
+  const label=value===recentRange(30)?'Last 30 days':value===recentRange(7)?'Last 7 days':value.split('--').map(date=>new Date(`${date}T12:00:00`).toLocaleDateString(undefined,{month:'short',day:'numeric'})).join(' – ');
+  text('date-range-button',label);
+  if(latestEvidence)render(filteredEvidence(latestEvidence));
+}
 let missions: Mission[] = [];
 let selectedMission: MissionId | null = null;
 let completedSteps: string[] = [];
@@ -126,10 +142,10 @@ function renderSyncedPurchases(snapshot:NonNullable<EvidenceResponse['shopifySna
   text('catalog-aov-label','Average test order value');
   text('catalog-aov',purchases.aovCents===null?'Unknown':money(purchases.aovCents));
   text('catalog-details-heading','Synced test purchases');
-  text('catalog-summary',`${purchases.orderCount} priced paid test orders · Last 30 days · Synced ${time(snapshot.syncedAt)}.`);
+  text('catalog-summary',`${purchases.orderCount} priced paid test orders · Selected dates · Updated ${time(snapshot.syncedAt)}.`);
   text('catalog-mix-description',`Read directly from Shopify. ${purchases.unpricedCount} eligible orders without a valid USD subtotal are excluded.`);
   text('catalog-method',purchases.aovCents===null?'No priced paid test orders are available in the synced period.':`${money(purchases.totalProductCents)} in current product subtotals ÷ ${purchases.orderCount} paid test orders = ${money(purchases.aovCents)}. These are test purchases, not real revenue.`);
-  text('catalog-exclusions','Includes paid, uncancelled test orders with valid USD current product subtotals from the last 30 days. Shipping and tax are excluded. Refresh test data reads new purchases from Shopify. Average order value is context only and does not price missing baskets or recovery estimates.');
+  text('catalog-exclusions','Paid, uncancelled test orders in the selected dates. Shipping and tax excluded. The average updates when you refresh; it is not used to fill missing basket values.');
   element('catalog-source-link').setAttribute('href','https://admin.shopify.com/store/build-sprint-demo/orders');
   text('catalog-source-link','View demo store orders in Shopify');
   element('catalog-baskets').innerHTML='';
@@ -256,15 +272,24 @@ function render(data: EvidenceResponse) {
   renderCatalog(data.catalogModel ?? null,data.events,data.truncated,data.observedPurchases ?? null);
   syncedPurchasesShown=false;
   if(data.shopifySnapshot)renderSyncedPurchases(data.shopifySnapshot);
+  else if(!data.observedPurchases){
+    text('catalog-aov-label','Average test order value');text('catalog-aov','Unknown');
+    text('catalog-method','No purchase data is available for these dates.');
+  }
+  if(data.shopifySnapshot){
+    const snapshot=data.shopifySnapshot,unpaid=snapshot.abandoned.filter(row=>!row.recovered),priced=unpaid.filter(row=>row.subtotalCents!==null);
+    text('shopify-records',`${snapshot.orders.length} orders · ${unpaid.length} abandoned checkouts in the selected dates. Recorded basket value: ${priced.length?money(priced.reduce((sum,row)=>sum+row.subtotalCents!,0)):'Unknown'}. Separate from the tracked checkout baskets below.`);
+    element('shopify-records').hidden=false;
+  }
   {const snap=abandonedCheckouts ?? {importedOn:"",emailSent:0,emailNotSent:0,records:[]};const priced=recordedImpact(data.events,buildMissions(data.events),snap); const total=priced.combined.atRiskCents;
-    text("abandoned-value-label",priced.combined.browserPricedSessions ? "Observed unfinished basket value" : "Linked abandoned basket value");
+    text("abandoned-value-label","Total abandoned basket value");
     text("abandoned-value",priced.combined.matchedSessions ? money(total) : "Unknown");
-    text("abandoned-count",`${priced.combined.matchedSessions} of ${priced.combined.eligibleSessions} unfinished checkouts priced`);
+    text("abandoned-count",`${priced.combined.matchedSessions} of ${priced.combined.eligibleSessions} unfinished baskets priced · excludes unpriced baskets`);
     element("abandoned-source").hidden=false;
     text("abandoned-source",`Legacy Shopify snapshot imported ${snap.importedOn || "not available"}. ${snap.emailSent} recovery emails sent, ${snap.emailNotSent} not sent. Summary and action values include server-linked baskets and browser-observed subtotals for unfinished tracked sessions. Browser values are unverified client evidence. Unlinked basket values are unknown and excluded; the test-order average is context only. Overlapping action groups are counted once in the summary.`);
     text("catalog-recovery-label","Recovery scenario · 1–5%");
     text("catalog-recovery",priced.combined.matchedSessions ? recoveryRange(total) : "Unknown");
-    text("catalog-dedup",`${priced.combined.serverLinkedSessions} server-linked · ${priced.combined.browserPricedSessions} browser-priced · ${priced.combined.unknownSessions} unpriced`);
+    text("catalog-dedup",`${priced.combined.matchedSessions} baskets valued · ${priced.combined.unknownSessions} without a recorded value`);
     element("catalog-scenario").setAttribute("heading","Abandoned checkout value");
   }
   text("session-count", summary.sessionCount);
@@ -274,15 +299,15 @@ function render(data: EvidenceResponse) {
   text("stored-count", data.totalStored);
   text("collection-state", data.enabled ? "Enabled" : "Paused");
   text("request-status", `Updated ${time(data.sampledAt)} · ${summary.eventCount} test events in this view`);
-  text("coverage-note", `${data.truncated ? `Partial view: only the latest ${EVIDENCE_EVENT_LIMIT.toLocaleString()} events are shown. Earlier session steps may be missing.` : "This view includes all stored test events."}${summary.sessionsWithoutStart ? ` ${summary.sessionsWithoutStart} ${summary.sessionsWithoutStart === 1 ? "session has" : "sessions have"} no start event in this view.` : ""} A missing completion is not proof of abandonment.`);
+  text("coverage-note", `${data.truncated ? `Partial view: only the latest ${EVIDENCE_EVENT_LIMIT.toLocaleString()} events are available. Earlier session steps may be missing.` : "Checkouts are grouped by their start date in the selected period."} Later recorded completions are retained. A missing completion is not proof of abandonment.`);
   element("open-journeys").toggleAttribute("disabled", summary.sessionCount === 0);
 
   if (!data.enabled) {
     text("summary-title", "Test collection is paused");
     text("summary-description", "The backend is ready. Connect the Shopify test pixel and enable collection before starting your checkout tests.");
   } else if (summary.sessionCount === 0) {
-    text("summary-title", "Ready for your first test checkout");
-    text("summary-description", "Run a checkout in the demo store, then refresh here to check the events Shopify reported. Pixel delivery still needs verification.");
+    text("summary-title", "No checkouts in these dates");
+    text("summary-description", "Choose another date range to see checkout activity.");
   } else {
     text("summary-title", `${summary.sessionCount} test checkout${summary.sessionCount === 1 ? "" : "s"} observed`);
     text("summary-description", "Review the actual browser events below. A deliberate test error shows that collection works; it does not establish a live-store incident.");
@@ -386,12 +411,13 @@ async function refresh() {
     if (!response.ok) throw new Error("Could not read checkout evidence.");
     const data: EvidenceResponse = await response.json();
     if (data.store !== STORE || !Array.isArray(data.events)) throw new Error("Unexpected evidence response.");
-    render(data);
+    latestEvidence=data;
+    render(filteredEvidence(data));
     if(embeddedShopify){
-      const snapshot=data.shopifySnapshot;
+      const snapshot=filteredEvidence(data).shopifySnapshot;
       if(snapshot){
         const unpaid=snapshot.abandoned.filter(r=>!r.recovered),priced=unpaid.filter(r=>r.subtotalCents!==null);
-        text('shopify-records',`Shopify records · Last 30 days: ${snapshot.orders.length} orders, ${unpaid.length} unrecovered checkouts. Recorded baskets: ${priced.length ? new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(priced.reduce((sum,r)=>sum+r.subtotalCents!,0)/100) : 'Unknown'} (${priced.length} priced). This is a separate cohort from the session action cards.`);
+        text('shopify-records',`${snapshot.orders.length} orders · ${unpaid.length} abandoned checkouts in the selected dates. Recorded basket value: ${priced.length ? money(priced.reduce((sum,r)=>sum+r.subtotalCents!,0)) : 'Unknown'}. Separate from the tracked checkout baskets below.`);
         element('shopify-records').hidden=false;
       }
     }
@@ -412,5 +438,16 @@ element("journey-list").addEventListener("click", event => {
 });
 // Register component setters before applying saved checkbox values.
 await Promise.all(["s-checkbox", "s-button", "s-section", "s-badge", "s-table", "s-table-header", "s-table-header-row", "s-table-body", "s-table-row", "s-table-cell"].map(tag => customElements.whenDefined(tag)));
+await customElements.whenDefined('s-date-picker');
+const datePicker=element('date-range-picker') as HTMLElementTagNameMap['s-date-picker'];
+datePicker.value=selectedRange;datePicker.allow=recentRange(30);
+for(const days of [7,30])element(`last-${days}-days`).addEventListener('click',()=>{datePicker.value=recentRange(days);});
+element('apply-date-range').addEventListener('click',()=>{
+  try{
+    const bounds=dateBounds(datePicker.value),available=dateBounds(recentRange(30));
+    if(bounds.start<available.start||bounds.end>available.end)throw Error('Choose dates within the last 30 days.');
+    updateDateSelection(datePicker.value);element('date-range-error').hidden=true;
+  }catch(error){text('date-range-error',error instanceof Error?error.message:'Choose valid dates.');element('date-range-error').hidden=false;}
+});
 void loadProgress();
 void refresh();
