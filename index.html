@@ -20,18 +20,13 @@
         </s-stack>
       </s-popover>
       <s-stack gap="base">
-        <s-heading id="page-title" fontSize="large-200">Checkout overview</s-heading>
-        <s-section id="shopify-connection" heading="Shopify connection" hidden>
-          <s-stack gap="base">
-            <s-paragraph id="shopify-status">Connecting to build-sprint-demo…</s-paragraph>
-            <s-paragraph id="shopify-records" hidden></s-paragraph>
-            <s-button id="enable-pixel" variant="secondary">Enable checkout collection</s-button>
+        <s-query-container><s-grid gridTemplateColumns="@container (inline-size > 600px) 1fr auto, 1fr" gap="base" alignItems="center">
+          <s-heading id="page-title" fontSize="large-200">Checkout overview</s-heading>
+          <s-stack id="view-navigation" direction="inline" gap="small" accessibilityRole="navigation" accessibilityLabel="Checkout evidence views">
+            <s-button id="overview-tab" variant="primary" aria-pressed="true">Overview</s-button>
+            <s-button id="journeys-tab" variant="secondary" aria-pressed="false">Checkout drill-down</s-button>
           </s-stack>
-        </s-section>
-        <s-stack direction="inline" gap="base" accessibilityRole="navigation" accessibilityLabel="Checkout evidence views">
-          <s-button id="overview-tab" variant="primary" aria-pressed="true">Overview</s-button>
-          <s-button id="journeys-tab" variant="secondary" aria-pressed="false">Checkout drill-down</s-button>
-        </s-stack>
+        </s-grid></s-query-container>
         <s-paragraph id="request-status" color="subdued" role="status" aria-live="polite">Loading checkout evidence…</s-paragraph>
         <s-banner id="request-error" heading="Evidence could not be refreshed" tone="critical" hidden></s-banner>
         <s-stack id="overview" gap="base">
@@ -98,6 +93,11 @@
         <s-divider></s-divider>
         <s-button id="coverage-details-button" variant="tertiary" aria-expanded="false" aria-controls="coverage-details">Data details</s-button>
         <s-stack id="coverage-details" gap="small" hidden>
+          <s-stack id="shopify-connection" gap="small" hidden>
+            <s-paragraph id="shopify-status"></s-paragraph>
+            <s-paragraph id="shopify-records" hidden></s-paragraph>
+            <s-button id="enable-pixel" variant="secondary">Enable checkout collection</s-button>
+          </s-stack>
           <s-stack direction="inline" justifyContent="space-between" gap="base"><s-text>Events in this view</s-text><s-number id="event-count">—</s-number></s-stack>
           <s-stack direction="inline" justifyContent="space-between" gap="base"><s-text>Events stored</s-text><s-number id="stored-count">—</s-number></s-stack>
           <s-stack direction="inline" justifyContent="space-between" gap="base"><s-text>Collection</s-text><s-text id="collection-state">Checking</s-text></s-stack>

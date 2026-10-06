@@ -66,7 +66,7 @@ function showView(view: "overview" | "journeys", focus = false) {
   for (const name of ["overview", "journeys"] as const) {
     element(name).hidden = name !== view;
     element(`${name}-tab`).setAttribute("aria-pressed", String(name === view));
-    element(`${name}-tab`).setAttribute("variant", name === view ? "primary" : "secondary");
+    element(`${name}-tab`).setAttribute("variant", !embeddedShopify&&name === view ? "primary" : "secondary");
   }
   text('page-title',view === 'journeys' ? 'Checkout drill-down' : 'Checkout overview');
   if (focus) element(`${view}-tab`).focus();
@@ -386,6 +386,11 @@ async function shopifyRequest(path:string,method='GET') {
   return response;
 }
 if(embeddedShopify){
+  for(const name of ['overview','journeys']){
+    const button=element(`${name}-tab`);button.setAttribute('variant','secondary');button.setAttribute('slot','secondary-actions');
+    document.querySelector('s-page')!.append(button);
+  }
+  element('view-navigation').hidden=true;
   element('shopify-connection').hidden=false;
   element('enable-pixel').addEventListener('click',async()=>{
     const button=element('enable-pixel');button.setAttribute('loading','');button.setAttribute('disabled','');
