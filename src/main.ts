@@ -6,8 +6,8 @@ import { STORE, summarize, describeJourney, EVIDENCE_EVENT_LIMIT } from "../shar
 import type { CheckoutEvent } from "../shared/evidence";
 import { buildMissions, isViewerId } from "../shared/actions";
 import { modelCatalog, estimateCatalogImpact } from "../shared/catalog";
-import {observedAverageOrderValue} from "../shared/purchases";
-import type {ObservedPurchases} from "../shared/purchases";
+import {observedAverageOrderValue,syncedAverageOrderValue} from "../shared/purchases";
+import type {ObservedPurchases,SyncedPurchase} from "../shared/purchases";
 import type { CatalogModel } from "../shared/catalog";
 import type { Mission, ActionStep, MissionId } from "../shared/actions";
 
@@ -15,6 +15,7 @@ declare global { interface ImportMeta { readonly env: Record<string, string | un
 interface EvidenceResponse {
   store: string; events: CheckoutEvent[]; totalStored: number; truncated: boolean;
   abandonedCheckouts?:AbandonedSnapshot|null; enabled: boolean; sampledAt: number; catalogModel?: CatalogModel | null; observedPurchases?: ObservedPurchases | null;
+  shopifySnapshot?:{syncedAt:number;periodStart:string;orders:SyncedPurchase[];abandoned:{subtotalCents:number|null;recovered:boolean}[]}|null;
 }
 const element = (id: string) => document.getElementById(id)!;
 const text = (id: string, value: string | number) => { element(id).textContent = String(value); };
@@ -36,6 +37,7 @@ let savingProgress = false;
 let abandonedCheckouts:AbandonedSnapshot|null=null;
 let catalogModel: CatalogModel | null = null;
 let observedPurchases: ObservedPurchases | null = null;
+let syncedPurchasesShown=false;
 let viewerId: string | null = null;
 try {
   const stored = localStorage.getItem("checkout-demo-viewer");
@@ -115,8 +117,25 @@ function renderCatalog(model: CatalogModel | null, events: CheckoutEvent[], part
 element("catalog-details-button").addEventListener("click",()=>{
   const panel=element("catalog-details"); panel.hidden=!panel.hidden;
   element("catalog-details-button").setAttribute("aria-expanded",String(!panel.hidden));
-  text("catalog-details-button",panel.hidden ? (observedPurchases ? "See observed purchases" : "See basket assumptions") : (observedPurchases ? "Hide observed purchases" : "Hide basket assumptions"));
+  text("catalog-details-button",panel.hidden ? (observedPurchases||syncedPurchasesShown ? "See observed purchases" : "See basket assumptions") : (observedPurchases||syncedPurchasesShown ? "Hide observed purchases" : "Hide basket assumptions"));
 });
+
+function renderSyncedPurchases(snapshot:NonNullable<EvidenceResponse['shopifySnapshot']>){
+  syncedPurchasesShown=true;
+  const purchases=syncedAverageOrderValue(snapshot.orders);
+  text('catalog-aov-label','Average test order value');
+  text('catalog-aov',purchases.aovCents===null?'Unknown':money(purchases.aovCents));
+  text('catalog-details-heading','Synced test purchases');
+  text('catalog-summary',`${purchases.orderCount} priced paid test orders · Last 30 days · Synced ${time(snapshot.syncedAt)}.`);
+  text('catalog-mix-description',`Read directly from Shopify. ${purchases.unpricedCount} eligible orders without a valid USD subtotal are excluded.`);
+  text('catalog-method',purchases.aovCents===null?'No priced paid test orders are available in the synced period.':`${money(purchases.totalProductCents)} in current product subtotals ÷ ${purchases.orderCount} paid test orders = ${money(purchases.aovCents)}. These are test purchases, not real revenue.`);
+  text('catalog-exclusions','Includes paid, uncancelled test orders with valid USD current product subtotals from the last 30 days. Shipping and tax are excluded. Refresh test data reads new purchases from Shopify. Average order value is context only and does not price missing baskets or recovery estimates.');
+  element('catalog-source-link').setAttribute('href','https://admin.shopify.com/store/build-sprint-demo/orders');
+  text('catalog-source-link','View demo store orders in Shopify');
+  element('catalog-baskets').innerHTML='';
+  element('catalog-details-button').removeAttribute('disabled');
+  text('catalog-details-button',element('catalog-details').hidden?'See observed purchases':'Hide observed purchases');
+}
 
 function renderMissions(events: CheckoutEvent[]) {
   const expanded = new Set(Array.from(element("mission-list").querySelectorAll<HTMLElement>("[data-action-body]")).filter(item => !item.hidden).map(item => item.id));
@@ -235,6 +254,8 @@ function render(data: EvidenceResponse) {
   element("abandoned-value-metric").hidden=!abandonedCheckouts;
   element("catalog-metrics").setAttribute("gridTemplateColumns",abandonedCheckouts ? "@container (inline-size > 600px) 1fr 1fr 1fr, 1fr" : "@container (inline-size > 600px) 1fr 1fr, 1fr");
   renderCatalog(data.catalogModel ?? null,data.events,data.truncated,data.observedPurchases ?? null);
+  syncedPurchasesShown=false;
+  if(data.shopifySnapshot)renderSyncedPurchases(data.shopifySnapshot);
   {const snap=abandonedCheckouts ?? {importedOn:"",emailSent:0,emailNotSent:0,records:[]};const priced=recordedImpact(data.events,buildMissions(data.events),snap); const total=priced.combined.atRiskCents;
     text("abandoned-value-label",priced.combined.browserPricedSessions ? "Observed unfinished basket value" : "Linked abandoned basket value");
     text("abandoned-value",priced.combined.matchedSessions ? money(total) : "Unknown");
@@ -367,7 +388,7 @@ async function refresh() {
     if (data.store !== STORE || !Array.isArray(data.events)) throw new Error("Unexpected evidence response.");
     render(data);
     if(embeddedShopify){
-      const snapshot=(data as EvidenceResponse & {shopifySnapshot?:{syncedAt:number;orders:{subtotalCents:number|null;paid:boolean;cancelled:boolean;test:boolean}[];abandoned:{subtotalCents:number|null;recovered:boolean}[]}}).shopifySnapshot;
+      const snapshot=data.shopifySnapshot;
       if(snapshot){
         const unpaid=snapshot.abandoned.filter(r=>!r.recovered),priced=unpaid.filter(r=>r.subtotalCents!==null);
         text('shopify-records',`Shopify records · Last 30 days: ${snapshot.orders.length} orders, ${unpaid.length} unrecovered checkouts. Recorded baskets: ${priced.length ? new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(priced.reduce((sum,r)=>sum+r.subtotalCents!,0)/100) : 'Unknown'} (${priced.length} priced). This is a separate cohort from the session action cards.`);

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {observedAverageOrderValue} from '../shared/purchases.ts';
+import {observedAverageOrderValue,syncedAverageOrderValue} from '../shared/purchases.ts';
 import type {ObservedPurchases} from '../shared/purchases.ts';
 import {CATALOG_PLAN,estimateCatalogImpact} from '../shared/catalog.ts';
 import {buildMissions} from '../shared/actions.ts';
@@ -12,6 +12,17 @@ test('observed order value uses order counts rather than averaging basket groups
  assert.throws(()=>observedAverageOrderValue({...snapshot,orderCount:4}));
  assert.throws(()=>observedAverageOrderValue({...snapshot,totalProductCents:100}));
  assert.throws(()=>observedAverageOrderValue({...snapshot,orderCount:0,baskets:[]}));
+});
+test('synced test AOV updates from eligible purchases without treating missing prices as zero',()=>{
+ const paid={test:true,paid:true,cancelled:false};
+ const orders=[{...paid,subtotalCents:60000},{...paid,subtotalCents:120000}];
+ assert.equal(syncedAverageOrderValue(orders).aovCents,90000);
+ assert.equal(syncedAverageOrderValue([...orders,{...paid,subtotalCents:60000}]).aovCents,80000);
+ assert.deepEqual(syncedAverageOrderValue([...orders,{...paid,subtotalCents:null},{...paid,subtotalCents:0},
+  {...paid,subtotalCents:99999,test:false},{...paid,subtotalCents:99999,paid:false},{...paid,subtotalCents:99999,cancelled:true}]),
+  {orderCount:3,unpricedCount:1,totalProductCents:180000,aovCents:60000});
+ assert.equal(syncedAverageOrderValue([]).aovCents,null);
+ assert.equal(syncedAverageOrderValue([{...paid,subtotalCents:null}]).aovCents,null);
 });
 test('observed purchases take precedence while missing purchases retain labeled catalog fallback',()=>{
  const events:CheckoutEvent[]=[{eventId:'1',sessionId:'a',name:'checkout_started',timestamp:1,category:null}];
