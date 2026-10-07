@@ -1,16 +1,17 @@
 /// <reference types="@shopify/polaris-types" />
 import "./style.css";
-import {fixResults,type AppliedFix} from "../shared/fixTracking";
+import {fixResults,retestResults,actionState,type AppliedFix} from "../shared/fixTracking";
 import {recentRange,dateBounds,checkoutCohort} from '../shared/dateRange';
 import {inventoryValue} from '../shared/inventoryValue';
 import {formatMoney} from '../shared/money';
-import {recordedImpact} from "../shared/abandoned";
+import {recordedImpact,linkedAbandoned} from "../shared/abandoned";
 import {abandonedSummary} from "../shared/abandonedSummary";
 import {estimateRecovery,RECOVERY_CASES} from "../shared/recovery";
 import type {AbandonedSnapshot} from "../shared/abandoned";
 import {journeyLabel,journeyOrderHref} from "../shared/journeyLabel";
 import {sortJourneys} from "../shared/journeySort";
 import {journeyDate} from "../shared/journeyDate";
+import {journeyPrice,type SavedBasket} from "../shared/journeyPrice";
 import {journeyDuration} from "../shared/journeyDuration";
 import { STORE, summarize, describeJourney, EVIDENCE_EVENT_LIMIT } from "../shared/evidence";
 import type { CheckoutEvent } from "../shared/evidence";
@@ -27,7 +28,7 @@ interface EvidenceResponse {
   abandonedCheckouts?:AbandonedSnapshot|null; enabled: boolean; sampledAt: number; catalogModel?: CatalogModel | null; observedPurchases?: ObservedPurchases | null;
   inventoryItemValue?:(ReturnType<typeof inventoryValue>&{rangeStart:number;rangeEnd:number})|null;
   abandonedBasketSummary?:(ReturnType<typeof abandonedSummary>&{syncedAt:number;currency?:string})|null;
-  shopifySnapshot?:{currency?:string;syncedAt:number;periodStart:string;orders:(SyncedPurchase&{createdAt:string;sessionId?:string;orderName?:string;orderId?:string;conversion?:{shopMinor:number;buyerMinor:number;buyerCurrency:string}})[];abandoned:{createdAt:string;subtotalCents:number|null;recovered:boolean}[]}|null;
+  shopifySnapshot?:{currency?:string;syncedAt:number;periodStart:string;orders:(SyncedPurchase&{createdAt:string;sessionId?:string;orderName?:string;orderId?:string;totalCents?:number|null;conversion?:{shopMinor:number;buyerMinor:number;buyerCurrency:string}})[];abandoned:(SavedBasket&{recordHash:string;createdAt:string;recovered:boolean})[]}|null;
 }
 const element = (id: string) => document.getElementById(id)!;
 const text = (id: string, value: string | number) => { element(id).textContent = String(value); };
@@ -98,13 +99,19 @@ function togglePanel(button: HTMLElement, panelId: string) {
   button.textContent = panel.hidden ? (panelId === "coverage-details" ? "Data details" : "Show details") : "Hide details";
 }
 
+function renderDone(mission:Mission){
+  return `<s-checkbox id="done-${mission.id}" data-fix-done="${mission.id}" label="Mark as done" accessibilityLabel="Mark as done: ${escape(mission.title)}" ${appliedFixes.some(f=>f.missionId===mission.id)?'checked':''} ${!fixesReady||fixSaving||loading||(!embeddedShopify&&!viewerId)?'disabled':''}></s-checkbox>`;
+}
 function renderFix(mission:Mission){
   const fix=appliedFixes.find(f=>f.missionId===mission.id);
-  const button=`<s-button data-fix="${mission.id}" data-fix-operation="${fix?'undo':'mark'}" variant="secondary" ${!fixesReady||fixSaving?'disabled':''}>${fix?'Undo fix marker':'Fix applied'}</s-button>`;
-  if(!fix)return `<s-stack gap="small">${button}${fixError?`<s-text tone="critical">${escape(fixError)}</s-text>`:''}</s-stack>`;
+  if(!fix)return '';
   const results=fixResults(fix,latestEvidence?.events??[],Date.now());
+  const retest=retestResults(fix,latestEvidence?.events??[],Date.now());
+  const checked=fix.retestedAt!==undefined;
+  const retestPanel=mission.id==='unfinished'?'':`<s-stack gap="small"><s-stack direction="inline" gap="small" alignItems="center">${checked?`<s-badge tone="${retest?.returned?'caution':'success'}">${retest?.returned?'Alerts after retest':'Retest passed'}</s-badge><s-text color="subdued">Confirmed by ${embeddedShopify?'your team':'this demo viewer'} · ${escape(time(fix.retestedAt!))}</s-text>`:'<s-text>Repeat the affected checkout and confirm the problem no longer appears.</s-text>'}</s-stack>${retest?.returned?`<s-text>${retest.returned} checkout${retest.returned===1?'':'s'} recorded matching alerts after the retest. Check again.</s-text>`:''}<s-stack direction="inline" gap="small"><s-button data-fix="${mission.id}" data-fix-operation="retest" variant="secondary" ${!fixesReady||fixSaving||loading?'disabled':''}>${checked?'I retested again successfully':'I retested successfully'}</s-button>${checked?`<s-button data-fix="${mission.id}" data-fix-operation="undo-retest" variant="tertiary" ${fixSaving||loading?'disabled':''}>Undo retest</s-button>`:''}</s-stack></s-stack>`;
   const rate=(n:number,d:number)=>d?`${Math.round(n/d*100)}% (${n}/${d})`:'—';
-  return `<s-divider></s-divider><s-stack gap="base"><s-stack direction="inline" justifyContent="space-between" gap="small"><s-heading>Results after your fix</s-heading>${button}</s-stack>
+  return `<s-divider></s-divider><s-stack gap="base"><s-stack direction="inline" justifyContent="space-between" gap="small"><s-heading>Results after your fix</s-heading></s-stack>
+    ${retestPanel}
     <s-text color="subdued">Marked ${escape(time(fix.appliedAt))} · Before: 30 days · After: ${results.ended?'30 days':'since your marker'}</s-text>
     <s-query-container><s-grid gridTemplateColumns="@container (inline-size > 600px) 1fr 1fr 1fr, 1fr" gap="base">
       <s-stack gap="small"><s-text>Previously affected checkouts</s-text><s-text type="strong">${results.affectedCompleted} of ${results.affectedTotal} completed after fix</s-text></s-stack>
@@ -112,9 +119,9 @@ function renderFix(mission:Mission){
       <s-stack gap="small"><s-text>New checkout completion</s-text><s-text>Before ${rate(fix.baseline.completed,fix.baseline.checkouts)}</s-text><s-text type="strong">After ${rate(results.after.completed,results.after.checkouts)}</s-text></s-stack>
     </s-grid></s-query-container>
     <s-text color="subdued">${results.after.checkouts?'Observed after your fix; this does not prove the fix caused purchases.':'Waiting for new checkouts. Previously affected checkouts can still complete.'}${fix.partial||latestEvidence?.truncated?' Counts cover available events only; some history is missing.':''}</s-text>
-    <s-button data-fix-refresh variant="secondary">Update results</s-button>${fixError?`<s-text tone="critical">${escape(fixError)}</s-text>`:''}</s-stack>`;
+    <s-button data-fix-refresh variant="secondary" ${loading||fixSaving?'disabled':''}>Update results</s-button></s-stack>`;
 }
-async function fixRequest(operation:'read'|'mark'|'undo',missionId?:MissionId){
+async function fixRequest(operation:'read'|'mark'|'undo'|'retest'|'undo-retest',missionId?:MissionId){
   const headers:Record<string,string>={'Content-Type':'application/json'};
   if(embeddedShopify){const bridge=(window as unknown as {shopify:{idToken:()=>Promise<string>}}).shopify;headers.Authorization=`Bearer ${await bridge.idToken()}`;}
   const response=await fetch(`${backendOrigin}/api/${embeddedShopify?'shopify':'demo'}/fixes`,{method:'POST',headers,body:JSON.stringify({operation,...(embeddedShopify?{}:{viewerId}),...(missionId?{missionId}:{})}),signal:AbortSignal.timeout(15000)});
@@ -123,19 +130,30 @@ async function fixRequest(operation:'read'|'mark'|'undo',missionId?:MissionId){
 }
 element('mission-list').addEventListener('click',async event=>{
   const target=(event.target as HTMLElement).closest<HTMLElement>('s-button[data-fix],s-button[data-fix-refresh]');
-  if(!target||fixSaving)return;
+  if(!target||fixSaving||loading)return;
   if(target.hasAttribute('data-fix-refresh')){void loadEvidence();return;}
-  fixSaving=true;fixError='';if(latestEvidence)render(filteredEvidence(latestEvidence));
-  try{await fixRequest(target.dataset.fixOperation as 'mark'|'undo',target.dataset.fix as MissionId);}
-  catch{fixError='Could not save your fix marker. Please try again.';}
-  finally{fixSaving=false;if(latestEvidence)render(filteredEvidence(latestEvidence));}
+  await saveFixUpdate(target.dataset.fixOperation as 'mark'|'undo'|'retest'|'undo-retest',target.dataset.fix as MissionId);
 });
+element('mission-list').addEventListener('change',async event=>{
+  const input=(event.target as HTMLElement).closest<HTMLElementTagNameMap['s-checkbox']>('s-checkbox[data-fix-done]');
+  if(!input||fixSaving||loading||!fixesReady)return;
+  await saveFixUpdate(input.checked?'mark':'undo',input.dataset.fixDone as MissionId);
+});
+async function saveFixUpdate(operation:'mark'|'undo'|'retest'|'undo-retest',missionId:MissionId){
+  fixSaving=true;fixError='';element('action-save-error').hidden=true;text('action-save-status','Saving action…');
+  (element('apply-date-range') as HTMLElementTagNameMap['s-button']).disabled=true;
+  element('mission-list').querySelectorAll<HTMLElementTagNameMap['s-checkbox']|HTMLElementTagNameMap['s-button']>('s-checkbox[data-fix-done],s-button[data-fix],s-button[data-fix-refresh]').forEach(control=>{control.disabled=true;});
+  try{await fixRequest(operation,missionId);if(operation==='mark')element(`body-${missionId}`).hidden=true;text('action-save-status',operation==='mark'?'Marked as done.':operation==='undo'?'Action reopened.':'Retest updated.');}
+  catch{fixError='Your change was not saved. Check your connection and try again.';text('action-save-error',fixError);element('action-save-error').hidden=false;text('action-save-status','Change was not saved.');}
+  finally{fixSaving=false;(element('apply-date-range') as HTMLElementTagNameMap['s-button']).disabled=loading;if(latestEvidence)render(filteredEvidence(latestEvidence));element(`done-${missionId}`).focus({preventScroll:true});}
+}
 
+function signalBoundary(id:MissionId){const fix=appliedFixes.find(f=>f.missionId===id);return fix?.retestedAt??fix?.appliedAt;}
 function renderProgress() {
   for (const mission of missions) {
     const done = mission.steps.filter(step => completedSteps.includes(step.id)).length;
     text(`mission-progress-${mission.id}`, `${done} / 3 steps`);
-    const severity = missionSignal(mission, latestEvidence ? filteredEvidence(latestEvidence).events : [], appliedFixes.find(f=>f.missionId===mission.id)?.appliedAt).severity;
+    const severity = missionSignal(mission, latestEvidence ? filteredEvidence(latestEvidence).events : [], signalBoundary(mission.id)).severity;
     text(`mission-badge-${mission.id}`, severity.label);
     element(`mission-badge-${mission.id}`).setAttribute("tone", severity.tone);
 
@@ -207,6 +225,7 @@ function renderSyncedPurchases(snapshot:NonNullable<EvidenceResponse['shopifySna
 function renderMissions(events: CheckoutEvent[]) {
   const expanded = new Set(Array.from(element("mission-list").querySelectorAll<HTMLElement>("[data-action-body]")).filter(item => !item.hidden).map(item => item.id));
 
+  const expandedFigures = new Set(Array.from(element("mission-list").querySelectorAll<HTMLElement>("[data-figure-details]")).filter(item => !item.hidden).map(item => item.id));
   const summary = summarize(events);
   const unfinishedIds = new Set(summary.journeys.filter(session => session.started && !session.completed).map(session => session.id));
   const unfinishedCount = (mission: Mission) => mission.sessionIds.filter(id => unfinishedIds.has(id)).length;
@@ -214,10 +233,13 @@ function renderMissions(events: CheckoutEvent[]) {
   const recorded = recordedImpact(events,buildMissions(events),abandonedCheckouts ?? {importedOn:"",emailSent:0,emailNotSent:0,records:[]},5,storeCurrency);
   const priority:Record<MissionId,number>={delivery:0,payment:0,inventory:0,discount:1,validation:2,unfinished:3};
   const severityRank = {Critical:0, Warning:1, Info:2};
-  missions = buildMissions(events).filter(m=>m.count>0||appliedFixes.some(f=>f.missionId===m.id)).sort((a,b)=>severityRank[missionSignal(a,events,appliedFixes.find(f=>f.missionId===a.id)?.appliedAt).severity.label]-severityRank[missionSignal(b,events,appliedFixes.find(f=>f.missionId===b.id)?.appliedAt).severity.label]||priority[a.id]-priority[b.id]||unfinishedCount(b)-unfinishedCount(a));
+  const state=(mission:Mission)=>actionState(appliedFixes.find(f=>f.missionId===mission.id),latestEvidence?.events??events,Date.now());
+  missions = buildMissions(events).filter(m=>m.count>0||appliedFixes.some(f=>f.missionId===m.id)).sort((a,b)=>Number(state(a).done)-Number(state(b).done)||severityRank[missionSignal(a,events,signalBoundary(a.id)).severity.label]-severityRank[missionSignal(b,events,signalBoundary(b.id)).severity.label]||priority[a.id]-priority[b.id]||unfinishedCount(b)-unfinishedCount(a));
   element("mission-list").innerHTML = missions.map((mission, index) => {
     const open = expanded.has(`body-${mission.id}`);
-    const signal = missionSignal(mission, events, appliedFixes.find(f=>f.missionId===mission.id)?.appliedAt);
+    const status=state(mission);
+    const figuresOpen=expandedFigures.has(`figures-${mission.id}`);
+    const signal = missionSignal(mission, events, signalBoundary(mission.id));
     const severity = signal.severity;
     const shippingBlockers = new Set(events.filter(event=>mission.sessionIds.includes(event.sessionId)&&event.shippingBlocker==='no_shipping_available').map(event=>event.sessionId)).size;
     const estimate = (recorded ?? impact)?.actions.find(item=>item.id===mission.id);
@@ -230,38 +252,41 @@ function renderMissions(events: CheckoutEvent[]) {
     const recovery=estimateRecovery({mechanism,confirmedCause:false,basketCents:basketCents??0,pricedBaskets:actual?.matchedSessions??0,testData:true});
     const recoveryCase=RECOVERY_CASES.find(item=>item.id===({payment:'payment-blocked',validation:'form-validation',unfinished:'ordinary-unfinished',delivery:'shipping-unavailable',discount:'discount-rejected',inventory:'inventory'}[mission.id]));
     const percent = summary.sessionCount ? Math.round(mission.count / summary.sessionCount * 100) : 0;
-    return `<s-section id="mission-${mission.id}">
+    return `${status.done&&(index===0||!state(missions[index-1]).done)?'<s-divider></s-divider><s-heading>Marked as done</s-heading>':''}<s-section id="mission-${mission.id}">
       <s-stack gap="base">
         <s-query-container><s-grid gridTemplateColumns="@container (inline-size > 600px) 1fr auto, 1fr" gap="base" alignItems="start">
           <s-stack gap="small">
             <s-stack direction="inline" gap="small" alignItems="center"><s-heading>${escape(mission.title)}</s-heading><s-badge id="mission-badge-${mission.id}" tone="${severity.tone}" size="base" color="base">${severity.label}</s-badge></s-stack>
-            ${signal.latestAlert!==null?`<s-text color="subdued">${signal.period==='after'?'After fix':signal.period==='before'?'Before fix':'Recorded alerts'} · Last alert ${escape(time(signal.latestAlert))}${signal.period==='before'?' · None recorded since fix':''}</s-text>`:''}
+            ${signal.latestAlert!==null?`<s-text color="subdued">${signal.period==='recorded'?'Recorded alerts':`${signal.period==='after'?'After':'Before'} ${appliedFixes.find(f=>f.missionId===mission.id)?.retestedAt!==undefined?'retest':'fix'}`} · Last alert ${escape(time(signal.latestAlert))}${signal.period==='before'?` · None recorded since ${appliedFixes.find(f=>f.missionId===mission.id)?.retestedAt!==undefined?'retest':'fix'}`:''}</s-text>`:''}
             ${mission.id==='delivery'?`<s-text color="subdued">${shippingBlockers} confirmed shipping blocker${shippingBlockers===1?'':'s'} · ${mission.count-shippingBlockers} general shipping alerts</s-text>`:''}
           </s-stack>
-          <s-button variant="secondary" data-toggle-action="${mission.id}" aria-expanded="${open}" aria-controls="body-${mission.id}" accessibilityLabel="${open ? "Hide" : "Show"} details: ${mission.title}">${open ? "Hide details" : "Show details"}</s-button>
+          <s-stack direction="inline" gap="base" alignItems="center">${renderDone(mission)}<s-button variant="secondary" data-toggle-action="${mission.id}" aria-expanded="${open}" aria-controls="metrics-${mission.id} body-${mission.id}" accessibilityLabel="${open ? "Hide" : "Show"} details: ${mission.title}">${open ? "Hide details" : "Show details"}</s-button></s-stack>
         </s-grid></s-query-container>
-        <s-divider></s-divider>
+        ${status.returned?`<s-text tone="caution">${status.returned} checkout${status.returned===1?'':'s'} with new alerts since your last check. Review again.</s-text>`:''}
+        <s-stack id="metrics-${mission.id}" data-done-summary="${status.done}" gap="base" ${status.done&&!open?'hidden':''}><s-divider></s-divider>
         <s-query-container><s-grid gridTemplateColumns="@container (inline-size > 600px) 1fr 1fr 1fr, 1fr" gap="base">
           <s-stack gap="small"><s-text color="subdued">Affected checkouts</s-text><s-number fontSize="large-100" fontWeight="bold">${percent}%</s-number><s-text color="subdued">${mission.count} of ${summary.sessionCount} checkouts</s-text></s-stack>
-          <s-stack gap="small"><s-text color="subdued">${mission.id==="inventory"?"Item value before alert":"Recorded basket value"}</s-text><s-number fontSize="large-100" fontWeight="bold" id="risk-${mission.id}">${mission.id==="inventory"?(inventory.totalMinor===null?"Not recorded":money(inventory.totalMinor)):hasAmount ? money(basketCents!) : "Unknown"}</s-number><s-text color="subdued">${mission.id==="inventory"?`${inventory.priced} checkout${inventory.priced===1?"":"s"} valued before the alert · ${inventory.missing} without a matched price or conversion`:recorded ? `Basket value available for ${actual?.matchedSessions ?? 0} of ${actual?.eligibleSessions ?? 0} unfinished checkouts` : `${unfinishedCount(mission)} matching checkouts without completion`}</s-text></s-stack>
-          <s-stack gap="small"><s-text color="subdued">Estimated recovery</s-text><s-number fontSize="large-100" fontWeight="bold" id="recovery-${mission.id}">${recovery.cents===null?"Not estimated yet":money(recovery.cents)}</s-number><s-text color="subdued">${escape(recovery.reason)}</s-text></s-stack>
+          <s-stack gap="small"><s-text color="subdued">${mission.id==="inventory"?"Item value before alert":"Recorded basket value"}</s-text><s-number fontSize="large-100" fontWeight="bold" id="risk-${mission.id}">${mission.id==="inventory"?(inventory.totalMinor===null?"Not recorded":money(inventory.totalMinor)):hasAmount ? money(basketCents!) : "Not recorded"}</s-number><s-text color="subdued">${mission.id==="inventory"?`${inventory.priced} checkout${inventory.priced===1?"":"s"} valued before the alert · ${inventory.missing} without a matched price or conversion`:recorded ? `Basket value available for ${actual?.matchedSessions ?? 0} of ${actual?.eligibleSessions ?? 0} unfinished checkouts` : `${unfinishedCount(mission)} matching checkouts without completion`}</s-text></s-stack>
+          <s-stack gap="small"><s-text color="subdued">Estimated recovery</s-text><s-number fontSize="large-100" fontWeight="bold" id="recovery-${mission.id}">${recovery.cents===null?"Not estimated yet":money(recovery.cents)}</s-number></s-stack>
         </s-grid></s-query-container>
-        ${appliedFixes.some(f=>f.missionId===mission.id)?renderFix(mission):''}
+        ${appliedFixes.some(f=>f.missionId===mission.id)?renderFix(mission):''}</s-stack>
         <s-stack id="body-${mission.id}" data-action-body gap="base" ${open ? "" : "hidden"}>
           <s-divider></s-divider>
-          <s-paragraph color="subdued">${escape(mission.description)}</s-paragraph>
-          <s-paragraph color="subdued"><s-text type="strong">${severity.label}: </s-text>${escape(severity.reason)} Recorded alerts do not confirm a current outage.</s-paragraph>
+          <s-banner tone="${severity.label==='Critical'?'critical':severity.label==='Warning'?'warning':'info'}"><s-paragraph>${escape(severity.reason)}</s-paragraph></s-banner>
           <s-query-container><s-grid gridTemplateColumns="@container (inline-size > 700px) 1fr 1fr, 1fr" gap="base" alignItems="stretch">
-            <s-box background="subdued" borderRadius="large" padding="base"><s-stack gap="small" data-explanation="why"><s-heading>Why it matters</s-heading><s-paragraph>${mission.why}</s-paragraph></s-stack></s-box>
+            <s-box background="subdued" borderRadius="large" padding="base"><s-stack gap="small" data-explanation="why"><s-heading>What we know</s-heading><s-paragraph>${escape(mission.description)}</s-paragraph></s-stack></s-box>
             <s-box background="subdued" borderRadius="large" padding="base"><s-stack gap="small" data-explanation="next"><s-heading>What to do</s-heading><s-paragraph>${mission.next}</s-paragraph></s-stack></s-box>
           </s-grid></s-query-container>
-          <s-paragraph color="subdued">${mission.id==="inventory"?"Uses observed item prices before removal, after line discounts and excluding shipping and tax. Foreign-currency values require a Shopify conversion for the same checkout. ":recorded ? "Includes only unfinished checkouts with a recorded basket value. " : estimate ? `${estimate.eligibleSessions} unfinished checkouts × ${money(impact!.aovCents)} modeled order value. ` : ""}The same checkout may appear in several actions; do not add their values.</s-paragraph>
-          <s-paragraph color="subdued"><s-text type="strong">How recovery is estimated: </s-text>${escape(recoveryCase?.estimate??'Confirm a specific issue before estimating recovery.')}</s-paragraph>
           <s-stack direction="inline" gap="base">
-            <s-button variant="primary" data-start="${mission.id}" ${mission.count ? "" : "disabled"}>${mission.id === "payment" ? "Investigate payment errors" : mission.id === "validation" ? "Review form errors" : mission.id === "delivery" ? "Investigate shipping" : mission.id === "discount" ? "Review promotion" : mission.id === "inventory" ? "Review item availability" : "Review unfinished checkouts"}</s-button>
-            <s-button variant="secondary" data-mission="${mission.id}" ${mission.count ? "" : "disabled"}>See ${mission.count} affected checkout${mission.count===1?"":"s"}</s-button>
+            <s-button variant="primary" data-mission="${mission.id}" ${mission.count ? "" : "disabled"}>View ${mission.count} affected checkout${mission.count===1?"":"s"}</s-button>
+            <s-button variant="tertiary" data-start="${mission.id}" ${mission.count ? "" : "disabled"}>Investigation checklist</s-button>
+            <s-button variant="tertiary" data-toggle-figures="${mission.id}" aria-expanded="${figuresOpen}" aria-controls="figures-${mission.id}">${figuresOpen?'Hide figure details':'About these figures'}</s-button>
           </s-stack>
-          ${appliedFixes.some(f=>f.missionId===mission.id)?'':renderFix(mission)}
+          <s-stack id="figures-${mission.id}" data-figure-details gap="small" ${figuresOpen?'':'hidden'}>
+          <s-paragraph color="subdued">${mission.id==="inventory"?"Uses observed item prices before removal, after line discounts and excluding shipping and tax. Foreign-currency values require a Shopify conversion for the same checkout. ":recorded ? "Includes only unfinished checkouts with a recorded basket value. " : estimate ? `${estimate.eligibleSessions} unfinished checkouts × ${money(impact!.aovCents)} modeled order value. ` : ""}The same checkout may appear in several actions; do not add their values.</s-paragraph>
+          ${recovery.cents===null?`<s-paragraph color="subdued">${escape(recovery.reason)}.</s-paragraph>`:''}
+          <s-paragraph color="subdued"><s-text type="strong">How recovery is estimated: </s-text>${escape(recoveryCase?.estimate??'Confirm a specific issue before estimating recovery.')}</s-paragraph>
+          </s-stack>
           <s-stack id="steps-${mission.id}" gap="base" hidden>
             <s-divider></s-divider><s-heading>Action checklist</s-heading><s-text id="mission-progress-${mission.id}" color="subdued">0 / 3 steps</s-text>
             ${mission.steps.map(step => `<s-checkbox id="${step.id}" data-step="${step.id}" label="${escape(step.label)}" disabled></s-checkbox>`).join("")}
@@ -315,7 +340,9 @@ element("mission-list").addEventListener("click", event => {
   const target = (event.target as HTMLElement).closest<HTMLElement>("s-button[data-mission]");
   const start = (event.target as HTMLElement).closest<HTMLElement>("s-button[data-start]");
   const toggle = (event.target as HTMLElement).closest<HTMLElement>("s-button[data-toggle-action]");
-  if (toggle) { togglePanel(toggle, `body-${toggle.dataset.toggleAction}`); toggle.setAttribute("accessibilityLabel", `${element(`body-${toggle.dataset.toggleAction}`).hidden ? "Show" : "Hide"} details: ${missions.find(item=>item.id===toggle.dataset.toggleAction)!.title}`); return; }
+  const figures = (event.target as HTMLElement).closest<HTMLElement>('s-button[data-toggle-figures]');
+  if(figures){togglePanel(figures,`figures-${figures.dataset.toggleFigures}`);figures.textContent=element(`figures-${figures.dataset.toggleFigures}`).hidden?'About these figures':'Hide figure details';return;}
+  if (toggle) { togglePanel(toggle, `body-${toggle.dataset.toggleAction}`); const metrics=element(`metrics-${toggle.dataset.toggleAction}`);if(metrics.dataset.doneSummary==='true')metrics.hidden=element(`body-${toggle.dataset.toggleAction}`).hidden; toggle.setAttribute("accessibilityLabel", `${element(`body-${toggle.dataset.toggleAction}`).hidden ? "Show" : "Hide"} details: ${missions.find(item=>item.id===toggle.dataset.toggleAction)!.title}`); return; }
   if (start) { const steps = element(`steps-${start.dataset.start}`); steps.hidden = false; steps.querySelector<HTMLElement>("s-checkbox")?.focus(); return; }
   if (!target) return;
   resetJourneyFilters();
@@ -367,9 +394,12 @@ element("mission-list").addEventListener("change", async event => {
   } finally { savingProgress = false; renderProgress(); }
 });
 function render(data: EvidenceResponse) {
+  // Match the selected journey against the full synced records, even when its
+  // order/contact date falls outside the journey start-date filter.
+  const nativeSnapshot=latestEvidence?.shopifySnapshot??data.shopifySnapshot;
   storeCurrency=data.shopifySnapshot?.currency??data.abandonedBasketSummary?.currency??'USD';
   text('report-currency',`Reporting currency: ${storeCurrency}. Synced purchases use Shopify's store-currency amounts. Item conversions require matching Shopify checkout amounts.`);
-  abandonedCheckouts=data.abandonedCheckouts??null;
+  abandonedCheckouts=nativeSnapshot?linkedAbandoned(data.abandonedCheckouts??null,nativeSnapshot.abandoned,storeCurrency):data.abandonedCheckouts??null;
   const summary = summarize(data.events);
   element("catalog-summary").hidden=!!abandonedCheckouts;
   element("abandoned-value-metric").hidden=!abandonedCheckouts;
@@ -382,8 +412,8 @@ function render(data: EvidenceResponse) {
     text('catalog-method','No purchase data is available for these dates.');
   }
   if(data.shopifySnapshot){
-    const snapshot=data.shopifySnapshot,unpaid=snapshot.abandoned.filter(row=>!row.recovered),priced=unpaid.filter(row=>row.subtotalCents!==null);
-    text('shopify-records',`${snapshot.orders.length} orders · ${unpaid.length} abandoned checkouts in the selected dates. Recorded basket value: ${priced.length?money(priced.reduce((sum,row)=>sum+row.subtotalCents!,0)):'Unknown'}. Separate from the tracked checkout baskets below.`);
+    const snapshot=data.shopifySnapshot,unpaid=snapshot.abandoned.filter(row=>!row.recovered),priced=unpaid.map(row=>row.totalCents===undefined?row.subtotalCents:row.totalCents).filter((value):value is number=>value!==null);
+    text('shopify-records',`${snapshot.orders.length} orders · ${unpaid.length} abandoned checkouts in the selected dates. Recorded basket value: ${priced.length?money(priced.reduce((sum,value)=>sum+value,0)):'Unknown'}. Separate from the tracked checkout baskets below.`);
     element('shopify-records').hidden=false;
   }
   {
@@ -440,12 +470,9 @@ function render(data: EvidenceResponse) {
     const alerts = session.events.filter(event => event.name === "alert_displayed" && event.category);
     const detail = describeJourney(session.events);
     const status = session.completed ? (detail.outcome === "Completed after an observed error" ? "Completed after an error" : "Completed") : "Unfinished";
-    const matches = abandonedCheckouts?.records.filter(record => record.sessionId === session.id) ?? [];
-    const record = matches.length===1 ? matches[0] : undefined;
-    const browserPrice = session.events.filter(event=>event.currency===storeCurrency&&Number.isSafeInteger(event.subtotalCents)&&event.subtotalCents!>=0).sort((a,b)=>b.timestamp-a.timestamp)[0]?.subtotalCents;
-    const basketCents = record?.subtotalCents ?? browserPrice;
-    const label = journeyLabel(session.id, data.shopifySnapshot?.orders ?? []);
-    const orderHref = journeyOrderHref(session.id, data.shopifySnapshot?.orders ?? []);
+    const basketCents = journeyPrice(session.id,session.completed,session.events,storeCurrency,nativeSnapshot?.orders??[],nativeSnapshot?.abandoned??[],(data.abandonedCheckouts?.records??[]).filter(row=>row.currency===storeCurrency&&row.sessionId).map(row=>({...row,sessionId:row.sessionId!})));
+    const label = journeyLabel(session.id, nativeSnapshot?.orders ?? []);
+    const orderHref = journeyOrderHref(session.id, nativeSnapshot?.orders ?? []);
     const row = `<s-table-row data-session="${escape(session.id)}">
       <s-table-cell>${orderHref ? `<s-link href="${escape(orderHref)}" target="_top" accessibilityLabel="Open ${escape(label)} in Shopify">${escape(label)}</s-link>` : `<s-text type="strong">${escape(label)}</s-text>`}</s-table-cell>
       <s-table-cell>${escape(journeyDate(session.events[0].timestamp))}</s-table-cell>
@@ -506,6 +533,7 @@ let loading = false;
 async function loadEvidence() {
   if (loading) return;
   loading = true;
+  setLoadingControls(true);
   element("request-error").hidden = true;
   text("request-status", "Loading checkouts…");
   element('request-status').hidden=false;
@@ -519,24 +547,31 @@ async function loadEvidence() {
     const data: EvidenceResponse = await response.json();
     if (data.store !== STORE || !Array.isArray(data.events)) throw new Error("Unexpected evidence response.");
     latestEvidence=data;
-    try{await fixRequest('read');fixError='';}catch{fixesReady=false;fixError='Fix tracking could not load. Apply the dates again to retry.';}
+    try{await fixRequest('read');fixError='';element('action-save-error').hidden=true;}catch{fixesReady=false;fixError='Action status could not load. Try loading the data again before making changes.';text('action-save-error',fixError);element('action-save-error').hidden=false;}
     render(filteredEvidence(data));
     if(embeddedShopify){
       const snapshot=filteredEvidence(data).shopifySnapshot;
       if(snapshot){
-        const unpaid=snapshot.abandoned.filter(r=>!r.recovered),priced=unpaid.filter(r=>r.subtotalCents!==null);
-        text('shopify-records',`${snapshot.orders.length} orders · ${unpaid.length} abandoned checkouts in the selected dates. Recorded basket value: ${priced.length ? money(priced.reduce((sum,r)=>sum+r.subtotalCents!,0)) : 'Unknown'}. Separate from the tracked checkout baskets below.`);
+        const unpaid=snapshot.abandoned.filter(r=>!r.recovered),priced=unpaid.map(row=>row.totalCents===undefined?row.subtotalCents:row.totalCents).filter((value):value is number=>value!==null);
+        text('shopify-records',`${snapshot.orders.length} orders · ${unpaid.length} abandoned checkouts in the selected dates. Recorded basket value: ${priced.length ? money(priced.reduce((sum,value)=>sum+value,0)) : 'Unknown'}. Separate from the tracked checkout baskets below.`);
         element('shopify-records').hidden=false;
       }
     }
   } catch {
     element("request-error").hidden = false;
-    text("request-error", "Could not load checkout data. Check your connection and apply the dates again. Previous results, if shown, have not been updated.");
+    element("request-error").innerHTML='<s-paragraph>Check your connection and try again. Previous results have not been updated.</s-paragraph><s-button data-retry-evidence variant="secondary">Try again</s-button>';
     text("request-status", "Evidence could not be refreshed.");
   } finally {
-    loading = false;
+    loading = false;setLoadingControls(false);
   }
 }
+function setLoadingControls(busy:boolean){
+  (element('apply-date-range') as HTMLElementTagNameMap['s-button']).disabled=busy||fixSaving;
+  element('mission-list').querySelectorAll<HTMLElementTagNameMap['s-button']>('s-button[data-fix-refresh]').forEach(button=>{button.disabled=busy||fixSaving;button.loading=busy;});
+  element('mission-list').querySelectorAll<HTMLElementTagNameMap['s-button']>('s-button[data-fix]').forEach(button=>{button.disabled=busy||fixSaving||!fixesReady;});
+  element('mission-list').querySelectorAll<HTMLElementTagNameMap['s-checkbox']>('s-checkbox[data-fix-done]').forEach(input=>{input.disabled=busy||fixSaving||!fixesReady||(!embeddedShopify&&!viewerId);});
+}
+element('request-error').addEventListener('click',event=>{if((event.target as HTMLElement).closest('[data-retry-evidence]'))void loadEvidence();});
 element("journey-list").addEventListener("click", event => {
   const button = (event.target as HTMLElement).closest<HTMLElement>("s-button[data-journey]");
   const journey = journeyRows.find(row => row.id === button?.dataset.journey);
@@ -560,13 +595,14 @@ await customElements.whenDefined('s-date-picker');
 const datePicker=element('date-range-picker') as HTMLElementTagNameMap['s-date-picker'];
 datePicker.value=selectedRange;datePicker.allow=recentRange(30);
 for(const days of [7,30])element(`last-${days}-days`).addEventListener('click',()=>{datePicker.value=recentRange(days);});
-element('apply-date-range').addEventListener('click',()=>{
+element('apply-date-range').addEventListener('click',event=>{
   try{
     const bounds=dateBounds(datePicker.value),available=dateBounds(recentRange(30));
     if(bounds.start<available.start||bounds.end>available.end)throw Error('Choose dates within the last 30 days.');
+    if(loading||fixSaving){event.preventDefault();event.stopImmediatePropagation();return;}
     updateDateSelection(datePicker.value);element('date-range-error').hidden=true;
-    void loadEvidence();
-  }catch(error){text('date-range-error',error instanceof Error?error.message:'Choose valid dates.');element('date-range-error').hidden=false;}
-});
+    window.setTimeout(()=>void loadEvidence(),0);
+  }catch(error){event.preventDefault();event.stopImmediatePropagation();text('date-range-error',error instanceof Error?error.message:'Choose valid dates.');element('date-range-error').hidden=false;}
+},{capture:true});
 void loadProgress();
 void loadEvidence();

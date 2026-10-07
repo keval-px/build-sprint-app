@@ -12,3 +12,9 @@ test('missing prices never become zero or a misleading total',()=>{
   assert.equal(result.count,1);assert.equal(result.totalCents,null);assert.equal(result.averageCents,null);
   const empty=abandonedSummary([],start,end);assert.equal(empty.totalCents,0);assert.equal(empty.averageCents,null);
 });
+
+test('Shopify totals include shipping without turning a missing total into a subtotal',()=>{
+ const createdAt='2026-10-07T10:00:00Z',start=Date.parse('2026-10-07'),end=start+86400000;
+ assert.equal(abandonedSummary([{createdAt,subtotalCents:74995,totalCents:77995,recovered:false}],start,end).totalCents,77995);
+ assert.equal(abandonedSummary([{createdAt,subtotalCents:74995,totalCents:null,recovered:false}],start,end).totalCents,null);
+});

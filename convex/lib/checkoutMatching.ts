@@ -96,3 +96,15 @@ export function matchCheckoutLinks(snapshot: AbandonedSnapshot, links: CheckoutL
   if (new Set(accepted).size !== accepted.length) throw Error('Ambiguous snapshot links; nothing saved');
   return {records, added, matched: accepted.length, unmatched: records.length - accepted.length};
 }
+
+// GraphQL and REST use different ID shapes for the same Shopify record.
+// Join only by the numeric Shopify checkout ID, then reuse the original token
+// hash returned by the demo compatibility reader. A recovery URL is not a token.
+export async function nativeCheckoutSession(gid:string,links:CheckoutLink[]):Promise<string|undefined>{
+  const numeric=gid.match(/^gid:\/\/shopify\/AbandonedCheckout\/([1-9]\d*)$/)?.[1];
+  if(!numeric)return undefined;
+  const recordHash=await hash(`${STORE}:abandoned:${numeric}`);
+  const matches=links.filter(link=>link.recordHash===recordHash);
+  const sessionId=matches.length===1?matches[0].sessionId:null;
+  return sessionId&&/^[a-f0-9]{64}$/.test(sessionId)?sessionId:undefined;
+}

@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {fixBaseline,fixResults} from '../shared/fixTracking.ts';
+import {fixBaseline,fixResults,retestResults,actionState} from '../shared/fixTracking.ts';
 import type {CheckoutEvent} from '../shared/evidence.ts';
 const at=100*86400000;
 const e=(id:string,name:CheckoutEvent['name'],timestamp:number,category:CheckoutEvent['category']=null):CheckoutEvent=>({eventId:`${id}-${name}-${timestamp}`,sessionId:id,name,timestamp,category});
@@ -18,4 +18,23 @@ test('fix results do not invent rates or purchases when nothing happened, and ca
  const fix=fixBaseline([],'payment',at,true);assert.equal(fix.partial,true);
  assert.deepEqual(fixResults(fix,[],at+1).after,{checkouts:0,affected:0,completed:0});
  const results=fixResults(fix,[e('late','checkout_started',at+31*86400000)],at+32*86400000);assert.equal(results.ended,true);assert.equal(results.after.checkouts,0);
+});
+
+test('retest status is a team confirmation and recurrence counts distinct checkouts',()=>{
+ const fix=fixBaseline([],'delivery',at);assert.equal(retestResults(fix,[],at+100),null);
+ const checked={...fix,retestedAt:at+10};
+ const events=[e('old','alert_displayed',at+9,'delivery'),e('a','alert_displayed',at+11,'delivery'),e('a','alert_displayed',at+12,'delivery'),e('b','alert_displayed',at+13,'payment'),e('future','alert_displayed',at+101,'delivery')];
+ assert.deepEqual(retestResults(checked,events,at+100),{returned:1,lastAlert:at+12});
+ assert.deepEqual(retestResults({...checked,retestedAt:at+20},events,at+100),{returned:0,lastAlert:null});
+ assert.equal(checked.appliedAt,at);
+});
+
+test('completed actions reopen on new matching alerts, including resumed old checkouts',()=>{
+ assert.deepEqual(actionState(undefined,[],at),{done:false,returned:0});
+ const fix=fixBaseline([],'delivery',at);
+ const events=[e('a','alert_displayed',at-1,'delivery'),e('other','alert_displayed',at+1,'payment')];
+ assert.deepEqual(actionState(fix,events,at+100),{done:true,returned:0});
+ events.push(e('a','alert_displayed',at+2,'delivery'),e('a','alert_displayed',at+3,'delivery'),e('future','alert_displayed',at+200,'delivery'));
+ assert.deepEqual(actionState(fix,events,at+100),{done:false,returned:1});
+ assert.deepEqual(actionState({...fix,retestedAt:at+4},events,at+100),{done:true,returned:0});
 });

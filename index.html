@@ -80,6 +80,8 @@
           <s-paragraph id="progress-status" color="subdued" role="status" aria-live="polite"></s-paragraph>
           <s-banner id="progress-error" heading="Action checklist unavailable" tone="critical" hidden><s-paragraph id="progress-error-message"></s-paragraph><s-button id="retry-progress" variant="secondary">Retry loading progress</s-button></s-banner>
           <s-heading fontSize="large">Insights &amp; recommendations</s-heading>
+          <s-text id="action-save-status" accessibilityVisibility="exclusive" role="status" aria-live="polite"></s-text>
+          <s-banner id="action-save-error" heading="Change wasn’t saved" tone="critical" hidden></s-banner>
           <s-stack id="mission-list" gap="base"><s-paragraph>Loading checkout insights…</s-paragraph></s-stack>
           <s-button id="recovery-library-button" variant="tertiary" aria-expanded="false" aria-controls="recovery-library">Checkout fix scenarios</s-button>
           <s-stack id="recovery-library" gap="base" hidden></s-stack>

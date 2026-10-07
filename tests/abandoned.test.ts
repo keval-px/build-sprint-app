@@ -18,3 +18,10 @@ test('prices new browser observations with source counts, without substituting a
   const completed=[...observed,{eventId:'6',sessionId:'b',name:'checkout_completed' as const,timestamp:6,category:null}];
   assert.equal(recordedImpact(completed,buildMissions(completed),snapshot).combined.atRiskCents,60000);
 });
+
+test('fresh matched Shopify subtotals replace stale legacy prices without double counting',async()=>{
+ const {linkedAbandoned}=await import('../shared/abandoned.ts');
+ const saved=linkedAbandoned({importedOn:'',emailSent:0,emailNotSent:0,records:[{recordHash:'old',sessionId:'match',subtotalCents:60000,currency:'USD',recovered:false}]},[{recordHash:'new',sessionId:'match',subtotalCents:74995,recovered:false},{recordHash:'unlinked',subtotalCents:60000,recovered:false}],'USD');
+ assert.equal(saved?.records.length,1);
+ assert.equal(saved?.records[0].subtotalCents,74995);
+});

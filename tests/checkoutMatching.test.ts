@@ -79,3 +79,15 @@ test('repeated pagination and duplicate tokens fail rather than saving partial r
   await assert.rejects(readCheckoutLinks('unit-credential', async () => new Response(JSON.stringify({checkouts: []}), {headers: {link: repeated}})), /pagination incomplete/);
   await assert.rejects(readCheckoutLinks('unit-credential', async () => new Response(JSON.stringify({checkouts: [row, {...row, id: 124}]}))), /Ambiguous Shopify identities/);
 });
+
+test('GraphQL basket values link only through the same native Shopify checkout ID and original token hash',async()=>{
+ const {nativeCheckoutSession}=await import('../convex/lib/checkoutMatching.ts');
+ const {recordDigest}=await import('../shared/shopifyRecords.ts');
+ const recordHash=await recordDigest('abandoned','123456');
+ const sessionId='a'.repeat(64);
+ const row={recordHash,sessionId,subtotalCents:60000,currency:'USD' as const,recovered:false};
+ assert.equal(await nativeCheckoutSession('gid://shopify/AbandonedCheckout/123456',[row]),sessionId);
+ assert.equal(await nativeCheckoutSession('gid://shopify/AbandonedCheckout/999999',[row]),undefined);
+ assert.equal(await nativeCheckoutSession('gid://shopify/Order/123456',[row]),undefined);
+ assert.equal(await nativeCheckoutSession('gid://shopify/AbandonedCheckout/123456',[row,row]),undefined);
+});

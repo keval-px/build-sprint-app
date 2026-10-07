@@ -39,9 +39,12 @@ for(const mode of ['shopify','demo'] as const){
       if(mode==='shopify'){await verifyMerchant(bearer(request));const connection=await ctx.runQuery(internal.shopify.connection,{});if(!canReadShopifyEvidence(connection))return respond({error:'Shopify installation is disconnected.'},403);}
       const body=await request.text();if(body.length>500)return respond({error:'Invalid fix request.'},400);
       const data=JSON.parse(body);
-      if(!data||typeof data!=='object'||Array.isArray(data)||Object.keys(data).some(key=>!['operation','viewerId','missionId'].includes(key))||!['read','mark','undo'].includes(data.operation)||(mode==='demo'&&!isViewerId(data.viewerId)))return respond({error:'Invalid fix request.'},400);
+      if(!data||typeof data!=='object'||Array.isArray(data)||Object.keys(data).some(key=>!['operation','viewerId','missionId'].includes(key))||!['read','mark','undo','retest','undo-retest'].includes(data.operation)||(mode==='demo'&&!isViewerId(data.viewerId)))return respond({error:'Invalid fix request.'},400);
       const scope=mode==='shopify'?STORE:`demo:${data.viewerId}`;
-      if(data.operation!=='read'){
+      if(data.operation==='retest'||data.operation==='undo-retest'){
+        if(!isFixMission(data.missionId))return respond({error:'Invalid action.'},400);
+        await ctx.runMutation(internal.fixes.retest,{scope,missionId:data.missionId,passed:data.operation==='retest'});
+      }else if(data.operation!=='read'){
         if(!isFixMission(data.missionId))return respond({error:'Invalid action.'},400);
         const original=await ctx.runQuery(internal.events.readTestEvidence,{});
         const pixel=mode==='shopify'?await ctx.runQuery(internal.shopifyEvents.read,{}):null;

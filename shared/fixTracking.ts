@@ -4,7 +4,18 @@ export const FIX_MISSIONS = ['payment','validation','unfinished','delivery','dis
 export function isFixMission(value:unknown):value is MissionId {return FIX_MISSIONS.some(id=>id===value);}
 const WINDOW=30*86400000;
 export interface FixCounts {checkouts:number;affected:number;completed:number}
-export interface AppliedFix {missionId:MissionId;appliedAt:number;baseline:FixCounts;affectedIds:string[];partial:boolean}
+export interface AppliedFix {missionId:MissionId;appliedAt:number;baseline:FixCounts;affectedIds:string[];partial:boolean;retestedAt?:number}
+export function retestResults(fix:AppliedFix,events:CheckoutEvent[],now:number){
+  if(fix.retestedAt===undefined)return null;
+  const alerts=events.filter(e=>e.category===fix.missionId&&e.timestamp>=fix.retestedAt!&&e.timestamp<=now);
+  return {returned:new Set(alerts.map(e=>e.sessionId)).size,lastAlert:alerts.length?Math.max(...alerts.map(e=>e.timestamp)):null};
+}
+export function actionState(fix:AppliedFix|undefined,events:CheckoutEvent[],now:number){
+  if(!fix)return {done:false,returned:0};
+  const boundary=fix.retestedAt??fix.appliedAt;
+  const returned=new Set(events.filter(e=>e.category===fix.missionId&&e.timestamp>=boundary&&e.timestamp<=now).map(e=>e.sessionId)).size;
+  return {done:returned===0,returned};
+}
 function affected(events:CheckoutEvent[],id:MissionId){return id==='unfinished'?!events.some(e=>e.name==='checkout_completed'):events.some(e=>e.category===id);}
 export function fixBaseline(events:CheckoutEvent[],missionId:MissionId,appliedAt:number,partial=false):AppliedFix {
   const sessions=summarize(events.filter(e=>e.timestamp<appliedAt)).journeys.filter(s=>Math.min(...s.events.filter(e=>e.name==='checkout_started').map(e=>e.timestamp))>=appliedAt-WINDOW && s.started);

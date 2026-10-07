@@ -23,3 +23,13 @@ export function recordedImpact(events:CheckoutEvent[],missions:Mission[],snapsho
   const actions=missions.map(m=>{const ids=[...new Set(m.sessionIds)].filter(id=>unfinished.has(id));ids.forEach(id=>combined.add(id));return{id:m.id,...amount(ids)}});
   return{actions,combined:amount([...combined])};
 }
+
+// Fresh Shopify matches replace legacy prices for the same checkout. Action
+// values remain product subtotals; shipping/tax totals belong in the table.
+export function linkedAbandoned(legacy:AbandonedSnapshot|null,records:{recordHash:string;sessionId?:string;subtotalCents:number|null;recovered?:boolean}[],currency:string):AbandonedSnapshot|null {
+  // Legacy demo snapshots support USD only.
+  if(currency!=='USD')return legacy;
+  const native=records.filter(row=>row.sessionId&&Number.isSafeInteger(row.subtotalCents)&&row.subtotalCents!==null&&row.subtotalCents>=0).map(row=>({recordHash:row.recordHash,sessionId:row.sessionId!,subtotalCents:row.subtotalCents!,recovered:!!row.recovered,currency:'USD' as const}));
+  const currentIds=new Set(native.map(row=>row.sessionId));
+  return {...(legacy??{importedOn:'',emailSent:0,emailNotSent:0}),records:[...(legacy?.records??[]).filter(row=>!row.sessionId||!currentIds.has(row.sessionId)),...native]};
+}
