@@ -39,3 +39,20 @@ test('spike notifications require a measured baseline, minimum sample and distin
  assert.equal(focusedAlerts(rows,now)[0].category,'payment');assert.equal(focusedAlerts(rows,now,true).length,0);
  assert.equal(focusedAlerts(rows.filter(r=>r.sessionId!=='coverage'),now).length,0);
 });
+
+test('recorded findings separate steps and blockers without inventing fields or causes',async()=>{
+ const {recordedFindings}=await import('../shared/dashboardInsights.ts');
+ const rows=[event('a','checkout_started',10),event('a','checkout_address_info_submitted',20),event('a','alert_displayed',30,'validation'),event('a','alert_displayed',35,'validation'),event('a','checkout_completed',40),event('b','checkout_contact_info_submitted',20),event('b','alert_displayed',30,'validation'),event('c','checkout_shipping_info_submitted',30),event('c','alert_displayed',30,'delivery',true),event('d','alert_displayed',31,'delivery')];
+ const groups=recordedFindings([...rows,rows[2]]);
+ const address=groups.find(g=>g.key==='validation:checkout_address_info_submitted')!;
+ assert.deepEqual(address.sessionIds,['a']);assert.equal(address.alerts.length,2);assert.equal(address.repeatedCheckouts,1);assert.equal(address.completedAfter,1);
+ assert.equal(groups.find(g=>g.key==='validation:checkout_contact_info_submitted')?.sessionIds[0],'b');
+ assert.equal(groups.find(g=>g.category==='shipping_blocker')?.step,'Earlier step not recorded');
+ assert.ok(groups.some(g=>g.category==='delivery'));assert.equal(groups.length,4);
+});
+test('recorded findings require completion after the last alert in each step group',async()=>{
+ const {recordedFindings}=await import('../shared/dashboardInsights.ts');
+ const group=recordedFindings([event('a','alert_displayed',1,'payment'),event('a','checkout_completed',2),event('a','alert_displayed',3,'payment')]);
+ assert.equal(group.find(g=>g.step==='Earlier step not recorded')?.completedAfter,1);
+ assert.equal(group.find(g=>g.step==='Checkout completed')?.completedAfter,0);
+});

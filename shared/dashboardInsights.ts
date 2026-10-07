@@ -40,6 +40,28 @@ export function errorDiagnostics(events:CheckoutEvent[]) {
   return [{category,label:issueLabels[category],count:ids.length,alerts:alerts.length,firstSeen:alerts[0].timestamp,lastSeen:alerts.at(-1)!.timestamp,completedAfter}];
  }).sort((a,b)=>b.count-a.count||b.lastSeen-a.lastSeen);
 }
+// The preceding submission is context, not proof of the field or root cause.
+// Strictly earlier timestamps avoid inventing ordering for simultaneous events.
+export function recordedFindings(events:CheckoutEvent[]) {
+ const groups=new Map<string,{key:string;category:string;label:string;step:string;alerts:CheckoutEvent[];sessionIds:string[];repeatedCheckouts:number;completedAfter:number;lastSeen:number}>();
+ const stepNames:Partial<Record<CheckoutEvent['name'],string>>={checkout_started:'Checkout started',checkout_contact_info_submitted:'Contact submitted',checkout_address_info_submitted:'Address submitted',checkout_shipping_info_submitted:'Shipping submitted',payment_info_submitted:'Payment submitted',checkout_completed:'Checkout completed'};
+ const journeys=summarize(events).journeys;
+ for(const journey of journeys)for(const alert of journey.events){
+  if(alert.name!=='alert_displayed'||!alert.category)continue;
+  const category=alert.shippingBlocker?'shipping_blocker':alert.category;
+  const before=journey.events.filter(e=>stepNames[e.name]&&e.timestamp<alert.timestamp);
+  const step=before.at(-1)?.name??'unknown';
+  const key=`${category}:${step}`;
+  const group=groups.get(key)??{key,category,label:issueLabels[category],step:stepNames[step as CheckoutEvent['name']]??'Earlier step not recorded',alerts:[],sessionIds:[],repeatedCheckouts:0,completedAfter:0,lastSeen:0};
+  group.alerts.push(alert);groups.set(key,group);
+ }
+ return [...groups.values()].map(group=>{
+  const ids=[...new Set(group.alerts.map(e=>e.sessionId))];
+  return {...group,sessionIds:ids,repeatedCheckouts:ids.filter(id=>group.alerts.filter(e=>e.sessionId===id).length>1).length,
+   completedAfter:ids.filter(id=>{const last=Math.max(...group.alerts.filter(e=>e.sessionId===id).map(e=>e.timestamp));return journeys.find(j=>j.id===id)!.events.some(e=>e.name==='checkout_completed'&&e.timestamp>last);}).length,
+   lastSeen:Math.max(...group.alerts.map(e=>e.timestamp))};
+ }).sort((a,b)=>b.sessionIds.length-a.sessionIds.length||b.lastSeen-a.lastSeen);
+}
 export function previousRange(range:string){
  const [first,last]=range.split('--'),days=(Date.parse(last)-Date.parse(first))/86400000+1;
  dateBounds(range);
