@@ -34,7 +34,9 @@ export const observedPurchaseFields = {
 export const abandonedFields={importedOn:v.string(),emailSent:v.number(),emailNotSent:v.number(),records:v.array(v.object({recordHash:v.string(),sessionId:v.union(v.string(),v.null()),subtotalCents:v.number(),currency:v.literal("USD"),recovered:v.boolean()}))};
 export const capturedItems=v.array(v.object({itemHash:v.string(),quantity:v.number(),minor:v.number(),currency:v.string()}));
 export const fixCounts=v.object({checkouts:v.number(),affected:v.number(),completed:v.number()});
+export const checkoutPriceFields={sessionId:v.string(),currency:v.string(),createdAt:v.string(),updatedAt:v.number(),subtotalCents:v.union(v.number(),v.null()),totalCents:v.union(v.number(),v.null()),recovered:v.boolean()};
 export default defineSchema({
+  shopifyCheckoutPrices:defineTable({...checkoutPriceFields,store:v.literal("build-sprint-demo.myshopify.com")}).index("by_store_session",["store","sessionId"]).index("by_store_created",["store","createdAt"]),
   actionFixes:defineTable({scope:v.string(),missionId:v.string(),appliedAt:v.number(),baseline:fixCounts,affectedIds:v.array(v.string()),partial:v.boolean(),active:v.boolean(),retestedAt:v.optional(v.number())}).index("by_scope",["scope"]),
   shopifyCheckoutEvents:defineTable({...eventFields,items:v.optional(capturedItems),subtotalCents:v.optional(v.number()),currency:v.optional(v.literal("USD")),store:v.literal("build-sprint-demo.myshopify.com"),receivedAt:v.number()}).index("by_event",["eventId"]).index("by_timestamp",["timestamp"]),
   shopifyInstallState: defineTable({store:v.literal("build-sprint-demo.myshopify.com"),revokedAt:v.number()}).index("by_store",["store"]),

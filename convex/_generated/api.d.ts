@@ -11,6 +11,7 @@
 import type * as abandoned from "../abandoned.js";
 import type * as catalog from "../catalog.js";
 import type * as checkoutMatching from "../checkoutMatching.js";
+import type * as checkoutPrices from "../checkoutPrices.js";
 import type * as events from "../events.js";
 import type * as fixes from "../fixes.js";
 import type * as http from "../http.js";
@@ -32,6 +33,7 @@ declare const fullApi: ApiFromModules<{
   abandoned: typeof abandoned;
   catalog: typeof catalog;
   checkoutMatching: typeof checkoutMatching;
+  checkoutPrices: typeof checkoutPrices;
   events: typeof events;
   fixes: typeof fixes;
   http: typeof http;

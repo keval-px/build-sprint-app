@@ -1,14 +1,14 @@
-import {internalMutation, internalQuery} from './_generated/server';
+import {internalAction,internalMutation, internalQuery} from './_generated/server';
 import {internal} from './_generated/api';
 import type {ActionCtx} from './_generated/server';
 import {v} from 'convex/values';
 import {STORE} from '../shared/evidence';
 import {checkoutIdentity} from '../shared/checkoutIdentity';
-import {readCheckoutLinks,nativeCheckoutSession} from './lib/checkoutMatching';
+import {savedCheckoutSession} from '../shared/checkoutPrice';
 import {moneyMinor,currencyScale} from '../shared/money';
 import {usdCents, recordDigest} from '../shared/shopifyRecords';
 import {exchangeMerchant, refreshMerchant, verifyMerchant, REQUIRED_SCOPES} from './lib/shopifyAuth';
-import {identityQuery, abandonedQuery, ordersQuery} from './lib/shopifyQueries';
+import {identityQuery, abandonedQuery, ordersQuery,checkoutSubscriptionsQuery,checkoutSubscriptionCreate,checkoutSubscriptionDelete} from './lib/shopifyQueries';
 import type {Session} from '@shopify/shopify-api';
 
 export const connection = internalQuery({args:{}, handler:ctx => ctx.db.query('shopifyConnections').withIndex('by_store',q=>q.eq('store',STORE)).unique()});
@@ -73,6 +73,47 @@ export async function adminRead<T>(accessToken:string,query:string,variables:Rec
     throw Error('Shopify could not return data. Check permissions and retry; previous results are retained.');
   }
 }
+const priceWebhookUri='https://neighborly-nightingale-843.convex.site/api/shopify/webhooks';
+const priceWebhookFields=['token','created_at','updated_at','currency','subtotal_price','total_price','completed_at'];
+async function ensureCheckoutSubscriptions(access:string){
+ const result=await adminRead<{webhookSubscriptions:{nodes:{topic:string;uri:string;includeFields:string[]}[];pageInfo:{hasNextPage:boolean}}}>(access,checkoutSubscriptionsQuery);
+ if(result.webhookSubscriptions.pageInfo.hasNextPage)throw Error('Too many checkout subscriptions. Previous results are retained.');
+ for(const topic of ['CHECKOUTS_CREATE','CHECKOUTS_UPDATE']){
+  const existing=result.webhookSubscriptions.nodes.filter(s=>s.topic===topic&&s.uri===priceWebhookUri);
+  if(existing.length){
+   if(!existing.some(s=>s.includeFields.length===priceWebhookFields.length&&priceWebhookFields.every(f=>s.includeFields.includes(f))))throw Error('Checkout notification fields need attention.');
+   continue;
+  }
+  const saved=await adminRead<{webhookSubscriptionCreate:{webhookSubscription:{id:string}|null;userErrors:unknown[]}}>(access,checkoutSubscriptionCreate,{topic,subscription:{uri:priceWebhookUri,format:'JSON',includeFields:priceWebhookFields}});
+  if(!saved.webhookSubscriptionCreate.webhookSubscription||saved.webhookSubscriptionCreate.userErrors.length)throw Error('Checkout notifications could not be enabled. Check Shopify permissions.');
+ }
+ return {topics:2,fields:priceWebhookFields.length};
+}
+export const checkoutPriceStatus=internalAction({args:{},handler:async(ctx):Promise<{activeTopics:string[];requestedFields:string[];destination:string}>=>{
+ const connection=await ctx.runQuery(internal.shopify.connection,{});
+ if(!connection)throw Error('Open the Shopify app to connect first.');
+ const result=await adminRead<{webhookSubscriptions:{nodes:{topic:string;uri:string;includeFields:string[]}[];pageInfo:{hasNextPage:boolean}}}>(connection.accessToken,checkoutSubscriptionsQuery);
+ return {activeTopics:result.webhookSubscriptions.nodes.filter(s=>s.uri===priceWebhookUri).map(s=>s.topic),requestedFields:priceWebhookFields,destination:priceWebhookUri};
+}});
+// Undo only the exact checkout-price subscriptions at our own destination.
+export const stopCheckoutPrices=internalAction({args:{},handler:async(ctx):Promise<{removed:number}>=>{
+ const connection=await ctx.runQuery(internal.shopify.connection,{});
+ if(!connection)throw Error('Open the Shopify app to connect first.');
+ const result=await adminRead<{webhookSubscriptions:{nodes:{id:string;topic:string;uri:string;includeFields:string[]}[];pageInfo:{hasNextPage:boolean}}}>(connection.accessToken,checkoutSubscriptionsQuery);
+ if(result.webhookSubscriptions.pageInfo.hasNextPage)throw Error('Incomplete subscription list.');
+ const own=result.webhookSubscriptions.nodes.filter(s=>s.uri===priceWebhookUri&&s.includeFields.length===priceWebhookFields.length&&priceWebhookFields.every(f=>s.includeFields.includes(f)));
+ for(const s of own){
+  const deleted=await adminRead<{webhookSubscriptionDelete:{deletedWebhookSubscriptionId:string|null;userErrors:unknown[]}}>(connection.accessToken,checkoutSubscriptionDelete,{id:s.id});
+  if(deleted.webhookSubscriptionDelete.deletedWebhookSubscriptionId!==s.id||deleted.webhookSubscriptionDelete.userErrors.length)throw Error('Could not stop checkout notifications.');
+ }
+ return {removed:own.length};
+}});
+// Owner-run installation check; credentials remain within the backend action.
+export const enableCheckoutPrices=internalAction({args:{},handler:async (ctx):Promise<{topics:number;fields:number}>=>{
+ const connection=await ctx.runQuery(internal.shopify.connection,{});
+ if(!connection||!connection.scopes.includes('read_orders'))throw Error('Open the Shopify app to connect first.');
+ return ensureCheckoutSubscriptions(connection.accessToken);
+}});
 type Money={amount:string;currencyCode:string};
 type NativeRecord={id:string;name?:string;checkoutToken?:string|null;currentTotalPriceSet?:{shopMoney:Money};totalPriceSet?:{shopMoney:Money};createdAt:string;completedAt?:string|null;currentSubtotalPriceSet?:{shopMoney:Money;presentmentMoney?:Money};subtotalPriceSet?:{shopMoney:Money};test?:boolean;cancelledAt?:string|null;displayFinancialStatus?:string};
 async function pages(accessToken:string,query:string,field:'orders'|'abandonedCheckouts',filter:string):Promise<NativeRecord[]>{
@@ -95,12 +136,13 @@ export async function syncStore(ctx:ActionCtx,idToken:string){
   const [orders,abandoned]=await Promise.all([pages(access,ordersQuery,'orders',filter),pages(access,abandonedQuery,'abandonedCheckouts',filter)]);
   const storeMinor=(money:Money|undefined)=>money?.currencyCode===currency?moneyMinor(money.amount,currency):null;
   const safeOrders=await Promise.all(orders.map(async row=>({recordHash:await recordDigest('order',row.id),...(typeof row.checkoutToken==='string'&&row.checkoutToken.length&&typeof row.name==='string'&&row.name.length ? {sessionId:checkoutIdentity(row.checkoutToken),orderName:row.name,...(/^gid:\/\/shopify\/Order\/[1-9]\d*$/.test(row.id)?{orderId:row.id.split('/').at(-1)!}:{})} : {}),createdAt:row.createdAt,totalCents:storeMinor(row.currentTotalPriceSet?.shopMoney),subtotalCents:storeMinor(row.currentSubtotalPriceSet?.shopMoney),...(row.currentSubtotalPriceSet?.presentmentMoney&&storeMinor(row.currentSubtotalPriceSet.shopMoney)!==null&&moneyMinor(row.currentSubtotalPriceSet.presentmentMoney.amount,row.currentSubtotalPriceSet.presentmentMoney.currencyCode)!==null?{conversion:{shopMinor:storeMinor(row.currentSubtotalPriceSet.shopMoney)!,buyerMinor:moneyMinor(row.currentSubtotalPriceSet.presentmentMoney.amount,row.currentSubtotalPriceSet.presentmentMoney.currencyCode)!,buyerCurrency:row.currentSubtotalPriceSet.presentmentMoney.currencyCode}}:{}),test:row.test===true,paid:row.displayFinancialStatus==='PAID',cancelled:!!row.cancelledAt})));
-  // This fixed development store already uses the legacy compatibility reader.
-  // It supplies the original token missing from GraphQL, never recovery URL guesses.
-  const checkoutLinks=currency==='USD'?await readCheckoutLinks(access):[];
+  // Preserve verified historical identities. GraphQL has no checkout token on
+  // AbandonedCheckout; future exact prices arrive through signed notifications.
+  const previous=await ctx.runQuery(internal.shopify.snapshot,{});
   const safeAbandoned=await Promise.all(abandoned.map(async row=>{
-    const sessionId=await nativeCheckoutSession(row.id,checkoutLinks);
-    return {recordHash:await recordDigest('abandoned-gql',row.id),...(sessionId?{sessionId}:{}),createdAt:row.createdAt,totalCents:storeMinor(row.totalPriceSet?.shopMoney),subtotalCents:storeMinor(row.subtotalPriceSet?.shopMoney),recovered:!!row.completedAt};
+    const recordHash=await recordDigest('abandoned-gql',row.id);
+    const sessionId=savedCheckoutSession(recordHash,previous?.abandoned??[]);
+    return {recordHash,...(sessionId?{sessionId}:{}),createdAt:row.createdAt,totalCents:storeMinor(row.totalPriceSet?.shopMoney),subtotalCents:storeMinor(row.subtotalPriceSet?.shopMoney),recovered:!!row.completedAt};
   }));
   await ctx.runMutation(internal.shopify.saveSnapshot,{currency,syncedAt:startedAt,periodStart,orders:safeOrders,abandoned:safeAbandoned});
   return{store:STORE,syncedAt:startedAt,orders:safeOrders.length,abandoned:safeAbandoned.length};

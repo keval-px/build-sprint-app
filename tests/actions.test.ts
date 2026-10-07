@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildMissions, missionSeverity, missionSignal, progressScore, isActionStep, isViewerId } from "../shared/actions.ts";
+import { buildMissions, missionRecommendation, missionSeverity, missionSignal, progressScore, isActionStep, isViewerId } from "../shared/actions.ts";
 import type { CheckoutEvent } from "../shared/evidence.ts";
 const event = (name: CheckoutEvent["name"], n: number, sessionId = "a", category: CheckoutEvent["category"] = null): CheckoutEvent => ({eventId:String(n),sessionId,name,category,timestamp:n});
 test("missions count distinct sessions and do not turn missing completion into a cause",()=>{
@@ -79,4 +79,36 @@ test('old confirmed blockers do not make new general alerts critical',()=>{
  const events:CheckoutEvent[]=[event('checkout_started',1),{...event('alert_displayed',2,'a','delivery'),shippingBlocker:'no_shipping_available'},event('alert_displayed',4,'b','delivery')];
  const mission=buildMissions(events).find(m=>m.id==='delivery')!;
  assert.equal(missionSignal(mission,events,3).severity.label,'Warning');
+});
+
+
+test('recommendations distinguish confirmed shipping from general delivery alerts',()=>{
+ const general=[event('checkout_started',1),event('alert_displayed',2,'a','delivery')];
+ const get=(events:CheckoutEvent[])=>buildMissions(events).find(m=>m.id==='delivery')!.next;
+ assert.match(get(general),/only if the alert still prevents progress/);
+ assert.doesNotMatch(get(general),/Correct the missing coverage/);
+ assert.match(get([...general,{...event('alert_displayed',3,'a','delivery'),shippingBlocker:'no_shipping_available'}]),/price or weight limits/);
+});
+test('payment advice changes only when every affected checkout completes after its last alert',()=>{
+ const alerts=[event('checkout_started',1),event('alert_displayed',2,'a','payment')];
+ const get=(events:CheckoutEvent[])=>buildMissions(events)[0].next;
+ assert.match(get(alerts),/Do not treat every card decline/);
+ assert.match(get([...alerts,event('checkout_completed',3)]),/Review the retries before changing/);
+ assert.match(get([...alerts,event('checkout_completed',3),event('alert_displayed',4,'a','payment')]),/setup fault/);
+});
+test('repeated discount advice checks the promised offer without inventing a code',()=>{
+ const single=[event('checkout_started',1),event('alert_displayed',2,'a','discount')];
+ const get=(events:CheckoutEvent[])=>buildMissions(events).find(m=>m.id==='discount')!.next;
+ assert.match(get(single),/discount code or gift card/);
+ assert.match(get([...single,event('alert_displayed',3,'a','discount')]),/offer the customer expected/);
+ assert.match(get([...single,event('alert_displayed',3,'a','discount'),event('checkout_completed',4)]),/discount code or gift card/);
+});
+
+test('new general shipping alerts after a fix do not inherit historical blocker advice',()=>{
+ const events:CheckoutEvent[]=[event('checkout_started',1),{...event('alert_displayed',2,'a','delivery'),shippingBlocker:'no_shipping_available'},event('alert_displayed',4,'b','delivery')];
+ const mission=buildMissions(events).find(m=>m.id==='delivery')!;
+ assert.match(missionRecommendation(mission,events),/price or weight limits/);
+ assert.match(missionRecommendation(mission,events,3),/only if the alert still prevents progress/);
+ assert.match(missionRecommendation(mission,events,5),/price or weight limits/);
+ assert.equal(mission.count,2);
 });

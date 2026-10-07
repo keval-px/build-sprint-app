@@ -18,3 +18,18 @@ export const pixelQuery = `query PixelSettings { webPixel { id settings } }`;
 export const pixelCreate = `mutation EnableCheckoutEvidence($settings: JSON!) {
   webPixelCreate(webPixel: {settings: $settings}) { webPixel { id settings } userErrors { field message } }
 }`;
+export const checkoutSubscriptionsQuery = `query CheckoutPriceSubscriptions {
+  webhookSubscriptions(first: 100, topics: [CHECKOUTS_CREATE, CHECKOUTS_UPDATE]) {
+    nodes { id topic uri includeFields }
+    pageInfo { hasNextPage }
+  }
+}`;
+export const checkoutSubscriptionCreate = `mutation CaptureCheckoutPrices($topic: WebhookSubscriptionTopic!, $subscription: WebhookSubscriptionInput!) {
+  webhookSubscriptionCreate(topic: $topic, webhookSubscription: $subscription) {
+    webhookSubscription { id }
+    userErrors { field message }
+  }
+}`;
+export const checkoutSubscriptionDelete = `mutation StopCheckoutPrices($id: ID!) {
+ webhookSubscriptionDelete(id: $id) { deletedWebhookSubscriptionId userErrors { field message } }
+}`;

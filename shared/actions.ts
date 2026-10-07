@@ -4,6 +4,25 @@ import type { CheckoutEvent, ErrorCategory } from "./evidence.ts";
 export const ACTION_STEPS = ["payment-review", "payment-reproduce", "payment-compare", "validation-review", "validation-reproduce", "validation-record", "unfinished-review", "unfinished-compare", "unfinished-record", "delivery-review", "delivery-reproduce", "delivery-compare", "discount-review", "discount-reproduce", "discount-compare", "inventory-review", "inventory-reproduce", "inventory-compare"] as const;
 export type ActionStep = typeof ACTION_STEPS[number];
 export type MissionId = "payment" | "validation" | "unfinished" | "delivery" | "discount" | "inventory";
+// Destinations are verified in the demo store admin. These links open settings;
+// they do not apply a fix or grant additional permissions.
+export const ACTION_DESTINATIONS: Partial<Record<MissionId, {label:string; path:string}>> = {
+  payment: {label:"Open payment settings", path:"settings/payments"},
+  delivery: {label:"Open shipping settings", path:"settings/shipping"},
+  discount: {label:"Open discounts", path:"discounts"},
+  inventory: {label:"Open products", path:"products"},
+  validation: {label:"Open checkout settings", path:"settings/checkout"},
+};
+
+export const ACTION_CHECKS: Record<MissionId, string> = {
+  payment: "Complete a test-mode order using the affected payment method.",
+  delivery: "Use the same items, quantities and destination. Shipping should appear and let you continue to payment.",
+  discount: "Use an eligible basket. The discount or gift card should update the total and let you continue to payment.",
+  validation: "Enter valid details in the affected field. You should be able to continue without the same error.",
+  inventory: "Use the same item and quantity. It should stay available through payment.",
+  unfinished: "Retry the last recorded step and complete a test order. Confirm it appears as completed in Checkout drill-down.",
+};
+
 export interface Mission {
   id: MissionId; title: string; description: string; why: string; next: string; count: number;
   sessionIds: string[]; badge: string; steps: { id: ActionStep; label: string }[];
@@ -32,34 +51,52 @@ export function buildMissions(events: CheckoutEvent[]): Mission[] {
     { id: "payment", title: "Investigate payment errors", count: paymentIds.length, sessionIds: paymentIds, badge: "Payment investigator",
       description: `${paymentIds.length} checkout${paymentIds.length === 1 ? "" : "s"} had a payment alert. ${paymentRecovered} later completed.`,
       why: "Payment errors can interrupt a purchase. Check whether the customer completed after the error.",
-      next: "Check your payment provider, reproduce the error in test mode, and compare a completed checkout.",
-      steps: [{id:"payment-review",label:"I reviewed a session with a payment alert"},{id:"payment-reproduce",label:"I reproduced a payment error in the demo checkout"},{id:"payment-compare",label:"I compared the failure with a completed checkout"}] },
+      next: paymentIds.length > 0 && paymentIds.every(id => {
+        const alerts = events.filter(event => event.sessionId === id && event.category === "payment");
+        const lastAlert = Math.max(...alerts.map(event => event.timestamp));
+        return events.some(event => event.sessionId === id && event.name === "checkout_completed" && event.timestamp > lastAlert);
+      })
+        ? "These checkouts completed after their last payment alert. Review the retries before changing payment settings."
+        : "Open an affected checkout and check the error with your payment provider. Correct any setup fault you confirm. Do not treat every card decline as a store fault.",
+      steps: [{id:"payment-review",label:"I reviewed a session with a payment alert"},{id:"payment-reproduce",label:"I reproduced a payment error in test mode"},{id:"payment-compare",label:"I compared the failure with a completed checkout"}] },
     { id: "validation", title: "Review checkout form errors", count: validationIds.length, sessionIds: validationIds, badge: "Evidence detective",
       description: `${validationIds.length} checkout${validationIds.length === 1 ? "" : "s"} had form-validation alerts. The field and error message are not available.`,
       why: "Form errors may prevent customers from continuing. The recorded alert does not identify the field or cause.",
-      next: "Reproduce the alert. Identify the field and message, then retest the correction.",
+      next: "Open an affected checkout and identify the field and visible message. Correct the rule only if valid customer details are rejected.",
       steps: [{id:"validation-review",label:"I reviewed a checkout form error"},{id:"validation-reproduce",label:"I reproduced an alert and checked its visible message"},{id:"validation-record",label:"I recorded what I observed before choosing a fix"}] },
     { id: "unfinished", title: "Review unfinished checkouts", count: unfinishedIds.length, sessionIds: unfinishedIds, badge: "Journey explorer",
       description: `${unfinishedIds.length} checkout${unfinishedIds.length === 1 ? "" : "s"} ${unfinishedIds.length===1?"has":"have"} no recorded completion.`,
       why: "These checkouts have no recorded purchase. Customers may have left, or some activity may be missing.",
-      next: "Compare the last recorded step with a completed checkout. Check for missing activity.",
+      next: "Open an unfinished checkout and retry its last recorded step. Fix any blocker you find; otherwise check for missing purchase activity before choosing a fix.",
       steps: [{id:"unfinished-review",label:"I reviewed an unfinished checkout's last recorded step"},{id:"unfinished-compare",label:"I compared it with a completed checkout"},{id:"unfinished-record",label:"I separated observed facts from an unconfirmed cause"}] },
     {id:'delivery',title:blockedShippingIds.length?'Resolve unavailable shipping':'Review shipping alerts',count:deliveryIds.length,sessionIds:deliveryIds,badge:'Shipping investigator',
       description:`${blockedShippingIds.length} checkout${blockedShippingIds.length===1?"":"s"} showed shipping unavailable. ${deliveryIds.length-blockedShippingIds.length} had general shipping alerts with no confirmed blocker.`,
       why:'An unavailable shipping option can block a willing customer from buying. A delivery alert alone does not prove a shipping outage.',
-      next:'Retest the same basket and address. Check shipping zones, product profiles and the rate provider.',
+      next:blockedShippingIds.length
+        ? 'Retry the affected basket and destination. Check that a shipping zone and product profile cover it, and that price or weight limits allow a rate. Correct any coverage or rate restriction you find.'
+        : 'Retry the affected basket and destination. Check whether a delivery option can be selected and checkout continues. Investigate shipping settings only if the alert still prevents progress.',
       steps:[{id:'delivery-review',label:'I reviewed the affected delivery step'},{id:'delivery-reproduce',label:'I reproduced the visible shipping problem safely'},{id:'delivery-compare',label:'I retested the same basket and address after the change'}]},
     {id:'discount',title:repeatedDiscounts?'Investigate repeated discount errors':'Review rejected discounts',count:discountIds.length,sessionIds:discountIds,badge:'Promotion investigator',
       description:`${discountIds.length} checkout${discountIds.length===1?"":"s"} had discount or gift-card alerts. ${repeatedDiscounts} unfinished checkout${repeatedDiscounts===1?"":"s"} had repeated alerts. This does not prove the same code was entered repeatedly.`,
       why:'Customers expecting a promised discount may hesitate when it fails. Correcting the offer can help, but some codes are legitimately ineligible.',
-      next:'Check expiry, minimum spend, eligibility and code combinations. Retest the advertised offer.',
+      next:repeatedDiscounts
+        ? 'Find the offer the customer expected. Check expiry, minimum spend, eligible items and combinations. Correct the offer if the advertised terms should apply.'
+        : 'Check whether the alert concerns a discount code or gift card. Verify its terms and balance where relevant. Correct a valid offer that is being rejected.',
       steps:[{id:'discount-review',label:'I checked the advertised offer and affected checkout'},{id:'discount-reproduce',label:'I reproduced the rejection and confirmed eligibility'},{id:'discount-compare',label:'I tested the corrected offer and will compare completion'}]},
     {id:'inventory',title:'Review unavailable items',count:inventoryIds.length,sessionIds:inventoryIds,badge:'Availability investigator',
       description:`${inventoryIds.length} checkout${inventoryIds.length===1?"":"s"} had stock or item-availability alerts. Check whether the item was sold out, restricted, or unavailable from a fulfilment location.`,
       why:'Customers may reach checkout with an item they cannot buy. An availability alert does not prove that restocking alone will resolve it.',
-      next:'Check stock, selling permissions and fulfilment location. Restore availability or offer an alternative, then retest.',
+      next:'Check the affected item’s stock, selling permissions and fulfilment location. If it should be available, correct its availability. If sold out, update the offer or provide an alternative.',
       steps:[{id:'inventory-review',label:'I checked the affected item and available stock'},{id:'inventory-reproduce',label:'I reproduced the availability problem safely'},{id:'inventory-compare',label:'I retested the same item after restoring availability'}]},
   ];
+}
+
+// Use the current alert period for advice after a fix, while keeping the full
+// selected-period counts intact. Without new alerts, retain the retest guidance.
+export function missionRecommendation(mission: Mission, events: CheckoutEvent[], boundary?: number): string {
+  if (boundary === undefined || mission.id === "unfinished") return mission.next;
+  const current = buildMissions(events.filter(event => event.timestamp >= boundary)).find(item => item.id === mission.id)!;
+  return current.count ? current.next : mission.next;
 }
 
 export function missionSeverity(mission: Mission, events: CheckoutEvent[]): {

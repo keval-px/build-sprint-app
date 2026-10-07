@@ -10,7 +10,7 @@ const valid=(value:unknown):value is number=>Number.isSafeInteger(value)&&Number
 
 // Prefer a unique exact Shopify match. Equal dates, amounts, or list positions
 // never establish an identity. Browser prices remain independent observations.
-export function journeyPrice(sessionId:string,completed:boolean,events:CheckoutEvent[],currency:string,orders:SavedBasket[],abandoned:SavedBasket[],legacy:SavedBasket[]=[]):number|undefined {
+export function journeyPrice(sessionId:string,completed:boolean,events:CheckoutEvent[],currency:string,orders:SavedBasket[],abandoned:SavedBasket[],legacy:SavedBasket[]=[],notifications:SavedBasket[]=[]):number|undefined {
   const unique=(rows:SavedBasket[])=>{const matches=rows.filter(row=>row.sessionId===sessionId);return matches.length===1?matches[0]:undefined;};
   const price=(row:SavedBasket|undefined)=>{
     if(!row)return undefined;
@@ -20,6 +20,8 @@ export function journeyPrice(sessionId:string,completed:boolean,events:CheckoutE
   const server=completed?unique(orders):unique(abandoned.filter(row=>!row.recovered));
   const saved=price(server);
   if(saved!==undefined)return saved;
+  const notified=price(unique(completed?notifications:notifications.filter(row=>!row.recovered)));
+  if(notified!==undefined)return notified;
   const historical=price(unique(legacy));
   if(historical!==undefined&&!completed)return historical;
   return events.filter(event=>event.name!=='alert_displayed'&&event.currency===currency&&valid(event.subtotalCents)).sort((a,b)=>b.timestamp-a.timestamp)[0]?.subtotalCents;

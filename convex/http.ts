@@ -1,3 +1,4 @@
+import {checkoutPrice} from '../shared/checkoutPrice';
 import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
 import { components, internal } from "./_generated/api";
@@ -81,7 +82,8 @@ for(const operation of ['status','sync','evidence','pixel/enable']){
       const catalogModel=await ctx.runQuery(internal.catalog.read,{});
       const abandonedCheckouts=await ctx.runQuery(internal.abandoned.read,{});
       const observedPurchases=await ctx.runQuery(internal.purchases.read,{});
-      return privateReply({...original,events:mergeCheckoutEvents(original.events,pixel.events),truncated:original.truncated||pixel.truncated,totalStored:original.totalStored+pixel.events.length,catalogModel,abandonedCheckouts,observedPurchases,shopifySnapshot:snapshot?{currency:snapshot.currency??'USD',syncedAt:snapshot.syncedAt,periodStart:snapshot.periodStart,orders:snapshot.orders,abandoned:snapshot.abandoned}:null,enabled:true,source:'Demo Shopify browser and server evidence.',sampledAt:Date.now()});
+      const checkoutPrices=await ctx.runQuery(internal.checkoutPrices.read,{});
+      return privateReply({...original,events:mergeCheckoutEvents(original.events,pixel.events),truncated:original.truncated||pixel.truncated,totalStored:original.totalStored+pixel.events.length,catalogModel,abandonedCheckouts,observedPurchases,checkoutPrices,shopifySnapshot:snapshot?{currency:snapshot.currency??'USD',syncedAt:snapshot.syncedAt,periodStart:snapshot.periodStart,orders:snapshot.orders,abandoned:snapshot.abandoned}:null,enabled:true,source:'Demo Shopify browser and server evidence.',sampledAt:Date.now()});
     }catch(error){
       const message=error instanceof Error ? error.message : '';
       const reasons=['Shopify authorization failed. Check installation and permissions.','Install the requested Shopify permissions first.','Shopify could not return data. Check permissions and retry; previous results are retained.','Unexpected store or missing Shopify permissions.'];
@@ -99,6 +101,12 @@ http.route({path:'/shopify/webhooks',method:'POST',handler:httpAction(async(ctx,
     const eventId=request.headers.get('X-Shopify-Event-Id')??request.headers.get('X-Shopify-Webhook-Id');
     if(!eventId||!Number.isFinite(triggeredAt))return privateReply({error:'Missing notification identity.'},400);
     await ctx.runMutation(internal.shopify.revoke,{eventId,triggeredAt});
+  }else if(topic==='checkouts/create'||topic==='checkouts/update'){
+    if(process.env.SHOPIFY_CHECKOUT_PRICES_ENABLED!=='true')return privateReply({error:'Checkout notifications are not activated.'},503);
+    const triggeredAt=Date.parse(request.headers.get('X-Shopify-Triggered-At')??'');
+    let price;try{price=checkoutPrice(JSON.parse(body));}catch{return privateReply({error:'Invalid checkout notification.'},400);}
+    if(!price||!Number.isFinite(triggeredAt))return privateReply({error:'Invalid checkout notification.'},400);
+    await ctx.runMutation(internal.checkoutPrices.save,{price,triggeredAt});
   }return privateReply({received:true});
 })});
 http.route({path:'/shopify/pixel-events',method:'OPTIONS',handler:httpAction(async()=>new Response(null,{status:204,headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Methods':'POST, OPTIONS','Access-Control-Allow-Headers':'Content-Type'}}))});

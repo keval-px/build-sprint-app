@@ -1,4 +1,5 @@
 /// <reference types="@shopify/polaris-types" />
+import {checkoutBaskets,type CheckoutPrice} from '../shared/checkoutPrice';
 import "./style.css";
 import {fixResults,retestResults,actionState,type AppliedFix} from "../shared/fixTracking";
 import {recentRange,dateBounds,checkoutCohort} from '../shared/dateRange';
@@ -15,7 +16,7 @@ import {journeyPrice,type SavedBasket} from "../shared/journeyPrice";
 import {journeyDuration} from "../shared/journeyDuration";
 import { STORE, summarize, describeJourney, EVIDENCE_EVENT_LIMIT } from "../shared/evidence";
 import type { CheckoutEvent } from "../shared/evidence";
-import { buildMissions, missionSignal, isViewerId } from "../shared/actions";
+import { ACTION_CHECKS, ACTION_DESTINATIONS, buildMissions, missionRecommendation, missionSignal, isViewerId } from "../shared/actions";
 import { modelCatalog, estimateCatalogImpact } from "../shared/catalog";
 import {observedAverageOrderValue,syncedAverageOrderValue} from "../shared/purchases";
 import type {ObservedPurchases,SyncedPurchase} from "../shared/purchases";
@@ -28,6 +29,7 @@ interface EvidenceResponse {
   abandonedCheckouts?:AbandonedSnapshot|null; enabled: boolean; sampledAt: number; catalogModel?: CatalogModel | null; observedPurchases?: ObservedPurchases | null;
   inventoryItemValue?:(ReturnType<typeof inventoryValue>&{rangeStart:number;rangeEnd:number})|null;
   abandonedBasketSummary?:(ReturnType<typeof abandonedSummary>&{syncedAt:number;currency?:string})|null;
+  checkoutPrices?:CheckoutPrice[];
   shopifySnapshot?:{currency?:string;syncedAt:number;periodStart:string;orders:(SyncedPurchase&{createdAt:string;sessionId?:string;orderName?:string;orderId?:string;totalCents?:number|null;conversion?:{shopMinor:number;buyerMinor:number;buyerCurrency:string}})[];abandoned:(SavedBasket&{recordHash:string;createdAt:string;recovered:boolean})[]}|null;
 }
 const element = (id: string) => document.getElementById(id)!;
@@ -237,10 +239,12 @@ function renderMissions(events: CheckoutEvent[]) {
   missions = buildMissions(events).filter(m=>m.count>0||appliedFixes.some(f=>f.missionId===m.id)).sort((a,b)=>Number(state(a).done)-Number(state(b).done)||severityRank[missionSignal(a,events,signalBoundary(a.id)).severity.label]-severityRank[missionSignal(b,events,signalBoundary(b.id)).severity.label]||priority[a.id]-priority[b.id]||unfinishedCount(b)-unfinishedCount(a));
   element("mission-list").innerHTML = missions.map((mission, index) => {
     const open = expanded.has(`body-${mission.id}`);
+    const destination = ACTION_DESTINATIONS[mission.id];
     const status=state(mission);
     const figuresOpen=expandedFigures.has(`figures-${mission.id}`);
     const signal = missionSignal(mission, events, signalBoundary(mission.id));
     const severity = signal.severity;
+    const recommendation = missionRecommendation(mission, events, signalBoundary(mission.id));
     const shippingBlockers = new Set(events.filter(event=>mission.sessionIds.includes(event.sessionId)&&event.shippingBlocker==='no_shipping_available').map(event=>event.sessionId)).size;
     const estimate = (recorded ?? impact)?.actions.find(item=>item.id===mission.id);
     const actual = recorded?.actions.find(item=>item.id===mission.id);
@@ -258,7 +262,7 @@ function renderMissions(events: CheckoutEvent[]) {
           <s-stack gap="small">
             <s-stack direction="inline" gap="small" alignItems="center"><s-heading>${escape(mission.title)}</s-heading><s-badge id="mission-badge-${mission.id}" tone="${severity.tone}" size="base" color="base">${severity.label}</s-badge></s-stack>
             ${signal.latestAlert!==null?`<s-text color="subdued">${signal.period==='recorded'?'Recorded alerts':`${signal.period==='after'?'After':'Before'} ${appliedFixes.find(f=>f.missionId===mission.id)?.retestedAt!==undefined?'retest':'fix'}`} · Last alert ${escape(time(signal.latestAlert))}${signal.period==='before'?` · None recorded since ${appliedFixes.find(f=>f.missionId===mission.id)?.retestedAt!==undefined?'retest':'fix'}`:''}</s-text>`:''}
-            ${mission.id==='delivery'?`<s-text color="subdued">${shippingBlockers} confirmed shipping blocker${shippingBlockers===1?'':'s'} · ${mission.count-shippingBlockers} general shipping alerts</s-text>`:''}
+            ${mission.id==='delivery'?`<s-text color="subdued">${shippingBlockers} confirmed shipping blocker${shippingBlockers===1?'':'s'} · ${mission.count-shippingBlockers} checkouts with general shipping alerts</s-text>`:''}
           </s-stack>
           <s-stack direction="inline" gap="base" alignItems="center">${renderDone(mission)}<s-button variant="secondary" data-toggle-action="${mission.id}" aria-expanded="${open}" aria-controls="metrics-${mission.id} body-${mission.id}" accessibilityLabel="${open ? "Hide" : "Show"} details: ${mission.title}">${open ? "Hide details" : "Show details"}</s-button></s-stack>
         </s-grid></s-query-container>
@@ -275,7 +279,7 @@ function renderMissions(events: CheckoutEvent[]) {
           <s-banner tone="${severity.label==='Critical'?'critical':severity.label==='Warning'?'warning':'info'}"><s-paragraph>${escape(severity.reason)}</s-paragraph></s-banner>
           <s-query-container><s-grid gridTemplateColumns="@container (inline-size > 700px) 1fr 1fr, 1fr" gap="base" alignItems="stretch">
             <s-box background="subdued" borderRadius="large" padding="base"><s-stack gap="small" data-explanation="why"><s-heading>What we know</s-heading><s-paragraph>${escape(mission.description)}</s-paragraph></s-stack></s-box>
-            <s-box background="subdued" borderRadius="large" padding="base"><s-stack gap="small" data-explanation="next"><s-heading>What to do</s-heading><s-paragraph>${mission.next}</s-paragraph></s-stack></s-box>
+            <s-box background="subdued" borderRadius="large" padding="base"><s-stack gap="small" data-explanation="next"><s-heading>What to do</s-heading><s-paragraph>${escape(recommendation)}</s-paragraph><s-divider></s-divider><s-text type="strong">Check the fix</s-text><s-paragraph>${escape(ACTION_CHECKS[mission.id])}</s-paragraph>${destination?`<s-button variant="secondary" href="https://admin.shopify.com/store/${STORE.replace(".myshopify.com", "")}/${destination.path}" target="_blank" accessibilityLabel="${destination.label} (opens in a new tab)">${destination.label}</s-button>`:""}</s-stack></s-box>
           </s-grid></s-query-container>
           <s-stack direction="inline" gap="base">
             <s-button variant="primary" data-mission="${mission.id}" ${mission.count ? "" : "disabled"}>View ${mission.count} affected checkout${mission.count===1?"":"s"}</s-button>
@@ -399,7 +403,8 @@ function render(data: EvidenceResponse) {
   const nativeSnapshot=latestEvidence?.shopifySnapshot??data.shopifySnapshot;
   storeCurrency=data.shopifySnapshot?.currency??data.abandonedBasketSummary?.currency??'USD';
   text('report-currency',`Reporting currency: ${storeCurrency}. Synced purchases use Shopify's store-currency amounts. Item conversions require matching Shopify checkout amounts.`);
-  abandonedCheckouts=nativeSnapshot?linkedAbandoned(data.abandonedCheckouts??null,nativeSnapshot.abandoned,storeCurrency):data.abandonedCheckouts??null;
+  const baskets=checkoutBaskets(nativeSnapshot?.abandoned??[],latestEvidence?.checkoutPrices??data.checkoutPrices??[],storeCurrency);
+  abandonedCheckouts=linkedAbandoned(data.abandonedCheckouts??null,baskets,storeCurrency);
   const summary = summarize(data.events);
   element("catalog-summary").hidden=!!abandonedCheckouts;
   element("abandoned-value-metric").hidden=!abandonedCheckouts;
@@ -470,7 +475,7 @@ function render(data: EvidenceResponse) {
     const alerts = session.events.filter(event => event.name === "alert_displayed" && event.category);
     const detail = describeJourney(session.events);
     const status = session.completed ? (detail.outcome === "Completed after an observed error" ? "Completed after an error" : "Completed") : "Unfinished";
-    const basketCents = journeyPrice(session.id,session.completed,session.events,storeCurrency,nativeSnapshot?.orders??[],nativeSnapshot?.abandoned??[],(data.abandonedCheckouts?.records??[]).filter(row=>row.currency===storeCurrency&&row.sessionId).map(row=>({...row,sessionId:row.sessionId!})));
+    const basketCents = journeyPrice(session.id,session.completed,session.events,storeCurrency,nativeSnapshot?.orders??[],baskets,(data.abandonedCheckouts?.records??[]).filter(row=>row.currency===storeCurrency&&row.sessionId).map(row=>({...row,sessionId:row.sessionId!})),(latestEvidence?.checkoutPrices??data.checkoutPrices??[]).filter(row=>row.currency===storeCurrency));
     const label = journeyLabel(session.id, nativeSnapshot?.orders ?? []);
     const orderHref = journeyOrderHref(session.id, nativeSnapshot?.orders ?? []);
     const row = `<s-table-row data-session="${escape(session.id)}">

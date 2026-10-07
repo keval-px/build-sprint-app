@@ -28,6 +28,12 @@ npm run deploy
 
 Deployment uses Convex static hosting. Pushing to GitHub does not deploy the app.
 
+## Checkout prices
+
+Per-session prices arrive through signed Shopify `checkouts/create` and `checkouts/update` notifications. The receiver keeps only a checkout-token hash, dates, currency, subtotal, total, and completion status. It rejects stale updates and uses Shopify totals including shipping. GraphQL provides aggregate abandoned-checkout totals and matched order prices; previously verified historical identities remain saved.
+
+Notification activation is separate from refreshing the dashboard. After approving this data flow and connecting the Shopify app, the owner enables `SHOPIFY_CHECKOUT_PRICES_ENABLED` in Convex and runs the internal `shopify:enableCheckoutPrices` action. `shopify:checkoutPriceStatus` verifies the subscriptions. No legacy checkout REST reader is used.
+
 ## Data
 
 The dashboard uses controlled demo checkout evidence. Test orders do not represent real revenue or prove a recovery effect. Public demo results and authenticated Shopify records are kept separate.
