@@ -37,3 +37,6 @@ s-box[data-timeline-marker="completed"]::after {
   background: #298a00;
   border-color: #d4f4b4;
 }
+
+/* Polaris Viz measures its host; its official styles own the chart itself. */
+#order-chart-viz { display: block; min-width: 0; width: 100%; }

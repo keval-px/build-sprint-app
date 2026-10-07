@@ -1,3 +1,5 @@
+import {orderPattern} from '../shared/orderPattern';
+import {actionValues} from '../shared/actionValues';
 import {checkoutPrice} from '../shared/checkoutPrice';
 import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
@@ -53,7 +55,7 @@ for(const mode of ['shopify','demo'] as const){
         const fix=fixBaseline(events,data.missionId,Date.now(),original.truncated||!!pixel?.truncated);
         await ctx.runMutation(internal.fixes.mark,{scope,...fix,active:data.operation==='mark'});
       }
-      return respond({fixes:await ctx.runQuery(internal.fixes.read,{scope})});
+      return respond({fixes:await ctx.runQuery(internal.fixes.read,{scope}),history:await ctx.runMutation(internal.fixes.history,{scope})});
     }catch{return respond({error:'Could not save or load fix tracking.'},400);}
   })});
 }
@@ -83,7 +85,7 @@ for(const operation of ['status','sync','evidence','pixel/enable']){
       const abandonedCheckouts=await ctx.runQuery(internal.abandoned.read,{});
       const observedPurchases=await ctx.runQuery(internal.purchases.read,{});
       const checkoutPrices=await ctx.runQuery(internal.checkoutPrices.read,{});
-      return privateReply({...original,events:mergeCheckoutEvents(original.events,pixel.events),truncated:original.truncated||pixel.truncated,totalStored:original.totalStored+pixel.events.length,catalogModel,abandonedCheckouts,observedPurchases,checkoutPrices,shopifySnapshot:snapshot?{currency:snapshot.currency??'USD',syncedAt:snapshot.syncedAt,periodStart:snapshot.periodStart,orders:snapshot.orders,abandoned:snapshot.abandoned}:null,enabled:true,source:'Demo Shopify browser and server evidence.',sampledAt:Date.now()});
+      return privateReply({...original,events:mergeCheckoutEvents(original.events,pixel.events),truncated:original.truncated||pixel.truncated,totalStored:original.totalStored+pixel.events.length,catalogModel,abandonedCheckouts,observedPurchases,checkoutPrices,shopifySnapshot:snapshot?{timeZone:snapshot.timeZone,currency:snapshot.currency??'USD',syncedAt:snapshot.syncedAt,periodStart:snapshot.periodStart,orders:snapshot.orders,abandoned:snapshot.abandoned}:null,enabled:true,source:'Demo Shopify browser and server evidence.',sampledAt:Date.now()});
     }catch(error){
       const message=error instanceof Error ? error.message : '';
       const reasons=['Shopify authorization failed. Check installation and permissions.','Install the requested Shopify permissions first.','Shopify could not return data. Check permissions and retry; previous results are retained.','Unexpected store or missing Shopify permissions.'];
@@ -147,21 +149,24 @@ http.route({ path: "/test-evidence", method: "GET", handler: httpAction(async (c
   const abandonedCheckouts = await ctx.runQuery(internal.abandoned.read, {});
   const observedPurchases = await ctx.runQuery(internal.purchases.read, {});
   const params=new URL(request.url).searchParams,start=Number(params.get('start')),end=Number(params.get('end'));
-  let abandonedBasketSummary=null,inventoryItemValue=null;
+  let abandonedBasketSummary=null,inventoryItemValue=null,actionBasketValue=null,orderPatterns=null;
   // Publish only aggregate test-store metrics. Private order/checkout records stay private.
   if(params.has('start')&&params.has('end')&&Number.isSafeInteger(start)&&Number.isSafeInteger(end)&&start<end&&end-start<=31*86400000){
     const connection=await ctx.runQuery(internal.shopify.connection,{});
     const snapshot=canReadShopifyEvidence(connection)?await ctx.runQuery(internal.shopify.snapshot,{}):null;
     if(snapshot)abandonedBasketSummary={...abandonedSummary(snapshot.abandoned,start,end),syncedAt:snapshot.syncedAt,currency:snapshot.currency??'USD'};
     if(snapshot){
+      orderPatterns=orderPattern(snapshot.orders,snapshot.periodStart,snapshot.syncedAt,snapshot.timeZone??'UTC');
       const currency=snapshot.currency??'USD';
+      const prices=await ctx.runQuery(internal.checkoutPrices.read,{});
+      actionBasketValue=actionValues(events,abandonedCheckouts,snapshot.abandoned,prices,currency,start,end);
       const ids=summarize(checkoutCohort(events,{start,end})).journeys.filter(j=>!j.completed&&j.events.some(e=>e.category==='inventory')).map(j=>j.id);
       const quotes=snapshot.orders.flatMap(o=>o.sessionId&&o.conversion?[{sessionId:o.sessionId,shop:{minor:o.conversion.shopMinor,currency},buyer:{minor:o.conversion.buyerMinor,currency:o.conversion.buyerCurrency}}]:[]);
       // Aggregate only the existing public test-session cohort; never publish item identities or buyer amounts.
       inventoryItemValue={...inventoryValue(pixel.events,ids,currency,quotes),rangeStart:start,rangeEnd:end};
     }
   }
-  return reply({ ...evidence, events, catalogModel, observedPurchases, abandonedCheckouts, abandonedBasketSummary, inventoryItemValue, enabled: process.env.SHOPIFY_TEST_COLLECTION_ENABLED === "true", source: "Unverified browser test events. No live merchant data.", sampledAt: Date.now() });
+  return reply({ ...evidence, events, catalogModel, observedPurchases, abandonedCheckouts, abandonedBasketSummary, inventoryItemValue, actionBasketValue, orderPatterns, enabled: process.env.SHOPIFY_TEST_COLLECTION_ENABLED === "true", source: "Unverified browser test events. No live merchant data.", sampledAt: Date.now() });
 }) });
 
 for (const path of ["/action-progress/read", "/action-progress/update"]) {

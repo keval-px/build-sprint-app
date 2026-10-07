@@ -14,6 +14,15 @@ export const ACTION_DESTINATIONS: Partial<Record<MissionId, {label:string; path:
   validation: {label:"Open checkout settings", path:"settings/checkout"},
 };
 
+export const ACTION_GOALS: Record<MissionId, string> = {
+  payment: "Successful payment",
+  delivery: "Shipping available",
+  discount: "Valid offer applied",
+  validation: "Valid details accepted",
+  inventory: "Item available to buy",
+  unfinished: "Checkout completed",
+};
+
 export const ACTION_CHECKS: Record<MissionId, string> = {
   payment: "Complete a test-mode order using the affected payment method.",
   delivery: "Use the same items, quantities and destination. Shipping should appear and let you continue to payment.",
@@ -49,7 +58,7 @@ export function buildMissions(events: CheckoutEvent[]): Mission[] {
   }).length;
   return [
     { id: "payment", title: "Investigate payment errors", count: paymentIds.length, sessionIds: paymentIds, badge: "Payment investigator",
-      description: `${paymentIds.length} checkout${paymentIds.length === 1 ? "" : "s"} had a payment alert. ${paymentRecovered} later completed.`,
+      description: `${paymentIds.length} checkout${paymentIds.length === 1 ? "" : "s"} had a payment alert. ${paymentRecovered} later completed. The alert alone does not identify a card decline or provider fault.`,
       why: "Payment errors can interrupt a purchase. Check whether the customer completed after the error.",
       next: paymentIds.length > 0 && paymentIds.every(id => {
         const alerts = events.filter(event => event.sessionId === id && event.category === "payment");
@@ -57,7 +66,7 @@ export function buildMissions(events: CheckoutEvent[]): Mission[] {
         return events.some(event => event.sessionId === id && event.name === "checkout_completed" && event.timestamp > lastAlert);
       })
         ? "These checkouts completed after their last payment alert. Review the retries before changing payment settings."
-        : "Open an affected checkout and check the error with your payment provider. Correct any setup fault you confirm. Do not treat every card decline as a store fault.",
+        : "Check the payment-provider record for an affected attempt. Confirm whether the card was declined or a provider/setup fault blocked payment. Do not treat every card decline as a store fault.",
       steps: [{id:"payment-review",label:"I reviewed a session with a payment alert"},{id:"payment-reproduce",label:"I reproduced a payment error in test mode"},{id:"payment-compare",label:"I compared the failure with a completed checkout"}] },
     { id: "validation", title: "Review checkout form errors", count: validationIds.length, sessionIds: validationIds, badge: "Evidence detective",
       description: `${validationIds.length} checkout${validationIds.length === 1 ? "" : "s"} had form-validation alerts. The field and error message are not available.`,

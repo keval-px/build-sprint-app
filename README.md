@@ -1,4 +1,4 @@
-# Checkout Health
+# Jimmy’s Bakery · Checkout Health
 
 A Shopify demo app for reviewing checkout sessions, alerts, and recorded completion events. Built with TypeScript, Shopify Polaris, and Convex.
 
@@ -10,6 +10,12 @@ npm run dev
 ```
 
 The connected app needs your own Convex project and Shopify development app settings. Copy `shopify.app.example.toml` to `shopify.app.toml` and configure your app. Keep credentials in local environment settings; they are not included in this repository. The current implementation targets the `build-sprint-demo.myshopify.com` development store.
+
+## Dashboard
+
+The dashboard name is Jimmy’s Bakery; the connected store remains the identified development store. It includes compact recommendations, up to three qualifying priority issues, counted issue filters, last observed checkout steps, recorded step intervals, grouped error diagnostics, comparable-period metrics, and CSV exports of filtered checkouts and events.
+
+Fix history retains applied, retested and undone markers for the same authorized store or anonymous demo viewer. Before/after figures describe recorded activity and do not establish recovered revenue. Focused alerts check while the app is open and visible, once a minute, and can be paused or dismissed by type. Shipping alerts require distinct unresolved checkouts; error-rate alerts require a recent sample and a measured baseline. Missing history and step transitions remain unknown.
 
 ## Checks
 

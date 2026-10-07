@@ -1,3 +1,5 @@
+import {orderHistoryStart} from '../shared/orderPattern';
+import {canSaveSyncedSnapshot} from '../shared/shopifySync';
 import {internalAction,internalMutation, internalQuery} from './_generated/server';
 import {internal} from './_generated/api';
 import type {ActionCtx} from './_generated/server';
@@ -21,9 +23,10 @@ export const saveConnection = internalMutation({args:{accessToken:v.string(),ref
   if(old)await ctx.db.replace(old._id,{...values,store:STORE,connectedAt:Date.now()});
   else await ctx.db.insert('shopifyConnections',{...values,store:STORE,connectedAt:Date.now()});
 }});
-export const saveSnapshot = internalMutation({args:{currency:v.optional(v.string()),syncedAt:v.number(),periodStart:v.string(),orders:v.array(v.object({recordHash:v.string(),conversion:v.optional(v.object({shopMinor:v.number(),buyerMinor:v.number(),buyerCurrency:v.string()})),sessionId:v.optional(v.string()),orderName:v.optional(v.string()),orderId:v.optional(v.string()),totalCents:v.optional(v.union(v.number(),v.null())),createdAt:v.string(),subtotalCents:v.union(v.number(),v.null()),test:v.boolean(),paid:v.boolean(),cancelled:v.boolean()})),abandoned:v.array(v.object({recordHash:v.string(),sessionId:v.optional(v.string()),totalCents:v.optional(v.union(v.number(),v.null())),createdAt:v.string(),subtotalCents:v.union(v.number(),v.null()),recovered:v.boolean()}))},handler:async(ctx,args)=>{
+export const saveSnapshot = internalMutation({args:{timeZone:v.optional(v.string()),currency:v.optional(v.string()),syncedAt:v.number(),periodStart:v.string(),orders:v.array(v.object({recordHash:v.string(),conversion:v.optional(v.object({shopMinor:v.number(),buyerMinor:v.number(),buyerCurrency:v.string()})),sessionId:v.optional(v.string()),orderName:v.optional(v.string()),orderId:v.optional(v.string()),totalCents:v.optional(v.union(v.number(),v.null())),createdAt:v.string(),subtotalCents:v.union(v.number(),v.null()),test:v.boolean(),paid:v.boolean(),cancelled:v.boolean()})),abandoned:v.array(v.object({recordHash:v.string(),sessionId:v.optional(v.string()),totalCents:v.optional(v.union(v.number(),v.null())),createdAt:v.string(),subtotalCents:v.union(v.number(),v.null()),recovered:v.boolean()}))},handler:async(ctx,args)=>{
   const state=await ctx.db.query('shopifyInstallState').withIndex('by_store',q=>q.eq('store',STORE)).unique();
-  if(state && args.syncedAt <= state.revokedAt)throw Error('Shopify installation changed. Reopen the app.');
+  const liveConnection=await ctx.db.query('shopifyConnections').withIndex('by_store',q=>q.eq('store',STORE)).unique();
+  if(!canSaveSyncedSnapshot(args.syncedAt,liveConnection?.connectedAt,state?.revokedAt))throw Error('Shopify installation changed. Reopen the app.');
   const old=await ctx.db.query('shopifySnapshots').withIndex('by_store',q=>q.eq('store',STORE)).unique();
   if(old && old.syncedAt>args.syncedAt)return;
   if(old)await ctx.db.replace(old._id,{...args,store:STORE});else await ctx.db.insert('shopifySnapshots',{...args,store:STORE});
@@ -127,11 +130,15 @@ async function pages(accessToken:string,query:string,field:'orders'|'abandonedCh
   }throw Error('Too many Shopify records. Previous results are retained.');
 }
 export async function syncStore(ctx:ActionCtx,idToken:string){
-  const startedAt=Date.now(), access=await authorizedAccess(ctx,idToken);
-  const identity=await adminRead<{shop:{myshopifyDomain:string;currencyCode:string};currentAppInstallation:{accessScopes:{handle:string}[]}}>(access,identityQuery);
+  return syncWithAccess(ctx,await authorizedAccess(ctx,idToken));
+}
+async function syncWithAccess(ctx:ActionCtx,access:string){
+  const startedAt=Date.now();
+  const identity=await adminRead<{shop:{myshopifyDomain:string;currencyCode:string;ianaTimezone:string};currentAppInstallation:{accessScopes:{handle:string}[]}}>(access,identityQuery);
   if(identity.shop.myshopifyDomain!==STORE || REQUIRED_SCOPES.some(s=>!identity.currentAppInstallation.accessScopes.some(x=>x.handle===s)))throw Error('Unexpected store or missing Shopify permissions.');
   const currency=identity.shop.currencyCode;if(currencyScale(currency)===null)throw Error('Store currency is not supported.');
-  const periodStart=new Date(startedAt-30*86400000).toISOString();
+  const timeZone=identity.shop.ianaTimezone;
+  const periodStart=orderHistoryStart(startedAt,timeZone);
   const filter=`created_at:>=${periodStart}`;
   const [orders,abandoned]=await Promise.all([pages(access,ordersQuery,'orders',filter),pages(access,abandonedQuery,'abandonedCheckouts',filter)]);
   const storeMinor=(money:Money|undefined)=>money?.currencyCode===currency?moneyMinor(money.amount,currency):null;
@@ -144,6 +151,28 @@ export async function syncStore(ctx:ActionCtx,idToken:string){
     const sessionId=savedCheckoutSession(recordHash,previous?.abandoned??[]);
     return {recordHash,...(sessionId?{sessionId}:{}),createdAt:row.createdAt,totalCents:storeMinor(row.totalPriceSet?.shopMoney),subtotalCents:storeMinor(row.subtotalPriceSet?.shopMoney),recovered:!!row.completedAt};
   }));
-  await ctx.runMutation(internal.shopify.saveSnapshot,{currency,syncedAt:startedAt,periodStart,orders:safeOrders,abandoned:safeAbandoned});
+  await ctx.runMutation(internal.shopify.saveSnapshot,{timeZone,currency,syncedAt:startedAt,periodStart,orders:safeOrders,abandoned:safeAbandoned});
   return{store:STORE,syncedAt:startedAt,orders:safeOrders.length,abandoned:safeAbandoned.length};
 }
+
+// Convex runs this with the existing offline installation, never browser tokens.
+export const syncAutomatically=internalAction({args:{},handler:async(ctx):Promise<{status:string}>=>{
+ const saved=await ctx.runQuery(internal.shopify.connection,{});
+ if(!saved||!REQUIRED_SCOPES.every(s=>saved.scopes.includes(s)))return {status:'disconnected'};
+ let access=saved.accessToken;
+ if(saved.expiresAt!==undefined&&saved.expiresAt<=Date.now()+60000){
+  if(!saved.refreshToken||!saved.refreshExpiresAt||saved.refreshExpiresAt<=Date.now()+60000)return {status:'reconnect_required'};
+  const issuedAt=Date.now();
+  try{access=await storeSession(ctx,await refreshMerchant(saved.refreshToken),issuedAt);}
+  catch{return {status:'reconnect_required'};}
+ }
+ try{await syncWithAccess(ctx,access);return {status:'synced'};}
+ catch{throw Error('Automatic Shopify sync failed; previous figures retained.');}
+}});
+
+// Safe owner diagnostics: no credentials or order/customer fields returned.
+export const automaticSyncStatus=internalQuery({args:{},handler:async(ctx)=>{
+ const connection=await ctx.db.query('shopifyConnections').withIndex('by_store',q=>q.eq('store',STORE)).unique();
+ const snapshot=await ctx.db.query('shopifySnapshots').withIndex('by_store',q=>q.eq('store',STORE)).unique();
+ return {connected:!!connection,accessExpiresAt:connection?.expiresAt??null,refreshAvailable:!!connection?.refreshToken,syncedAt:snapshot?.syncedAt??null,orderCount:snapshot?.orders.length??0};
+}});

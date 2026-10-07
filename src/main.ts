@@ -1,13 +1,18 @@
 /// <reference types="@shopify/polaris-types" />
 import {checkoutBaskets,type CheckoutPrice} from '../shared/checkoutPrice';
 import "./style.css";
+import {lastObservedStep,stepTimings,durationText,focusedAlerts,issueLabels,type FocusedAlert} from '../shared/dashboardInsights';
+import {checkoutCSV,checkoutEventsCSV} from '../shared/checkoutExport';
+import {priorityMarkup,comparisonMarkup,diagnosticsMarkup,historyMarkup,alertsMarkup,type FixHistoryRow} from './dashboardPanels';
+import {orderPattern,type OrderPattern} from "../shared/orderPattern";
+import {buildRecommendations} from "../shared/recommendations";
 import {fixResults,retestResults,actionState,type AppliedFix} from "../shared/fixTracking";
 import {recentRange,dateBounds,checkoutCohort} from '../shared/dateRange';
 import {inventoryValue} from '../shared/inventoryValue';
 import {formatMoney} from '../shared/money';
 import {recordedImpact,linkedAbandoned} from "../shared/abandoned";
 import {abandonedSummary} from "../shared/abandonedSummary";
-import {estimateRecovery,RECOVERY_CASES} from "../shared/recovery";
+import {RECOVERY_CASES} from "../shared/recovery";
 import type {AbandonedSnapshot} from "../shared/abandoned";
 import {journeyLabel,journeyOrderHref} from "../shared/journeyLabel";
 import {sortJourneys} from "../shared/journeySort";
@@ -27,10 +32,12 @@ declare global { interface ImportMeta { readonly env: Record<string, string | un
 interface EvidenceResponse {
   store: string; events: CheckoutEvent[]; totalStored: number; truncated: boolean;
   abandonedCheckouts?:AbandonedSnapshot|null; enabled: boolean; sampledAt: number; catalogModel?: CatalogModel | null; observedPurchases?: ObservedPurchases | null;
+  actionBasketValue?:(ReturnType<typeof recordedImpact>&{rangeStart:number;rangeEnd:number})|null;
   inventoryItemValue?:(ReturnType<typeof inventoryValue>&{rangeStart:number;rangeEnd:number})|null;
   abandonedBasketSummary?:(ReturnType<typeof abandonedSummary>&{syncedAt:number;currency?:string})|null;
   checkoutPrices?:CheckoutPrice[];
-  shopifySnapshot?:{currency?:string;syncedAt:number;periodStart:string;orders:(SyncedPurchase&{createdAt:string;sessionId?:string;orderName?:string;orderId?:string;totalCents?:number|null;conversion?:{shopMinor:number;buyerMinor:number;buyerCurrency:string}})[];abandoned:(SavedBasket&{recordHash:string;createdAt:string;recovered:boolean})[]}|null;
+  orderPatterns?:OrderPattern|null;
+  shopifySnapshot?:{timeZone?:string;currency?:string;syncedAt:number;periodStart:string;orders:(SyncedPurchase&{recordHash:string;createdAt:string;sessionId?:string;orderName?:string;orderId?:string;totalCents?:number|null;conversion?:{shopMinor:number;buyerMinor:number;buyerCurrency:string}})[];abandoned:(SavedBasket&{recordHash:string;createdAt:string;recovered:boolean})[]}|null;
 }
 const element = (id: string) => document.getElementById(id)!;
 const text = (id: string, value: string | number) => { element(id).textContent = String(value); };
@@ -43,6 +50,11 @@ const eventLabels: Record<CheckoutEvent["name"], string> = {
 };
 const backendOrigin = ["localhost", "127.0.0.1"].includes(location.hostname) ? "https://neighborly-nightingale-843.convex.site" : location.origin;
 let selectedRange=recentRange(30);
+const openOverlays=new Set<string>();
+for(const id of ['date-range-popover','journey-modal']){
+ element(id).addEventListener('show',()=>openOverlays.add(id));
+ element(id).addEventListener('hide',()=>openOverlays.delete(id));
+}
 let latestEvidence:EvidenceResponse|null=null;
 function filteredEvidence(data:EvidenceResponse):EvidenceResponse{
   const {start,end}=dateBounds(selectedRange);
@@ -65,7 +77,10 @@ let missions: Mission[] = [];
 let selectedMission: MissionId | null = null;
 let journeyPage = 0;
 const JOURNEYS_PER_PAGE = 24;
-let journeyRows: {startedAt: number; basketCents?: number; id: string; label: string; completed: boolean; categories: string[]; row: string; timeline: string}[] = [];
+let filteredJourneyRows: typeof journeyRows = [];
+let selectedQuickIssue:string|null=null;
+let fixHistory:FixHistoryRow[]=[];
+let journeyRows: {events:CheckoutEvent[];shippingBlocker:boolean;startedAt: number; basketCents?: number; id: string; label: string; completed: boolean; categories: string[]; row: string; timeline: string}[] = [];
 let completedSteps: string[] = [];
 let progressLoaded = false;
 let savingProgress = false;
@@ -81,16 +96,17 @@ try {
 } catch { /* Checklist remains disabled; viewing evidence still works. */ }
 const categoryLabels = { discount: "Discount or gift-card", payment: "Payment", delivery: "Delivery", validation: "Form errors", inventory: "Item availability" };
 
-function showView(view: "overview" | "journeys", focus = false) {
-  for (const name of ["overview", "journeys"] as const) {
+const dashboardViews=["overview","journeys","history","alerts"] as const;
+function showView(view: typeof dashboardViews[number], focus = false) {
+  for (const name of dashboardViews) {
     element(name).hidden = name !== view;
     element(`${name}-tab`).setAttribute("aria-pressed", String(name === view));
     element(`${name}-tab`).setAttribute("variant", !embeddedShopify&&name === view ? "primary" : "secondary");
   }
-  text('page-title',view === 'journeys' ? 'Checkout drill-down' : 'Checkout Health');
+  text('page-title',({overview:'Jimmy’s Bakery',journeys:'Checkout drill-down',history:'Fix history',alerts:'Alerts'})[view]);
   if (focus) element(`${view}-tab`).focus();
 }
-for (const view of ["overview", "journeys"] as const) element(`${view}-tab`).addEventListener("click", () => showView(view));
+for (const view of dashboardViews) element(`${view}-tab`).addEventListener("click", () => showView(view));
 element("open-journeys").addEventListener("click", () => showView("journeys", true));
 element("coverage-details-button").addEventListener("click",()=>togglePanel(element("coverage-details-button"),"coverage-details"));
 
@@ -111,16 +127,25 @@ function renderFix(mission:Mission){
   const retest=retestResults(fix,latestEvidence?.events??[],Date.now());
   const checked=fix.retestedAt!==undefined;
   const retestPanel=mission.id==='unfinished'?'':`<s-stack gap="small"><s-stack direction="inline" gap="small" alignItems="center">${checked?`<s-badge tone="${retest?.returned?'caution':'success'}">${retest?.returned?'Alerts after retest':'Retest passed'}</s-badge><s-text color="subdued">Confirmed by ${embeddedShopify?'your team':'this demo viewer'} · ${escape(time(fix.retestedAt!))}</s-text>`:'<s-text>Repeat the affected checkout and confirm the problem no longer appears.</s-text>'}</s-stack>${retest?.returned?`<s-text>${retest.returned} checkout${retest.returned===1?'':'s'} recorded matching alerts after the retest. Check again.</s-text>`:''}<s-stack direction="inline" gap="small"><s-button data-fix="${mission.id}" data-fix-operation="retest" variant="secondary" ${!fixesReady||fixSaving||loading?'disabled':''}>${checked?'I retested again successfully':'I retested successfully'}</s-button>${checked?`<s-button data-fix="${mission.id}" data-fix-operation="undo-retest" variant="tertiary" ${fixSaving||loading?'disabled':''}>Undo retest</s-button>`:''}</s-stack></s-stack>`;
-  const rate=(n:number,d:number)=>d?`${Math.round(n/d*100)}% (${n}/${d})`:'—';
+  const rate=(n:number,d:number)=>d?`${Math.round(n/d*100)}% (${n}/${d})`:'No checkouts yet';
+  const returned = actionState(fix, latestEvidence?.events??[], Date.now()).returned;
+  const resultMessage = returned
+    ? `${returned} checkout${returned===1?'':'s'} had new alerts since your last check. Review the fix.`
+    : !results.after.checkouts && !results.affectedCompleted
+      ? 'Waiting for checkout activity to check the result.'
+      : mission.id==='unfinished'
+        ? 'Review completed checkouts below and check any that still stop progressing.'
+        : 'No new matching alerts recorded since your last check. Keep checking new checkouts.';
   return `<s-divider></s-divider><s-stack gap="base"><s-stack direction="inline" justifyContent="space-between" gap="small"><s-heading>Results after your fix</s-heading></s-stack>
     ${retestPanel}
+    <s-banner tone="${returned?'warning':'info'}"><s-paragraph>${escape(resultMessage)}</s-paragraph></s-banner>
     <s-text color="subdued">Marked ${escape(time(fix.appliedAt))} · Before: 30 days · After: ${results.ended?'30 days':'since your marker'}</s-text>
     <s-query-container><s-grid gridTemplateColumns="@container (inline-size > 600px) 1fr 1fr 1fr, 1fr" gap="base">
-      <s-stack gap="small"><s-text>Previously affected checkouts</s-text><s-text type="strong">${results.affectedCompleted} of ${results.affectedTotal} completed after fix</s-text></s-stack>
+      <s-stack gap="small"><s-text>Previously affected checkouts</s-text><s-text type="strong">${results.affectedTotal?`${results.affectedCompleted} of ${results.affectedTotal} completed after your change`:"No unfinished checkouts to follow"}</s-text></s-stack>
       <s-stack gap="small"><s-text>${mission.id==='unfinished'?'Unfinished checkouts':'Checkouts with alerts'}</s-text><s-text>Before ${rate(fix.baseline.affected,fix.baseline.checkouts)}</s-text><s-text type="strong">After ${rate(results.after.affected,results.after.checkouts)}</s-text></s-stack>
       <s-stack gap="small"><s-text>New checkout completion</s-text><s-text>Before ${rate(fix.baseline.completed,fix.baseline.checkouts)}</s-text><s-text type="strong">After ${rate(results.after.completed,results.after.checkouts)}</s-text></s-stack>
     </s-grid></s-query-container>
-    <s-text color="subdued">${results.after.checkouts?'Observed after your fix; this does not prove the fix caused purchases.':'Waiting for new checkouts. Previously affected checkouts can still complete.'}${fix.partial||latestEvidence?.truncated?' Counts cover available events only; some history is missing.':''}</s-text>
+    <s-text color="subdued">${results.after.checkouts||results.affectedCompleted?'Purchases after a change do not prove recovered revenue.':'Previously affected customers may still return and complete checkout.'}${fix.partial||latestEvidence?.truncated?' Counts cover available events only; some history is missing.':''}</s-text>
     <s-button data-fix-refresh variant="secondary" ${loading||fixSaving?'disabled':''}>Update results</s-button></s-stack>`;
 }
 async function fixRequest(operation:'read'|'mark'|'undo'|'retest'|'undo-retest',missionId?:MissionId){
@@ -128,7 +153,7 @@ async function fixRequest(operation:'read'|'mark'|'undo'|'retest'|'undo-retest',
   if(embeddedShopify){const bridge=(window as unknown as {shopify:{idToken:()=>Promise<string>}}).shopify;headers.Authorization=`Bearer ${await bridge.idToken()}`;}
   const response=await fetch(`${backendOrigin}/api/${embeddedShopify?'shopify':'demo'}/fixes`,{method:'POST',headers,body:JSON.stringify({operation,...(embeddedShopify?{}:{viewerId}),...(missionId?{missionId}:{})}),signal:AbortSignal.timeout(15000)});
   const data=await response.json();if(!response.ok||!Array.isArray(data.fixes))throw Error('Fix request failed.');
-  appliedFixes=data.fixes;fixesReady=true;
+  appliedFixes=data.fixes;fixHistory=Array.isArray(data.history)?data.history:data.fixes.map((f:AppliedFix)=>({...f,active:true}));fixesReady=true;
 }
 element('mission-list').addEventListener('click',async event=>{
   const target=(event.target as HTMLElement).closest<HTMLElement>('s-button[data-fix],s-button[data-fix-refresh]');
@@ -147,23 +172,17 @@ async function saveFixUpdate(operation:'mark'|'undo'|'retest'|'undo-retest',miss
   element('mission-list').querySelectorAll<HTMLElementTagNameMap['s-checkbox']|HTMLElementTagNameMap['s-button']>('s-checkbox[data-fix-done],s-button[data-fix],s-button[data-fix-refresh]').forEach(control=>{control.disabled=true;});
   try{await fixRequest(operation,missionId);if(operation==='mark')element(`body-${missionId}`).hidden=true;text('action-save-status',operation==='mark'?'Marked as done.':operation==='undo'?'Action reopened.':'Retest updated.');}
   catch{fixError='Your change was not saved. Check your connection and try again.';text('action-save-error',fixError);element('action-save-error').hidden=false;text('action-save-status','Change was not saved.');}
-  finally{fixSaving=false;(element('apply-date-range') as HTMLElementTagNameMap['s-button']).disabled=loading;if(latestEvidence)render(filteredEvidence(latestEvidence));element(`done-${missionId}`).focus({preventScroll:true});}
+  finally{fixSaving=false;(element('apply-date-range') as HTMLElementTagNameMap['s-button']).disabled=loading;if(latestEvidence)render(filteredEvidence(latestEvidence));element(`${element(`body-${missionId}`).hidden?'toggle':'done'}-${missionId}`).focus({preventScroll:true});}
 }
 
 function signalBoundary(id:MissionId){const fix=appliedFixes.find(f=>f.missionId===id);return fix?.retestedAt??fix?.appliedAt;}
 function renderProgress() {
   for (const mission of missions) {
-    const done = mission.steps.filter(step => completedSteps.includes(step.id)).length;
-    text(`mission-progress-${mission.id}`, `${done} / 3 steps`);
     const severity = missionSignal(mission, latestEvidence ? filteredEvidence(latestEvidence).events : [], signalBoundary(mission.id)).severity;
     text(`mission-badge-${mission.id}`, severity.label);
     element(`mission-badge-${mission.id}`).setAttribute("tone", severity.tone);
 
-    for (const step of mission.steps) {
-      const input = element(step.id) as HTMLElementTagNameMap["s-checkbox"];
-      if (!savingProgress) input.checked = completedSteps.includes(step.id);
-      input.disabled = !progressLoaded || savingProgress || !viewerId || mission.count === 0;
-    }
+
   }
 }
 let storeCurrency='USD';
@@ -227,21 +246,23 @@ function renderSyncedPurchases(snapshot:NonNullable<EvidenceResponse['shopifySna
 function renderMissions(events: CheckoutEvent[]) {
   const expanded = new Set(Array.from(element("mission-list").querySelectorAll<HTMLElement>("[data-action-body]")).filter(item => !item.hidden).map(item => item.id));
 
-  const expandedFigures = new Set(Array.from(element("mission-list").querySelectorAll<HTMLElement>("[data-figure-details]")).filter(item => !item.hidden).map(item => item.id));
   const summary = summarize(events);
   const unfinishedIds = new Set(summary.journeys.filter(session => session.started && !session.completed).map(session => session.id));
   const unfinishedCount = (mission: Mission) => mission.sessionIds.filter(id => unfinishedIds.has(id)).length;
-  const impact = catalogModel ? estimateCatalogImpact(events,buildMissions(events),catalogModel,observedPurchases) : null;
-  const recorded = recordedImpact(events,buildMissions(events),abandonedCheckouts ?? {importedOn:"",emailSent:0,emailNotSent:0,records:[]},5,storeCurrency);
+  const recommendations=buildRecommendations(events);
+  const impact = catalogModel ? estimateCatalogImpact(events,recommendations,catalogModel,observedPurchases) : null;
+  const bounds=dateBounds(selectedRange),sharedValues=latestEvidence?.actionBasketValue;
+  const recorded = !embeddedShopify&&sharedValues?.rangeStart===bounds.start&&sharedValues.rangeEnd===bounds.end
+    ? sharedValues
+    : recordedImpact(events,recommendations,abandonedCheckouts ?? {importedOn:"",emailSent:0,emailNotSent:0,records:[]},0,storeCurrency);
   const priority:Record<MissionId,number>={delivery:0,payment:0,inventory:0,discount:1,validation:2,unfinished:3};
   const severityRank = {Critical:0, Warning:1, Info:2};
   const state=(mission:Mission)=>actionState(appliedFixes.find(f=>f.missionId===mission.id),latestEvidence?.events??events,Date.now());
-  missions = buildMissions(events).filter(m=>m.count>0||appliedFixes.some(f=>f.missionId===m.id)).sort((a,b)=>Number(state(a).done)-Number(state(b).done)||severityRank[missionSignal(a,events,signalBoundary(a.id)).severity.label]-severityRank[missionSignal(b,events,signalBoundary(b.id)).severity.label]||priority[a.id]-priority[b.id]||unfinishedCount(b)-unfinishedCount(a));
+  missions = recommendations.sort((a,b)=>Number(state(a).done)-Number(state(b).done)||severityRank[missionSignal(a,events,signalBoundary(a.id)).severity.label]-severityRank[missionSignal(b,events,signalBoundary(b.id)).severity.label]||priority[a.id]-priority[b.id]||unfinishedCount(b)-unfinishedCount(a));
   element("mission-list").innerHTML = missions.map((mission, index) => {
     const open = expanded.has(`body-${mission.id}`);
     const destination = ACTION_DESTINATIONS[mission.id];
     const status=state(mission);
-    const figuresOpen=expandedFigures.has(`figures-${mission.id}`);
     const signal = missionSignal(mission, events, signalBoundary(mission.id));
     const severity = signal.severity;
     const recommendation = missionRecommendation(mission, events, signalBoundary(mission.id));
@@ -250,74 +271,63 @@ function renderMissions(events: CheckoutEvent[]) {
     const actual = recorded?.actions.find(item=>item.id===mission.id);
     const basketCents = estimate?.atRiskCents;
     const hasAmount = !!estimate && (!recorded || !!actual?.matchedSessions || !estimate.eligibleSessions);
-    const mechanism=mission.id==='discount'?'expectation':mission.id==='validation'?'friction':mission.id==='unfinished'?'unconfirmed':'functional';
     const dates=dateBounds(selectedRange),aggregate=latestEvidence?.inventoryItemValue;
     const inventory=aggregate&&aggregate.rangeStart===dates.start&&aggregate.rangeEnd===dates.end?aggregate:inventoryValue(events,mission.sessionIds,storeCurrency,(latestEvidence?.shopifySnapshot?.orders??[]).flatMap(o=>o.sessionId&&o.conversion?[{sessionId:o.sessionId,shop:{minor:o.conversion.shopMinor,currency:storeCurrency},buyer:{minor:o.conversion.buyerMinor,currency:o.conversion.buyerCurrency}}]:[]));
-    const recovery=estimateRecovery({mechanism,confirmedCause:false,basketCents:basketCents??0,pricedBaskets:actual?.matchedSessions??0,testData:true});
-    const recoveryCase=RECOVERY_CASES.find(item=>item.id===({payment:'payment-blocked',validation:'form-validation',unfinished:'ordinary-unfinished',delivery:'shipping-unavailable',discount:'discount-rejected',inventory:'inventory'}[mission.id]));
     const percent = summary.sessionCount ? Math.round(mission.count / summary.sessionCount * 100) : 0;
+    const brief = `${mission.count}/${summary.sessionCount} checkouts impacted${signal.latestAlert!==null?` · Last observed ${time(signal.latestAlert)}`:""}`;
     return `${status.done&&(index===0||!state(missions[index-1]).done)?'<s-divider></s-divider><s-heading>Marked as done</s-heading>':''}<s-section id="mission-${mission.id}">
       <s-stack gap="base">
-        <s-query-container><s-grid gridTemplateColumns="@container (inline-size > 600px) 1fr auto, 1fr" gap="base" alignItems="start">
+        <s-query-container><s-grid gridTemplateColumns="@container (inline-size > 600px) 1fr auto, 1fr" gap="small" alignItems="center">
           <s-stack gap="small">
             <s-stack direction="inline" gap="small" alignItems="center"><s-heading>${escape(mission.title)}</s-heading><s-badge id="mission-badge-${mission.id}" tone="${severity.tone}" size="base" color="base">${severity.label}</s-badge></s-stack>
-            ${signal.latestAlert!==null?`<s-text color="subdued">${signal.period==='recorded'?'Recorded alerts':`${signal.period==='after'?'After':'Before'} ${appliedFixes.find(f=>f.missionId===mission.id)?.retestedAt!==undefined?'retest':'fix'}`} · Last alert ${escape(time(signal.latestAlert))}${signal.period==='before'?` · None recorded since ${appliedFixes.find(f=>f.missionId===mission.id)?.retestedAt!==undefined?'retest':'fix'}`:''}</s-text>`:''}
-            ${mission.id==='delivery'?`<s-text color="subdued">${shippingBlockers} confirmed shipping blocker${shippingBlockers===1?'':'s'} · ${mission.count-shippingBlockers} checkouts with general shipping alerts</s-text>`:''}
+            <s-text color="subdued" data-recommendation-summary>${escape(brief)}</s-text>
           </s-stack>
-          <s-stack direction="inline" gap="base" alignItems="center">${renderDone(mission)}<s-button variant="secondary" data-toggle-action="${mission.id}" aria-expanded="${open}" aria-controls="metrics-${mission.id} body-${mission.id}" accessibilityLabel="${open ? "Hide" : "Show"} details: ${mission.title}">${open ? "Hide details" : "Show details"}</s-button></s-stack>
+          <s-stack direction="inline" gap="large-200" alignItems="center">
+            <s-stack gap="small" data-action-value><s-text color="subdued">${mission.id==="inventory"?"Item value before alert":"Affected basket value"}</s-text><s-number fontSize="large-100" fontWeight="bold" id="risk-${mission.id}">${mission.id==="inventory"?(inventory.totalMinor===null?"Not recorded":money(inventory.totalMinor)):hasAmount ? money(basketCents!) : "Not recorded"}</s-number></s-stack>
+            <s-stack gap="small" alignItems="start" data-action-metric><s-text color="subdued">Affected checkouts</s-text><s-number fontSize="large-100" fontWeight="bold">${percent}%</s-number></s-stack>
+            <s-button id="toggle-${mission.id}" variant="secondary" data-toggle-action="${mission.id}" aria-expanded="${open}" aria-controls="metrics-${mission.id} body-${mission.id}" accessibilityLabel="${open ? "Hide" : "Show"} details: ${escape(mission.title)}">${open ? "Hide details" : "Show details"}</s-button>
+          </s-stack>
         </s-grid></s-query-container>
         ${status.returned?`<s-text tone="caution">${status.returned} checkout${status.returned===1?'':'s'} with new alerts since your last check. Review again.</s-text>`:''}
-        <s-stack id="metrics-${mission.id}" data-done-summary="${status.done}" gap="base" ${status.done&&!open?'hidden':''}><s-divider></s-divider>
-        <s-query-container><s-grid gridTemplateColumns="@container (inline-size > 600px) 1fr 1fr 1fr, 1fr" gap="base">
-          <s-stack gap="small"><s-text color="subdued">Affected checkouts</s-text><s-number fontSize="large-100" fontWeight="bold">${percent}%</s-number><s-text color="subdued">${mission.count} of ${summary.sessionCount} checkouts</s-text></s-stack>
-          <s-stack gap="small"><s-text color="subdued">${mission.id==="inventory"?"Item value before alert":"Recorded basket value"}</s-text><s-number fontSize="large-100" fontWeight="bold" id="risk-${mission.id}">${mission.id==="inventory"?(inventory.totalMinor===null?"Not recorded":money(inventory.totalMinor)):hasAmount ? money(basketCents!) : "Not recorded"}</s-number><s-text color="subdued">${mission.id==="inventory"?`${inventory.priced} checkout${inventory.priced===1?"":"s"} valued before the alert · ${inventory.missing} without a matched price or conversion`:recorded ? `Basket value available for ${actual?.matchedSessions ?? 0} of ${actual?.eligibleSessions ?? 0} unfinished checkouts` : `${unfinishedCount(mission)} matching checkouts without completion`}</s-text></s-stack>
-          <s-stack gap="small"><s-text color="subdued">Estimated recovery</s-text><s-number fontSize="large-100" fontWeight="bold" id="recovery-${mission.id}">${recovery.cents===null?"Not estimated yet":money(recovery.cents)}</s-number></s-stack>
-        </s-grid></s-query-container>
-        ${appliedFixes.some(f=>f.missionId===mission.id)?renderFix(mission):''}</s-stack>
+        <s-stack id="metrics-${mission.id}" gap="base" ${open?'':'hidden'}>${appliedFixes.some(f=>f.missionId===mission.id)?`<s-divider></s-divider>${renderFix(mission)}`:''}</s-stack>
         <s-stack id="body-${mission.id}" data-action-body gap="base" ${open ? "" : "hidden"}>
           <s-divider></s-divider>
+          ${mission.id==='delivery'&&mission.count>shippingBlockers?`<s-text color="subdued">${shippingBlockers} confirmed shipping blocker${shippingBlockers===1?'':'s'} · ${mission.count-shippingBlockers} checkouts with general shipping alerts</s-text>`:''}
           <s-banner tone="${severity.label==='Critical'?'critical':severity.label==='Warning'?'warning':'info'}"><s-paragraph>${escape(severity.reason)}</s-paragraph></s-banner>
-          <s-query-container><s-grid gridTemplateColumns="@container (inline-size > 700px) 1fr 1fr, 1fr" gap="base" alignItems="stretch">
-            <s-box background="subdued" borderRadius="large" padding="base"><s-stack gap="small" data-explanation="why"><s-heading>What we know</s-heading><s-paragraph>${escape(mission.description)}</s-paragraph></s-stack></s-box>
-            <s-box background="subdued" borderRadius="large" padding="base"><s-stack gap="small" data-explanation="next"><s-heading>What to do</s-heading><s-paragraph>${escape(recommendation)}</s-paragraph><s-divider></s-divider><s-text type="strong">Check the fix</s-text><s-paragraph>${escape(ACTION_CHECKS[mission.id])}</s-paragraph>${destination?`<s-button variant="secondary" href="https://admin.shopify.com/store/${STORE.replace(".myshopify.com", "")}/${destination.path}" target="_blank" accessibilityLabel="${destination.label} (opens in a new tab)">${destination.label}</s-button>`:""}</s-stack></s-box>
+          <s-query-container><s-grid gridTemplateColumns="1fr" gap="base" alignItems="stretch">
+            <s-box background="subdued" borderRadius="large" padding="base"><s-stack gap="small" data-explanation="next"><s-heading>What to do</s-heading><s-paragraph>${escape(recommendation)}</s-paragraph>${mission.id==='payment'?`<s-unordered-list><s-list-item><s-text type="strong">Card declined: </s-text>Check whether another payment method is available. A decline does not prove checkout is broken.</s-list-item><s-list-item><s-text type="strong">Provider or setup fault: </s-text>Correct the confirmed fault or contact the provider, then retest.</s-list-item></s-unordered-list>`:''}<s-divider></s-divider><s-text type="strong">Check the fix</s-text><s-paragraph>${escape(ACTION_CHECKS[mission.id])}</s-paragraph>${destination?`<s-button variant="secondary" href="https://admin.shopify.com/store/${STORE.replace(".myshopify.com", "")}/${destination.path}" target="_blank" accessibilityLabel="${destination.label} (opens in a new tab)">${destination.label}</s-button>`:""}</s-stack></s-box>
           </s-grid></s-query-container>
-          <s-stack direction="inline" gap="base">
+          <s-stack direction="inline" justifyContent="space-between" alignItems="center" gap="base">
             <s-button variant="primary" data-mission="${mission.id}" ${mission.count ? "" : "disabled"}>View ${mission.count} affected checkout${mission.count===1?"":"s"}</s-button>
-            <s-button variant="tertiary" data-start="${mission.id}" ${mission.count ? "" : "disabled"}>Investigation checklist</s-button>
-            <s-button variant="tertiary" data-toggle-figures="${mission.id}" aria-expanded="${figuresOpen}" aria-controls="figures-${mission.id}">${figuresOpen?'Hide figure details':'About these figures'}</s-button>
+            ${renderDone(mission)}
           </s-stack>
-          <s-stack id="figures-${mission.id}" data-figure-details gap="small" ${figuresOpen?'':'hidden'}>
-          <s-paragraph color="subdued">${mission.id==="inventory"?"Uses observed item prices before removal, after line discounts and excluding shipping and tax. Foreign-currency values require a Shopify conversion for the same checkout. ":recorded ? "Includes only unfinished checkouts with a recorded basket value. " : estimate ? `${estimate.eligibleSessions} unfinished checkouts × ${money(impact!.aovCents)} modeled order value. ` : ""}The same checkout may appear in several actions; do not add their values.</s-paragraph>
-          ${recovery.cents===null?`<s-paragraph color="subdued">${escape(recovery.reason)}.</s-paragraph>`:''}
-          <s-paragraph color="subdued"><s-text type="strong">How recovery is estimated: </s-text>${escape(recoveryCase?.estimate??'Confirm a specific issue before estimating recovery.')}</s-paragraph>
-          </s-stack>
-          <s-stack id="steps-${mission.id}" gap="base" hidden>
-            <s-divider></s-divider><s-heading>Action checklist</s-heading><s-text id="mission-progress-${mission.id}" color="subdued">0 / 3 steps</s-text>
-            ${mission.steps.map(step => `<s-checkbox id="${step.id}" data-step="${step.id}" label="${escape(step.label)}" disabled></s-checkbox>`).join("")}
-            <s-paragraph color="subdued">Saved for this browser. Checking a task does not change Shopify or verify savings.</s-paragraph>
-          </s-stack>
+
         </s-stack>
       </s-stack>
     </s-section>`;
-  }).join("") || `<s-section><s-paragraph>No checkout alerts in these dates.</s-paragraph></s-section>`;
+  }).join("") || `<s-section><s-paragraph>No issues meet the alert rules for these dates.</s-paragraph></s-section>`;
   renderProgress();
 }
 function applyMissionFilter() {
-  const mission = missions.find(item => item.id === selectedMission);
+  const mission = missions.find(item => item.id === selectedMission)??(latestEvidence?buildMissions(filteredEvidence(latestEvidence).events).find(item=>item.id===selectedMission):undefined);
   element("mission-filter").hidden = !mission;
   if (mission) text("mission-filter-label", `${mission.title}: ${mission.count} matching checkout${mission.count===1?"":"s"}`);
   const query = (element('journey-search') as HTMLElementTagNameMap['s-search-field']).value.trim().toLowerCase();
   const status = (element('journey-status-filter') as HTMLElementTagNameMap['s-select']).value;
   const alert = (element('journey-alert-filter') as HTMLElementTagNameMap['s-select']).value;
-  const hasFilters = !!mission || !!query || status !== 'all' || alert !== 'all';
+  const hasFilters = !!mission || !!query || status !== 'all' || alert !== 'all' || !!selectedQuickIssue;
   element('clear-journey-filters').hidden = !hasFilters;
   const sort = (element('journey-sort') as HTMLElementTagNameMap['s-select']).value;
   const filtered = sortJourneys(journeyRows.filter(row =>
     (!mission || mission.sessionIds.includes(row.id)) &&
     (!query || row.id.toLowerCase().includes(query) || row.label.toLowerCase().includes(query)) &&
     (status === 'all' || (status === 'completed' ? row.completed : !row.completed)) &&
+    (!selectedQuickIssue || row.shippingBlocker) &&
     (alert === 'all' || (alert === 'any' ? row.categories.length > 0 : alert === 'none' ? row.categories.length === 0 : row.categories.includes(alert)))
   ), sort);
+  filteredJourneyRows=filtered;
+  renderQuickFilters();
+  for(const id of ['export-checkouts','export-events'])(element(id) as HTMLElementTagNameMap['s-button']).disabled=!filtered.length||loading;
   const pages = Math.max(1, Math.ceil(filtered.length / JOURNEYS_PER_PAGE));
   journeyPage = Math.min(journeyPage, pages - 1);
   const start = journeyPage * JOURNEYS_PER_PAGE;
@@ -330,8 +340,45 @@ function applyMissionFilter() {
   text('journey-empty', hasFilters ? 'No checkouts match your search and filters. Clear filters or try another search.' : 'No checkouts in these dates. Choose another date range.');
   text('journey-page-status', filtered.length ? `${start + 1}–${Math.min(start + JOURNEYS_PER_PAGE, filtered.length)} of ${filtered.length} · Page ${journeyPage + 1}/${pages}` : '0 checkouts');
 }
+function renderQuickFilters(){
+ const query=(element('journey-search') as HTMLElementTagNameMap['s-search-field']).value.trim().toLowerCase();
+ const status=(element('journey-status-filter') as HTMLElementTagNameMap['s-select']).value;
+ const alert=(element('journey-alert-filter') as HTMLElementTagNameMap['s-select']).value;
+ const base=journeyRows.filter(row=>(!query||row.id.toLowerCase().includes(query)||row.label.toLowerCase().includes(query))&&(status==='all'||(status==='completed'?row.completed:!row.completed)));
+ const choices=[{id:'all',label:'All',count:base.length},...Object.keys(categoryLabels).map(id=>({id,label:issueLabels[id],count:base.filter(row=>row.categories.includes(id)).length})),{id:'shipping_blocker',label:'Shipping unavailable',count:base.filter(row=>row.shippingBlocker).length}].filter(c=>c.id==='all'||c.count);
+ element('quick-issue-filters').innerHTML=choices.map(c=>{
+  const selected=!selectedMission&&(selectedQuickIssue?c.id===selectedQuickIssue:c.id===alert);
+  return `<s-button variant="${selected?'primary':'secondary'}" data-quick-issue="${c.id}" aria-pressed="${selected}">${escape(c.label)} · ${c.count}</s-button>`;
+ }).join('');
+}
+function viewCategory(category:string){
+ resetJourneyFilters();
+ if(category==='shipping_blocker')selectedQuickIssue=category;
+ else (element('journey-alert-filter') as HTMLElementTagNameMap['s-select']).value=category;
+ applyMissionFilter();showView('journeys',true);
+}
+element('quick-issue-filters').addEventListener('click',event=>{
+ const button=(event.target as HTMLElement).closest<HTMLElement>('s-button[data-quick-issue]');if(!button)return;
+ selectedMission=null;selectedQuickIssue=button.dataset.quickIssue==='shipping_blocker'?'shipping_blocker':null;
+ (element('journey-alert-filter') as HTMLElementTagNameMap['s-select']).value=selectedQuickIssue?'all':button.dataset.quickIssue!;
+ journeyPage=0;applyMissionFilter();
+});
+element('error-summary').addEventListener('click',event=>{const button=(event.target as HTMLElement).closest<HTMLElement>('[data-diagnostic]');if(button)viewCategory(button.dataset.diagnostic!);});
+function openMission(id:MissionId){resetJourneyFilters();selectedMission=id;applyMissionFilter();showView('journeys',true);}
+element('priority-issues').addEventListener('click',event=>{const button=(event.target as HTMLElement).closest<HTMLElement>('[data-top-mission]');if(button)openMission(button.dataset.topMission as MissionId);});
+element('fix-history-content').addEventListener('click',event=>{const button=(event.target as HTMLElement).closest<HTMLElement>('[data-history-mission]');if(button)openMission(button.dataset.historyMission as MissionId);});
+function exportFiltered(events:boolean){
+ if(!filteredJourneyRows.length)return;
+ const content=events?checkoutEventsCSV(filteredJourneyRows):checkoutCSV(filteredJourneyRows,storeCurrency);
+ const url=URL.createObjectURL(new Blob([content],{type:'text/csv;charset=utf-8'})),link=document.createElement('a');
+ link.href=url;link.download=`jimmys-bakery-${events?'events':'checkouts'}-${selectedRange}.csv`;link.click();
+ window.setTimeout(()=>URL.revokeObjectURL(url),1000);
+ text('export-status',`Exported ${filteredJourneyRows.length} filtered checkout${filteredJourneyRows.length===1?'':'s'}${events?' with their recorded events':''}.`);
+}
+element('export-checkouts').addEventListener('click',()=>exportFiltered(false));
+element('export-events').addEventListener('click',()=>exportFiltered(true));
 function resetJourneyFilters() {
-  selectedMission = null;
+  selectedMission = null;selectedQuickIssue=null;
   (element('journey-search') as HTMLElementTagNameMap['s-search-field']).value = '';
   (element('journey-status-filter') as HTMLElementTagNameMap['s-select']).value = 'all';
   (element('journey-alert-filter') as HTMLElementTagNameMap['s-select']).value = 'all';
@@ -339,15 +386,11 @@ function resetJourneyFilters() {
 }
 for (const id of ['clear-mission-filter','clear-journey-filters']) element(id).addEventListener('click', () => {resetJourneyFilters(); applyMissionFilter();});
 element('journey-search').addEventListener('input', () => {journeyPage = 0; applyMissionFilter();});
-for (const id of ['journey-status-filter','journey-alert-filter','journey-sort']) element(id).addEventListener('change', () => {journeyPage = 0; applyMissionFilter();});
+for (const id of ['journey-status-filter','journey-alert-filter','journey-sort']) element(id).addEventListener('change', () => {if(id==='journey-alert-filter')selectedQuickIssue=null;journeyPage = 0; applyMissionFilter();});
 element("mission-list").addEventListener("click", event => {
   const target = (event.target as HTMLElement).closest<HTMLElement>("s-button[data-mission]");
-  const start = (event.target as HTMLElement).closest<HTMLElement>("s-button[data-start]");
   const toggle = (event.target as HTMLElement).closest<HTMLElement>("s-button[data-toggle-action]");
-  const figures = (event.target as HTMLElement).closest<HTMLElement>('s-button[data-toggle-figures]');
-  if(figures){togglePanel(figures,`figures-${figures.dataset.toggleFigures}`);figures.textContent=element(`figures-${figures.dataset.toggleFigures}`).hidden?'About these figures':'Hide figure details';return;}
-  if (toggle) { togglePanel(toggle, `body-${toggle.dataset.toggleAction}`); const metrics=element(`metrics-${toggle.dataset.toggleAction}`);if(metrics.dataset.doneSummary==='true')metrics.hidden=element(`body-${toggle.dataset.toggleAction}`).hidden; toggle.setAttribute("accessibilityLabel", `${element(`body-${toggle.dataset.toggleAction}`).hidden ? "Show" : "Hide"} details: ${missions.find(item=>item.id===toggle.dataset.toggleAction)!.title}`); return; }
-  if (start) { const steps = element(`steps-${start.dataset.start}`); steps.hidden = false; steps.querySelector<HTMLElement>("s-checkbox")?.focus(); return; }
+  if (toggle) { togglePanel(toggle, `body-${toggle.dataset.toggleAction}`); const metrics=element(`metrics-${toggle.dataset.toggleAction}`);metrics.hidden=element(`body-${toggle.dataset.toggleAction}`).hidden; toggle.setAttribute("accessibilityLabel", `${element(`body-${toggle.dataset.toggleAction}`).hidden ? "Show" : "Hide"} details: ${missions.find(item=>item.id===toggle.dataset.toggleAction)!.title}`); return; }
   if (!target) return;
   resetJourneyFilters();
   selectedMission = target.dataset.mission as MissionId;
@@ -380,6 +423,51 @@ element('recovery-library-button').addEventListener('click',()=>{
 });
 element('recovery-library').innerHTML=RECOVERY_CASES.map(item=>`<s-section><s-stack gap="small"><s-heading>${escape(item.title)}</s-heading><s-badge tone="neutral">${item.mechanism==='functional'?'Possible buying blocker':item.mechanism==='expectation'?'Customer expectations':item.mechanism==='friction'?'Checkout friction':'Cause unconfirmed'}</s-badge><s-paragraph>${escape(item.psychology)}</s-paragraph><s-paragraph><s-text type="strong">Evidence: </s-text>${escape(item.signal)}</s-paragraph><s-paragraph><s-text type="strong">Next action: </s-text>${escape(item.action)}</s-paragraph><s-paragraph color="subdued"><s-text type="strong">Estimated recovery: </s-text>${escape(item.estimate)}</s-paragraph></s-stack></s-section>`).join('');
 element("retry-progress").addEventListener("click", () => { void loadProgress(); });
+let alertSource:EvidenceResponse|null=null,checkingAlerts=false;
+let alertPreferences={shipping:true,spikes:true},dismissedAlertKeys:string[]=[],alertStorageAvailable=true;
+try{
+ const saved=JSON.parse(localStorage.getItem('checkout-alert-preferences')??'{}');
+ alertPreferences={shipping:saved.shipping!==false,spikes:saved.spikes!==false};
+ const dismissed=JSON.parse(localStorage.getItem('checkout-dismissed-alerts')??'[]');
+ dismissedAlertKeys=Array.isArray(dismissed)?dismissed.filter((key:unknown)=>typeof key==='string').slice(-48):[];
+}catch{alertStorageAvailable=false;}
+(element('shipping-alerts-enabled') as HTMLElementTagNameMap['s-checkbox']).checked=alertPreferences.shipping;
+(element('spike-alerts-enabled') as HTMLElementTagNameMap['s-checkbox']).checked=alertPreferences.spikes;
+(element('check-alerts') as HTMLElementTagNameMap['s-button']).disabled=!alertPreferences.shipping&&!alertPreferences.spikes;
+function renderFocusedAlerts(data:EvidenceResponse){
+ alertSource=data;
+ const boundaries=Object.fromEntries(appliedFixes.map(f=>[f.missionId,f.retestedAt??f.appliedAt]));
+ const list=focusedAlerts(data.events,Date.now(),data.truncated,boundaries).filter(a=>!dismissedAlertKeys.includes(a.key)&&(a.category==='shipping_blocker'?alertPreferences.shipping:alertPreferences.spikes));
+ element('focused-alert-list').innerHTML=!alertPreferences.shipping&&!alertPreferences.spikes?'<s-paragraph>Alerts are paused. Enable an alert type to resume checks.</s-paragraph>':alertsMarkup(list);
+ text('alerts-tab',list.length?`Alerts (${list.length})`:'Alerts');
+ text('alerts-checked-at',`Last checked ${time(data.sampledAt)}`);
+ if(!alertStorageAvailable)text('alert-preference-note','Preferences and dismissals last for this session; browser storage is unavailable.');
+}
+async function checkFocusedAlerts(){
+ if(checkingAlerts||loading||openOverlays.size>0||!latestEvidence||!alertPreferences.shipping&&!alertPreferences.spikes)return;
+ checkingAlerts=true;(element('check-alerts') as HTMLElementTagNameMap['s-button']).loading=true;
+ try{
+  const response=embeddedShopify?await shopifyRequest('evidence'):await fetch(`${backendOrigin}/api/test-evidence?start=${dateBounds(selectedRange).start}&end=${dateBounds(selectedRange).end}`,{cache:'no-store',signal:AbortSignal.timeout(15000)});
+  if(!response.ok)throw Error();const data:EvidenceResponse=await response.json();if(data.store!==STORE||!Array.isArray(data.events))throw Error();
+  renderFocusedAlerts(data);element('alerts-error').hidden=true;
+ }catch{element('alerts-error').hidden=false;}
+ finally{checkingAlerts=false;(element('check-alerts') as HTMLElementTagNameMap['s-button']).loading=false;}
+}
+for(const id of ['shipping-alerts-enabled','spike-alerts-enabled'])element(id).addEventListener('change',()=>{
+ alertPreferences={shipping:(element('shipping-alerts-enabled') as HTMLElementTagNameMap['s-checkbox']).checked,spikes:(element('spike-alerts-enabled') as HTMLElementTagNameMap['s-checkbox']).checked};
+ try{localStorage.setItem('checkout-alert-preferences',JSON.stringify(alertPreferences));}catch{alertStorageAvailable=false;}
+ if(alertSource)renderFocusedAlerts(alertSource);
+ (element('check-alerts') as HTMLElementTagNameMap['s-button']).disabled=!alertPreferences.shipping&&!alertPreferences.spikes;
+});
+element('focused-alert-list').addEventListener('click',async event=>{
+ const dismiss=(event.target as HTMLElement).closest<HTMLElement>('[data-dismiss-alert]');
+ if(dismiss){dismissedAlertKeys=[...new Set([...dismissedAlertKeys,dismiss.dataset.dismissAlert!])].slice(-48);try{localStorage.setItem('checkout-dismissed-alerts',JSON.stringify(dismissedAlertKeys));}catch{alertStorageAvailable=false;}if(alertSource)renderFocusedAlerts(alertSource);return;}
+ const button=(event.target as HTMLElement).closest<HTMLElement>('[data-alert-category]');
+ if(button){await loadEvidence(true);viewCategory(button.dataset.alertCategory!);}
+});
+element('check-alerts').addEventListener('click',()=>void checkFocusedAlerts());
+element('refresh-dashboard').addEventListener('click',()=>void loadEvidence());
+window.setInterval(()=>{if(document.visibilityState==='visible')void checkFocusedAlerts();},60000);
 element("mission-list").addEventListener("change", async event => {
   const input = event.target as HTMLElementTagNameMap["s-checkbox"];
   if (!input.dataset.step || !viewerId || savingProgress || !progressLoaded) return;
@@ -397,7 +485,26 @@ element("mission-list").addEventListener("change", async event => {
     text("progress-status", "Step was not saved.");
   } finally { savingProgress = false; renderProgress(); }
 });
+function renderOrderPattern(data:EvidenceResponse){
+  const snapshot=latestEvidence?.shopifySnapshot??data.shopifySnapshot;
+  const pattern=snapshot?orderPattern(snapshot.orders,snapshot.periodStart,snapshot.syncedAt,snapshot.timeZone??'UTC'):data.orderPatterns;
+  element('order-chart-content').hidden=!pattern;
+  element('order-chart-empty').hidden=!!pattern;
+  if(!pattern)return;
+  element('order-chart-viz').setAttribute('aria-label',`Hourly paid orders on ${pattern.day} compared with ${pattern.baselineDays} matching weekdays from the previous 30 days, in ${pattern.timeZone}`);
+  element('order-chart-error').hidden=true;
+  void import('./orderChart').then(({renderOrderChart})=>renderOrderChart(element('order-chart-viz'),pattern)).catch(()=>{
+    text('order-chart-error','The chart could not load. Reload the page to try again.');element('order-chart-error').hidden=false;
+  });
+}
 function render(data: EvidenceResponse) {
+  renderOrderPattern(data);
+  const updated=data.shopifySnapshot?.syncedAt??data.abandonedBasketSummary?.syncedAt??data.sampledAt;
+  text('store-meta',`Store: ${data.store.replace('.myshopify.com','')} · Updated ${time(updated)}`);
+  element('period-comparison').innerHTML=comparisonMarkup(latestEvidence?.events??data.events,selectedRange,data.truncated);
+  element('error-summary').innerHTML=diagnosticsMarkup(data.events);
+  element('fix-history-content').innerHTML=historyMarkup(fixHistory,latestEvidence?.events??data.events,fixesReady);
+  renderFocusedAlerts(latestEvidence??data);
   // Match the selected journey against the full synced records, even when its
   // order/contact date falls outside the journey start-date filter.
   const nativeSnapshot=latestEvidence?.shopifySnapshot??data.shopifySnapshot;
@@ -482,11 +589,13 @@ function render(data: EvidenceResponse) {
       <s-table-cell>${orderHref ? `<s-link href="${escape(orderHref)}" target="_top" accessibilityLabel="Open ${escape(label)} in Shopify">${escape(label)}</s-link>` : `<s-text type="strong">${escape(label)}</s-text>`}</s-table-cell>
       <s-table-cell>${escape(journeyDate(session.events[0].timestamp))}</s-table-cell>
       <s-table-cell><s-badge tone="${session.completed ? "success" : "neutral"}">${status}</s-badge></s-table-cell>
+      <s-table-cell>${escape(lastObservedStep(session.events))}</s-table-cell>
       <s-table-cell><s-stack direction="inline" gap="small" alignItems="center">${detail.categories.length ? detail.categories.map(category => `<s-badge tone="${category === "validation" ? "caution" : "neutral"}">${escape(categoryLabels[category])}</s-badge>`).join("") : '<s-text color="subdued">No errors recorded</s-text>'}</s-stack></s-table-cell>
       <s-table-cell>${basketCents===undefined ? "Unknown" : escape(money(basketCents))}</s-table-cell>
       <s-table-cell><s-button variant="secondary" data-journey="${escape(session.id)}" accessibilityLabel="Show details: ${escape(label)}">Show details</s-button></s-table-cell>
     </s-table-row>`;
-    const timeline = `          <s-stack direction="inline" justifyContent="space-between" gap="small"><s-heading>Recorded events</s-heading><s-text color="subdued">${journeyDuration(session.events)} · ${session.events.length} ${session.events.length === 1 ? "event" : "events"} · ${alerts.length} alert${alerts.length === 1 ? "" : "s"}</s-text></s-stack>
+    const timing=`<s-stack gap="small"><s-heading>Time between checkout steps</s-heading><s-query-container><s-grid gridTemplateColumns="@container (inline-size > 600px) 1fr 1fr 1fr, 1fr" gap="small">${stepTimings(session.events).map(t=>`<s-stack gap="small"><s-text type="strong">${t.step}</s-text><s-text>${durationText(t.seconds)}</s-text><s-text color="subdued">${t.note}</s-text></s-stack>`).join('')}</s-grid></s-query-container><s-text color="subdued">Intervals between recorded events; they do not measure time spent typing in a field.</s-text></s-stack><s-divider></s-divider>`;
+    const timeline = timing+`          <s-stack direction="inline" justifyContent="space-between" gap="small"><s-heading>Recorded events</s-heading><s-text color="subdued">${journeyDuration(session.events)} · ${session.events.length} ${session.events.length === 1 ? "event" : "events"} · ${alerts.length} alert${alerts.length === 1 ? "" : "s"}</s-text></s-stack>
           <s-stack gap="none" accessibilityRole="ordered-list" accessibilityLabel="Recorded checkout events, oldest first">
             ${session.events.map((event, eventIndex) => `<s-grid gridTemplateColumns="24px 1fr auto" gap="base" accessibilityRole="list-item">
               <s-box data-timeline-marker="${event.name === "checkout_completed" ? "completed" : "neutral"}" data-first="${eventIndex === 0}" data-last="${eventIndex === session.events.length - 1}" accessibilityVisibility="hidden"></s-box>
@@ -499,9 +608,10 @@ function render(data: EvidenceResponse) {
               </s-box>
             </s-grid>`).join("")}
           </s-stack>`;
-    return {startedAt:session.events[0].timestamp,basketCents,id:session.id,label,completed:session.completed,categories:detail.categories,row,timeline};
+    return {events:session.events,shippingBlocker:session.events.some(e=>e.shippingBlocker==='no_shipping_available'),startedAt:session.events[0].timestamp,basketCents,id:session.id,label,completed:session.completed,categories:detail.categories,row,timeline};
   });
   renderMissions(data.events);
+  element('priority-issues').innerHTML=priorityMarkup(missions,appliedFixes,latestEvidence?.events??data.events);
   applyMissionFilter();
 }
 
@@ -521,7 +631,7 @@ async function shopifyRequest(path:string,method='GET') {
   return response;
 }
 if(embeddedShopify){
-  for(const name of ['overview','journeys']){
+  for(const name of dashboardViews){
     const button=element(`${name}-tab`);button.setAttribute('variant','secondary');button.setAttribute('slot','secondary-actions');
     document.querySelector('s-page')!.append(button);
   }
@@ -535,15 +645,14 @@ if(embeddedShopify){
   });
 }
 let loading = false;
-async function loadEvidence() {
-  if (loading) return;
+async function loadEvidence(background=false) {
+  if (loading||background&&openOverlays.size>0) return;
   loading = true;
-  setLoadingControls(true);
-  element("request-error").hidden = true;
-  text("request-status", "Loading checkouts…");
-  element('request-status').hidden=false;
+  if(!background)setLoadingControls(true);
+  if(!background)element("request-error").hidden = true;
+  if(!background){text("request-status", "Loading checkouts…");element('request-status').hidden=false;}
   try {
-    if(embeddedShopify){
+    if(embeddedShopify&&!background){
       await shopifyRequest('sync','POST');
       text('shopify-status','Connected to build-sprint-demo · Read-only Shopify data');
     }
@@ -563,6 +672,7 @@ async function loadEvidence() {
       }
     }
   } catch {
+    if(background)return;
     element("request-error").hidden = false;
     element("request-error").innerHTML='<s-paragraph>Check your connection and try again. Previous results have not been updated.</s-paragraph><s-button data-retry-evidence variant="secondary">Try again</s-button>';
     text("request-status", "Evidence could not be refreshed.");
@@ -571,6 +681,9 @@ async function loadEvidence() {
   }
 }
 function setLoadingControls(busy:boolean){
+  (element('refresh-dashboard') as HTMLElementTagNameMap['s-button']).disabled=busy||fixSaving;
+  (element('refresh-dashboard') as HTMLElementTagNameMap['s-button']).loading=busy;
+  for(const id of ['export-checkouts','export-events'])(element(id) as HTMLElementTagNameMap['s-button']).disabled=busy||!filteredJourneyRows.length;
   (element('apply-date-range') as HTMLElementTagNameMap['s-button']).disabled=busy||fixSaving;
   element('mission-list').querySelectorAll<HTMLElementTagNameMap['s-button']>('s-button[data-fix-refresh]').forEach(button=>{button.disabled=busy||fixSaving;button.loading=busy;});
   element('mission-list').querySelectorAll<HTMLElementTagNameMap['s-button']>('s-button[data-fix]').forEach(button=>{button.disabled=busy||fixSaving||!fixesReady;});
@@ -611,3 +724,9 @@ element('apply-date-range').addEventListener('click',event=>{
 },{capture:true});
 void loadProgress();
 void loadEvidence();
+
+// The backend sync runs even when the merchant closes the app. This read-only
+// refresh updates an open overview without starting another Shopify sync.
+window.setInterval(()=>{
+ if(document.visibilityState==='visible'&&!fixSaving&&!element('overview').hidden)void loadEvidence(true);
+},60000);

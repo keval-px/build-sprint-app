@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="light" />
-    <title>Checkout Health</title>
+    <title>Jimmy’s Bakery · Checkout Health</title>
     <script src="https://cdn.shopify.com/shopifycloud/polaris-2.0-rc.js"></script>
   </head>
   <body>
@@ -21,10 +21,12 @@
       </s-popover>
       <s-stack gap="base" paddingBlockStart="large">
         <s-query-container><s-grid gridTemplateColumns="@container (inline-size > 600px) 1fr auto, 1fr" gap="base" alignItems="center">
-          <s-heading id="page-title" fontSize="large-200">Checkout Health</s-heading>
+          <s-stack gap="small"><s-heading id="page-title" fontSize="large-200">Jimmy’s Bakery</s-heading><s-text id="store-meta" color="subdued">Store: build-sprint-demo · Loading data…</s-text></s-stack>
           <s-stack id="view-navigation" direction="inline" gap="small" accessibilityRole="navigation" accessibilityLabel="Checkout views">
             <s-button id="overview-tab" variant="primary" aria-pressed="true">Overview</s-button>
             <s-button id="journeys-tab" variant="secondary" aria-pressed="false">Checkout drill-down</s-button>
+            <s-button id="history-tab" variant="secondary" aria-pressed="false">Fix history</s-button>
+            <s-button id="alerts-tab" variant="secondary" aria-pressed="false">Alerts</s-button>
           </s-stack>
         </s-grid></s-query-container>
         <s-divider id="page-header-divider"></s-divider>
@@ -34,27 +36,38 @@
           <s-stack gap="base">
           <s-stack direction="inline" justifyContent="space-between" alignItems="center" gap="base">
             <s-heading>Checkout activity</s-heading>
-            <s-button id="date-range-button" variant="secondary" icon="calendar" commandFor="date-range-popover">Last 30 days</s-button>
+            <s-stack direction="inline" gap="small"><s-button id="refresh-dashboard" variant="secondary" icon="refresh">Refresh</s-button><s-button id="date-range-button" variant="secondary" icon="calendar" commandFor="date-range-popover">Last 30 days</s-button></s-stack>
           </s-stack>
-          <s-section>
-            <s-stack gap="base">
-              <s-heading id="summary-title">Checking test collection</s-heading>
-              <s-stack gap="small" id="completion-summary" hidden>
-                <s-stack direction="inline" justifyContent="space-between" gap="base"><s-text>Checkout completion</s-text><s-text id="completion-label"></s-text></s-stack>
-                <s-progress id="completion-progress" value="0" max="1" accessibilityLabel="Checkout completion"></s-progress>
-              </s-stack>
-              <s-paragraph id="summary-description" hidden></s-paragraph>
-              <s-query-container>
-                <s-grid gridTemplateColumns="@container (inline-size > 600px) 1fr 1fr 1fr, 1fr" gap="base">
-                  <s-stack gap="small"><s-text color="subdued">Checkout sessions</s-text><s-number id="session-count" fontSize="large-100" fontWeight="bold">—</s-number></s-stack>
-                  <s-stack gap="small"><s-text color="subdued">Completed checkouts</s-text><s-number id="completed-count" fontSize="large-100" fontWeight="bold">—</s-number></s-stack>
-                  <s-stack gap="small"><s-text color="subdued">Unfinished checkouts</s-text><s-number id="incomplete-count" fontSize="large-100" fontWeight="bold">—</s-number></s-stack>
-                </s-grid>
-              </s-query-container>
-              <s-button id="open-journeys" variant="secondary" disabled>View checkouts</s-button>
-            </s-stack>
-          </s-section>
+          <s-section heading="Priority issues"><s-stack id="priority-issues" gap="small"><s-paragraph>Checking recorded issues…</s-paragraph></s-stack></s-section>
+          <s-query-container>
+            <s-grid id="activity-layout" gridTemplateColumns="@container (inline-size > 800px) 2fr 1fr, 1fr" gap="base" alignItems="stretch">
+              <s-section heading="Order patterns">
+                <s-paragraph id="order-chart-empty" color="subdued">Order history is not available yet. Open the Shopify app to sync orders.</s-paragraph>
+                <s-stack id="order-chart-content" gap="base" hidden>
+                  <s-box paddingBlockStart="base" id="order-chart-viz" role="region" aria-label="Today’s hourly orders compared with the matching weekday hourly average, in UTC"></s-box>
+                  <s-paragraph id="order-chart-error" tone="critical" hidden></s-paragraph>
+                </s-stack>
+              </s-section>
+              <s-section heading="Checkout completion">
+                <s-stack gap="base">
+                  <s-heading id="summary-title">Checking test collection</s-heading>
+                  <s-stack gap="small" id="completion-summary" hidden>
+                    <s-text id="completion-label"></s-text>
+                    <s-progress id="completion-progress" value="0" max="1" accessibilityLabel="Checkout completion"></s-progress>
+                  </s-stack>
+                  <s-paragraph id="summary-description" hidden></s-paragraph>
+                  <s-stack gap="small">
+                    <s-stack direction="inline" justifyContent="space-between" gap="small"><s-text color="subdued">Checkout sessions</s-text><s-number id="session-count" fontWeight="bold">—</s-number></s-stack>
+                    <s-stack direction="inline" justifyContent="space-between" gap="small"><s-text color="subdued">Completed checkouts</s-text><s-number id="completed-count" fontWeight="bold">—</s-number></s-stack>
+                    <s-stack direction="inline" justifyContent="space-between" gap="small"><s-text color="subdued">Unfinished checkouts</s-text><s-number id="incomplete-count" fontWeight="bold">—</s-number></s-stack>
+                  </s-stack>
+                  <s-button id="open-journeys" variant="secondary" disabled>View checkouts</s-button>
+                </s-stack>
+              </s-section>
+            </s-grid>
+          </s-query-container>
           </s-stack>
+          <s-section heading="Compared with the previous period"><s-stack id="period-comparison" gap="small"><s-paragraph>Checking available history…</s-paragraph></s-stack></s-section>
           <s-stack id="catalog-scenario" gap="base">
             <s-heading id="abandoned-heading" fontSize="large">Abandoned checkout</s-heading>
             <s-button hidden variant="secondary" id="catalog-details-button" aria-expanded="false" aria-controls="catalog-details">See basket assumptions</s-button>
@@ -82,12 +95,13 @@
           <s-heading fontSize="large">Insights &amp; recommendations</s-heading>
           <s-text id="action-save-status" accessibilityVisibility="exclusive" role="status" aria-live="polite"></s-text>
           <s-banner id="action-save-error" heading="Change wasn’t saved" tone="critical" hidden></s-banner>
-          <s-stack id="mission-list" gap="base"><s-paragraph>Loading checkout insights…</s-paragraph></s-stack>
+          <s-stack id="mission-list" gap="small"><s-paragraph>Loading checkout insights…</s-paragraph></s-stack>
+          <s-section heading="Error summary"><s-stack gap="small"><s-text color="subdued">Recorded error types · A checkout can appear in more than one group.</s-text><s-stack id="error-summary" gap="small"></s-stack></s-stack></s-section>
           <s-button id="recovery-library-button" variant="tertiary" aria-expanded="false" aria-controls="recovery-library">Checkout fix scenarios</s-button>
           <s-stack id="recovery-library" gap="base" hidden></s-stack>
         </s-stack>
         <s-stack id="journeys" gap="base" hidden>
-          <s-section heading="Checkout sessions">
+          <s-section><s-stack direction="inline" justifyContent="space-between" gap="small" alignItems="center"><s-heading>Checkout sessions</s-heading><s-stack direction="inline" gap="small"><s-button id="export-checkouts" variant="secondary" disabled>Export checkouts</s-button><s-button id="export-events" variant="secondary" disabled>Export events</s-button></s-stack></s-stack>
             <s-stack gap="base">
               <s-stack id="mission-filter" gap="small" hidden><s-text id="mission-filter-label" type="strong"></s-text><s-button id="clear-mission-filter" variant="secondary">Show all checkouts</s-button></s-stack>
               <s-query-container>
@@ -116,12 +130,15 @@
                   </s-select>
                 </s-grid>
               </s-query-container>
+              <s-stack id="quick-issue-filters" direction="inline" gap="small" accessibilityRole="region" accessibilityLabel="Quick issue filters"></s-stack>
+              <s-text id="export-status" color="subdued" role="status" aria-live="polite"></s-text>
               <s-button id="clear-journey-filters" variant="tertiary" hidden>Clear filters</s-button>
               <s-table id="journey-table">
                 <s-table-header-row>
                   <s-table-header listSlot="primary">Checkout / order</s-table-header>
                   <s-table-header listSlot="kicker">Started</s-table-header>
                   <s-table-header listSlot="secondary">Status</s-table-header>
+                  <s-table-header listSlot="labeled">Last step</s-table-header>
                   <s-table-header>Alerts</s-table-header>
                   <s-table-header format="currency">Basket value</s-table-header>
                   <s-table-header listSlot="inline">Details</s-table-header>
@@ -138,6 +155,19 @@
               <s-paragraph id="journey-empty" hidden>No checkouts in these dates. Choose another date range.</s-paragraph>
             </s-stack>
           </s-section>
+        </s-stack>
+        <s-stack id="history" gap="base" hidden>
+          <s-section heading="Fix history"><s-stack gap="base"><s-paragraph color="subdued">Applied markers and retests, including undone markers. Results describe recorded activity; they do not prove recovered revenue.</s-paragraph><s-stack id="fix-history-content" gap="base"></s-stack></s-stack></s-section>
+        </s-stack>
+        <s-stack id="alerts" gap="base" hidden>
+          <s-section heading="Focused alerts"><s-stack gap="base">
+            <s-paragraph>Checks run while this app is open, once a minute. Alerts stay inside this app.</s-paragraph>
+            <s-stack direction="inline" gap="base"><s-checkbox id="shipping-alerts-enabled" label="Shipping unavailable" checked></s-checkbox><s-checkbox id="spike-alerts-enabled" label="Error-rate increases" checked></s-checkbox><s-button id="check-alerts" variant="secondary">Check now</s-button></s-stack>
+            <s-text id="alert-preference-note" color="subdued">Preferences and dismissals are saved for this browser. A type appears at most once per hour.</s-text>
+            <s-text id="alerts-checked-at" color="subdued" role="status" aria-live="polite"></s-text>
+            <s-banner id="alerts-error" tone="warning" hidden><s-paragraph>Could not check for new alerts. Previous alerts remain visible. Try Check now.</s-paragraph></s-banner>
+            <s-stack id="focused-alert-list" gap="small"></s-stack>
+          </s-stack></s-section>
         </s-stack>
         <s-modal id="journey-modal" heading="Checkout details" size="large-100">
           <s-stack id="journey-modal-content" gap="base"></s-stack>
