@@ -38,11 +38,10 @@
             <s-heading>Checkout activity</s-heading>
             <s-stack direction="inline" gap="small"><s-button id="refresh-dashboard" variant="secondary" icon="refresh">Refresh</s-button><s-button id="date-range-button" variant="secondary" icon="calendar" commandFor="date-range-popover">Last 30 days</s-button></s-stack>
           </s-stack>
-          <s-section heading="Priority issues"><s-stack id="priority-issues" gap="small"><s-paragraph>Checking recorded issues…</s-paragraph></s-stack></s-section>
           <s-query-container>
             <s-grid id="activity-layout" gridTemplateColumns="@container (inline-size > 800px) 2fr 1fr, 1fr" gap="base" alignItems="stretch">
               <s-section heading="Order patterns">
-                <s-paragraph id="order-chart-empty" color="subdued">Order history is not available yet. Open the Shopify app to sync orders.</s-paragraph>
+                <s-paragraph id="order-chart-empty" color="subdued">Order history isn’t available yet.</s-paragraph>
                 <s-stack id="order-chart-content" gap="base" hidden>
                   <s-box paddingBlockStart="base" id="order-chart-viz" role="region" aria-label="Today’s hourly orders compared with the matching weekday hourly average, in UTC"></s-box>
                   <s-paragraph id="order-chart-error" tone="critical" hidden></s-paragraph>
@@ -67,7 +66,6 @@
             </s-grid>
           </s-query-container>
           </s-stack>
-          <s-section heading="Compared with the previous period"><s-stack id="period-comparison" gap="small"><s-paragraph>Checking available history…</s-paragraph></s-stack></s-section>
           <s-stack id="catalog-scenario" gap="base">
             <s-heading id="abandoned-heading" fontSize="large">Abandoned checkout</s-heading>
             <s-button hidden variant="secondary" id="catalog-details-button" aria-expanded="false" aria-controls="catalog-details">See basket assumptions</s-button>

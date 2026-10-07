@@ -3,7 +3,7 @@ import {checkoutBaskets,type CheckoutPrice} from '../shared/checkoutPrice';
 import "./style.css";
 import {lastObservedStep,stepTimings,durationText,focusedAlerts,issueLabels,type FocusedAlert} from '../shared/dashboardInsights';
 import {checkoutCSV,checkoutEventsCSV} from '../shared/checkoutExport';
-import {priorityMarkup,comparisonMarkup,diagnosticsMarkup,historyMarkup,alertsMarkup,type FixHistoryRow} from './dashboardPanels';
+import {diagnosticsMarkup,historyMarkup,alertsMarkup,type FixHistoryRow} from './dashboardPanels';
 import {orderPattern,type OrderPattern} from "../shared/orderPattern";
 import {buildRecommendations} from "../shared/recommendations";
 import {fixResults,retestResults,actionState,type AppliedFix} from "../shared/fixTracking";
@@ -234,7 +234,7 @@ function renderSyncedPurchases(snapshot:NonNullable<EvidenceResponse['shopifySna
   text('catalog-details-heading','Synced test purchases');
   text('catalog-summary',`${purchases.orderCount} priced paid test orders · Selected dates · Updated ${time(snapshot.syncedAt)}.`);
   text('catalog-mix-description',`Read directly from Shopify. ${purchases.unpricedCount} eligible orders without a valid store-currency subtotal are excluded.`);
-  text('catalog-method',purchases.aovCents===null?'No priced paid test orders are available in the synced period.':`${money(purchases.totalProductCents)} in current product subtotals ÷ ${purchases.orderCount} paid test orders = ${money(purchases.aovCents)}. These are test purchases, not real revenue.`);
+  text('catalog-method',purchases.aovCents===null?'No paid test orders with recorded prices in these dates.':`${money(purchases.totalProductCents)} in current product subtotals ÷ ${purchases.orderCount} paid test orders = ${money(purchases.aovCents)}. These are test purchases, not real revenue.`);
   text('catalog-exclusions','Paid, uncancelled test orders in the selected dates. Shipping and tax excluded. The average updates when you open the app or apply dates; it is not used to fill missing basket values.');
   element('catalog-source-link').setAttribute('href','https://admin.shopify.com/store/build-sprint-demo/orders');
   text('catalog-source-link','View demo store orders in Shopify');
@@ -305,7 +305,7 @@ function renderMissions(events: CheckoutEvent[]) {
         </s-stack>
       </s-stack>
     </s-section>`;
-  }).join("") || `<s-section><s-paragraph>No issues meet the alert rules for these dates.</s-paragraph></s-section>`;
+  }).join("") || `<s-section><s-paragraph>No issues to investigate in these dates.</s-paragraph></s-section>`;
   renderProgress();
 }
 function applyMissionFilter() {
@@ -337,7 +337,7 @@ function applyMissionFilter() {
   (element('journey-next') as HTMLElementTagNameMap['s-button']).disabled = journeyPage >= pages - 1;
   table.hidden = filtered.length === 0;
   element('journey-empty').hidden = filtered.length !== 0;
-  text('journey-empty', hasFilters ? 'No checkouts match your search and filters. Clear filters or try another search.' : 'No checkouts in these dates. Choose another date range.');
+  text('journey-empty', hasFilters ? 'No matching checkouts. Clear filters or try another search.' : 'No checkouts in these dates. Choose another date range.');
   text('journey-page-status', filtered.length ? `${start + 1}–${Math.min(start + JOURNEYS_PER_PAGE, filtered.length)} of ${filtered.length} · Page ${journeyPage + 1}/${pages}` : '0 checkouts');
 }
 function renderQuickFilters(){
@@ -365,7 +365,6 @@ element('quick-issue-filters').addEventListener('click',event=>{
 });
 element('error-summary').addEventListener('click',event=>{const button=(event.target as HTMLElement).closest<HTMLElement>('[data-diagnostic]');if(button)viewCategory(button.dataset.diagnostic!);});
 function openMission(id:MissionId){resetJourneyFilters();selectedMission=id;applyMissionFilter();showView('journeys',true);}
-element('priority-issues').addEventListener('click',event=>{const button=(event.target as HTMLElement).closest<HTMLElement>('[data-top-mission]');if(button)openMission(button.dataset.topMission as MissionId);});
 element('fix-history-content').addEventListener('click',event=>{const button=(event.target as HTMLElement).closest<HTMLElement>('[data-history-mission]');if(button)openMission(button.dataset.historyMission as MissionId);});
 function exportFiltered(events:boolean){
  if(!filteredJourneyRows.length)return;
@@ -501,7 +500,6 @@ function render(data: EvidenceResponse) {
   renderOrderPattern(data);
   const updated=data.shopifySnapshot?.syncedAt??data.abandonedBasketSummary?.syncedAt??data.sampledAt;
   text('store-meta',`Store: ${data.store.replace('.myshopify.com','')} · Updated ${time(updated)}`);
-  element('period-comparison').innerHTML=comparisonMarkup(latestEvidence?.events??data.events,selectedRange,data.truncated);
   element('error-summary').innerHTML=diagnosticsMarkup(data.events);
   element('fix-history-content').innerHTML=historyMarkup(fixHistory,latestEvidence?.events??data.events,fixesReady);
   renderFocusedAlerts(latestEvidence??data);
@@ -521,7 +519,7 @@ function render(data: EvidenceResponse) {
   if(data.shopifySnapshot)renderSyncedPurchases(data.shopifySnapshot);
   else if(!data.observedPurchases){
     text('catalog-aov-label','Average test order value');text('catalog-aov','Unknown');
-    text('catalog-method','No purchase data is available for these dates.');
+    text('catalog-method','No purchases recorded in these dates.');
   }
   if(data.shopifySnapshot){
     const snapshot=data.shopifySnapshot,unpaid=snapshot.abandoned.filter(row=>!row.recovered),priced=unpaid.map(row=>row.totalCents===undefined?row.subtotalCents:row.totalCents).filter((value):value is number=>value!==null);
@@ -611,7 +609,6 @@ function render(data: EvidenceResponse) {
     return {events:session.events,shippingBlocker:session.events.some(e=>e.shippingBlocker==='no_shipping_available'),startedAt:session.events[0].timestamp,basketCents,id:session.id,label,completed:session.completed,categories:detail.categories,row,timeline};
   });
   renderMissions(data.events);
-  element('priority-issues').innerHTML=priorityMarkup(missions,appliedFixes,latestEvidence?.events??data.events);
   applyMissionFilter();
 }
 
