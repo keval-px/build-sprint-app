@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.env*
+!.env.example
+.DS_Store
+*.log
+.impeccable/review/
+
+shopify.app.toml
+shopify.app.*.toml
+!shopify.app.example.toml
+.shopify/

@@ -1,0 +1,39 @@
+/* Shopify components own typography, controls, and layout.
+   The requested admin timeline has no public component: only its decorative
+   rail and dots are drawn here. Markers are hidden from assistive technology. */
+body { margin: 0; }
+[hidden] { display: none !important; }
+
+s-box[data-timeline-marker] {
+  display: block;
+  position: relative;
+  width: 24px;
+  align-self: stretch;
+}
+s-box[data-timeline-marker]::before {
+  content: "";
+  position: absolute;
+  left: 10px;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: #dedede;
+}
+s-box[data-timeline-marker]::after {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 10px;
+  width: 9px;
+  height: 9px;
+  border: 4px solid #f1f1f1;
+  border-radius: 50%;
+  background: #4a4a4a;
+}
+s-box[data-timeline-marker][data-first="true"]::before { top: 10px; }
+s-box[data-timeline-marker][data-last="true"]::before { bottom: auto; height: 18px; }
+s-box[data-timeline-marker][data-first="true"][data-last="true"]::before { display: none; }
+s-box[data-timeline-marker="completed"]::after {
+  background: #298a00;
+  border-color: #d4f4b4;
+}
