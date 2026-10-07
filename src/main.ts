@@ -465,7 +465,6 @@ element('focused-alert-list').addEventListener('click',async event=>{
  if(button){await loadEvidence(true);viewCategory(button.dataset.alertCategory!);}
 });
 element('check-alerts').addEventListener('click',()=>void checkFocusedAlerts());
-element('refresh-dashboard').addEventListener('click',()=>void loadEvidence());
 window.setInterval(()=>{if(document.visibilityState==='visible')void checkFocusedAlerts();},60000);
 element("mission-list").addEventListener("change", async event => {
   const input = event.target as HTMLElementTagNameMap["s-checkbox"];
@@ -678,8 +677,6 @@ async function loadEvidence(background=false) {
   }
 }
 function setLoadingControls(busy:boolean){
-  (element('refresh-dashboard') as HTMLElementTagNameMap['s-button']).disabled=busy||fixSaving;
-  (element('refresh-dashboard') as HTMLElementTagNameMap['s-button']).loading=busy;
   for(const id of ['export-checkouts','export-events'])(element(id) as HTMLElementTagNameMap['s-button']).disabled=busy||!filteredJourneyRows.length;
   (element('apply-date-range') as HTMLElementTagNameMap['s-button']).disabled=busy||fixSaving;
   element('mission-list').querySelectorAll<HTMLElementTagNameMap['s-button']>('s-button[data-fix-refresh]').forEach(button=>{button.disabled=busy||fixSaving;button.loading=busy;});
