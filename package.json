@@ -10,7 +10,8 @@
     "deploy": "static-hosting upload --build",
     "check:ui": "node scripts/check-polaris.mjs",
     "shopify": "shopify",
-    "test": "node --experimental-strip-types --test tests/*.test.ts"
+    "test": "node --experimental-strip-types --test tests/*.test.ts",
+    "audit:metrics": "node --experimental-strip-types scripts/audit-live-metrics.mjs"
   },
   "dependencies": {
     "@convex-dev/static-hosting": "0.2.1",

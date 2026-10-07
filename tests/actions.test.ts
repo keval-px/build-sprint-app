@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildMissions, missionRecommendation, missionSeverity, missionSignal, progressScore, isActionStep, isViewerId } from "../shared/actions.ts";
+import { buildMissions, missionRecommendation, missionSeverity, missionSignal, isViewerId } from "../shared/actions.ts";
 import type { CheckoutEvent } from "../shared/evidence.ts";
 const event = (name: CheckoutEvent["name"], n: number, sessionId = "a", category: CheckoutEvent["category"] = null): CheckoutEvent => ({eventId:String(n),sessionId,name,category,timestamp:n});
 test("missions count distinct sessions and do not turn missing completion into a cause",()=>{
@@ -8,12 +8,7 @@ test("missions count distinct sessions and do not turn missing completion into a
  assert.equal(missions[0].count,1);assert.match(missions[0].description,/1 later completed/);assert.equal(missions[2].count,1);assert.deepEqual(missions[2].sessionIds,["b"]);assert.match(missions[2].why,/some activity may be missing/);
  assert.equal(buildMissions([]).every(m=>m.count===0),true);
 });
-test("points cannot be farmed through duplicate or unknown steps and badges can be undone",()=>{
- assert.equal(progressScore(["payment-review","payment-review","made-up"]).points,20);
- assert.deepEqual(progressScore(["payment-review","payment-reproduce","payment-compare"]).badges,["payment"]);
- assert.deepEqual(progressScore(["payment-review","payment-compare"]).badges,[]);
- assert.equal(isActionStep("payment-auto-fixed"),false);assert.equal(isViewerId("a".repeat(32)),true);assert.equal(isViewerId("visitor@example.com"),false);
-});
+test('anonymous viewer IDs reject contact details',()=>{assert.equal(isViewerId('a'.repeat(32)),true);assert.equal(isViewerId('visitor@example.com'),false);});
 
 test("payment recovery requires a payment alert before completion",()=>{
  const missions=buildMissions([event("checkout_started",1),event("alert_displayed",2,"a","validation"),event("checkout_completed",3),event("alert_displayed",4,"a","payment")]);
@@ -25,14 +20,14 @@ test("shipping and repeated discount errors produce distinct investigations with
  assert.equal(missions.find(m=>m.id==="delivery")?.count,1);
  assert.match(missions.find(m=>m.id==="discount")!.title,/repeated discount/);
  assert.match(missions.find(m=>m.id==="discount")!.description,/does not prove the same code/);
- assert.equal(isActionStep("delivery-reproduce"),true);
+ 
 });
 test('availability investigation deduplicates repeated alerts and keeps shipping separate',()=>{
  const missions=buildMissions([event('checkout_started',1,'stock'),event('alert_displayed',2,'stock','inventory'),event('alert_displayed',3,'stock','inventory'),event('alert_displayed',4,'stock','delivery')]);
  const inventory=missions.find(m=>m.id==='inventory')!;
  assert.equal(inventory.count,1);assert.deepEqual(inventory.sessionIds,['stock']);
  assert.equal(missions.find(m=>m.id==='delivery')?.count,1);
- assert.match(inventory.next,/fulfilment/);assert.equal(isActionStep('inventory-compare'),true);
+ assert.match(inventory.next,/fulfilment/);
 });
 
 test("severity prioritizes possible buying blockers without treating missing completion as a cause", () => {

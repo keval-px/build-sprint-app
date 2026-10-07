@@ -1,8 +1,12 @@
 export interface MoneyAmount {minor:number;currency:string}
 export interface ShopifyConversion {sessionId:string;shop:MoneyAmount;buyer:MoneyAmount}
+const supportedCurrencies=new Set(Intl.supportedValuesOf('currency'));
+const currencyScales=new Map<string,number>();
 export function currencyScale(currency:string){
- if(!/^[A-Z]{3}$/.test(currency)||!Intl.supportedValuesOf('currency').includes(currency))return null;
- return 10**new Intl.NumberFormat('en',{style:'currency',currency}).resolvedOptions().maximumFractionDigits!;
+ const cached=currencyScales.get(currency);if(cached!==undefined)return cached;
+ if(!/^[A-Z]{3}$/.test(currency)||!supportedCurrencies.has(currency))return null;
+ const scale=10**new Intl.NumberFormat('en',{style:'currency',currency}).resolvedOptions().maximumFractionDigits!;
+ currencyScales.set(currency,scale);return scale;
 }
 export function moneyMinor(amount:unknown,currency:string):number|null{
  const scale=currencyScale(currency);if(scale===null||typeof amount!=='string'||!/^\d+(\.\d+)?$/.test(amount))return null;

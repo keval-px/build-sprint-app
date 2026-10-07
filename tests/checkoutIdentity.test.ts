@@ -20,3 +20,14 @@ test('a valid session alone cannot read evidence after connection revocation',()
   assert.equal(canReadShopifyEvidence(null),false);
   assert.equal(canReadShopifyEvidence({scopes:['read_orders']}),false);
 });
+
+test('public corrections preserve blockers but never publish private prices or new identities',async()=>{
+ const {publicCheckoutEvents}=await import('../shared/checkoutIdentity.ts');
+ const original={eventId:'one',sessionId:'public',name:'alert_displayed' as const,timestamp:1,category:'validation' as const};
+ const privateEvent={...original,category:'delivery' as const,shippingBlocker:'no_shipping_available' as const,subtotalCents:60000,currency:'USD' as const,items:[{itemHash:'private-item',quantity:1,minor:60000,currency:'USD'}]};
+ const corrected=publicCheckoutEvents([original],[privateEvent,{...privateEvent,eventId:'two',sessionId:'private'}]);
+ assert.equal(corrected.length,1);assert.equal(corrected[0].shippingBlocker,'no_shipping_available');
+ assert.equal(corrected[0].subtotalCents,undefined);assert.equal(corrected[0].items,undefined);
+ assert.equal(publicCheckoutEvents([original],[{...privateEvent,sessionId:'wrong'}])[0].category,'validation');
+ assert.equal(publicCheckoutEvents(corrected,[{...privateEvent,category:null,shippingBlocker:undefined}])[0].shippingBlocker,undefined);
+});

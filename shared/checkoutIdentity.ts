@@ -9,3 +9,13 @@ export function mergeCheckoutEvents(legacy:CheckoutEvent[],pixel:CheckoutEvent[]
 export function canReadShopifyEvidence(connection:{scopes:string[]}|null){
   return !!connection&&connection.scopes.includes('read_orders')&&connection.scopes.includes('read_customer_events');
 }
+
+export function publicCheckoutEvents(legacy:CheckoutEvent[],pixel:CheckoutEvent[]){
+ const observed=new Map(pixel.map(event=>[event.eventId,event]));
+ return legacy.map(event=>{
+  const current=observed.get(event.eventId);
+  if(!current||current.sessionId!==event.sessionId)return event;
+  const {shippingBlocker:previous,...base}=event;
+  return {...base,category:current.category,...(current.shippingBlocker?{shippingBlocker:current.shippingBlocker}:{})};
+ });
+}

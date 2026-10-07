@@ -66,37 +66,23 @@
             </s-grid>
           </s-query-container>
           </s-stack>
-          <s-stack id="catalog-scenario" gap="base">
+          <s-stack id="abandoned-baskets" gap="base">
             <s-heading id="abandoned-heading" fontSize="large">Abandoned checkout</s-heading>
-            <s-button hidden variant="secondary" id="catalog-details-button" aria-expanded="false" aria-controls="catalog-details">See basket assumptions</s-button>
             <s-stack gap="base">
-              <s-paragraph id="catalog-summary" hidden>Reading the saved product-price model…</s-paragraph>
-              <s-query-container><s-grid id="catalog-metrics" gridTemplateColumns="@container (inline-size > 600px) 1fr 1fr 1fr, 1fr" gap="base">
+              <s-query-container><s-grid id="abandoned-metrics" gridTemplateColumns="@container (inline-size > 600px) 1fr 1fr 1fr, 1fr" gap="base">
                 <s-section id="abandoned-value-metric"><s-stack gap="small"><s-text id="abandoned-value-label" color="subdued">Total abandoned basket value</s-text><s-number id="abandoned-value" fontSize="large-100" fontWeight="bold">—</s-number><s-text id="abandoned-count" color="subdued" hidden></s-text></s-stack></s-section>
-                <s-section><s-stack gap="small"><s-text color="subdued" id="catalog-aov-label">Abandoned checkouts</s-text><s-number id="catalog-aov" fontSize="large-100" fontWeight="bold">—</s-number></s-stack></s-section>
-                <s-section><s-stack gap="small"><s-text color="subdued" id="catalog-recovery-label">Average abandoned basket value</s-text><s-number id="catalog-recovery" tone="success" fontSize="large-100" fontWeight="bold">—</s-number><s-text id="catalog-dedup" color="subdued" hidden></s-text></s-stack></s-section>
+                <s-section><s-stack gap="small"><s-text color="subdued" id="abandoned-checkouts-label">Abandoned checkouts</s-text><s-number id="abandoned-checkouts-count" fontSize="large-100" fontWeight="bold">—</s-number></s-stack></s-section>
+                <s-section><s-stack gap="small"><s-text color="subdued" id="abandoned-average-label">Average abandoned basket value</s-text><s-number id="abandoned-average" tone="success" fontSize="large-100" fontWeight="bold">—</s-number></s-stack></s-section>
               </s-grid></s-query-container>
 
-              <s-stack id="catalog-details" gap="base" hidden>
-                <s-paragraph id="abandoned-source" color="subdued" hidden></s-paragraph>
-                <s-heading id="catalog-details-heading">Assumed basket mix, not actual orders</s-heading>
-                <s-paragraph id="catalog-mix-description">80% one snowboard, 12% one snowboard plus wax, 6% two snowboards, and 2% three snowboards. That means 92% of modeled purchases contain just one snowboard.</s-paragraph>
-                <s-paragraph id="catalog-method" color="subdued"></s-paragraph>
-                <s-stack id="catalog-baskets" gap="base"></s-stack>
-                <s-paragraph id="catalog-exclusions" color="subdued">Uses listed selling prices, including the current sale price; excludes sold-out products, gift cards, subscriptions, shipping, taxes, and additional discounts. The product mix is assumed, not a claim about demand. No modeled baskets are inserted as checkout sessions or orders.</s-paragraph>
-                <s-link id="catalog-source-link" href="https://build-sprint-demo.myshopify.com/collections/all" target="_blank">View the source catalog</s-link>
-              </s-stack>
+
             </s-stack>
           </s-stack>
-          <s-paragraph id="progress-status" color="subdued" role="status" aria-live="polite"></s-paragraph>
-          <s-banner id="progress-error" heading="Action checklist unavailable" tone="critical" hidden><s-paragraph id="progress-error-message"></s-paragraph><s-button id="retry-progress" variant="secondary">Retry loading progress</s-button></s-banner>
           <s-heading fontSize="large">Insights &amp; recommendations</s-heading>
           <s-text id="action-save-status" accessibilityVisibility="exclusive" role="status" aria-live="polite"></s-text>
           <s-banner id="action-save-error" heading="Change wasn’t saved" tone="critical" hidden></s-banner>
           <s-stack id="mission-list" gap="small"><s-paragraph>Loading checkout insights…</s-paragraph></s-stack>
           <s-section heading="Recorded findings"><s-stack gap="small"><s-text color="subdued">Grouped by alert and last earlier step. Exact messages were not saved; the step does not identify the cause. A checkout can appear in more than one group.</s-text><s-stack id="error-summary" gap="small"></s-stack></s-stack></s-section>
-          <s-button id="recovery-library-button" variant="tertiary" aria-expanded="false" aria-controls="recovery-library">Checkout fix scenarios</s-button>
-          <s-stack id="recovery-library" gap="base" hidden></s-stack>
         </s-stack>
         <s-stack id="journeys" gap="base" hidden>
           <s-section><s-stack direction="inline" justifyContent="space-between" gap="small" alignItems="center"><s-heading>Checkout sessions</s-heading><s-stack direction="inline" gap="small"><s-button id="export-checkouts" variant="secondary" disabled>Export checkouts</s-button><s-button id="export-events" variant="secondary" disabled>Export events</s-button></s-stack></s-stack>
@@ -181,7 +167,7 @@
             <s-button id="enable-pixel" variant="secondary">Enable checkout collection</s-button>
           </s-stack>
           <s-stack direction="inline" justifyContent="space-between" gap="base"><s-text>Events in this view</s-text><s-number id="event-count">—</s-number></s-stack>
-          <s-stack direction="inline" justifyContent="space-between" gap="base"><s-text>Events stored</s-text><s-number id="stored-count">—</s-number></s-stack>
+          <s-stack direction="inline" justifyContent="space-between" gap="base"><s-text>Event records stored</s-text><s-number id="stored-count">—</s-number></s-stack>
           <s-stack direction="inline" justifyContent="space-between" gap="base"><s-text>Collection</s-text><s-text id="collection-state">Checking</s-text></s-stack>
           <s-paragraph id="coverage-note" color="subdued"></s-paragraph>
           <s-paragraph color="subdued">Anonymous Shopify browser events. Consent and browser limits can leave gaps; event origin is not server-verified.</s-paragraph>

@@ -21,6 +21,6 @@ export function renderOrderChart(host:HTMLElement,pattern:OrderPattern){
     yAxisOptions:{integersOnly:true,labelFormatter:value=>value===null?'':`${Number(value).toLocaleString(undefined,{maximumFractionDigits:2})} ${Number(value)===1?'order':'orders'}`},
     tooltipOptions:{titleFormatter:value=>`${value} · ${pattern.timeZone}${value===key(storeClock(pattern.syncedAt,pattern.timeZone).hour)?' · In progress':''}`,valueFormatter:value=>value===null?'Not reached':Number(value).toLocaleString(undefined,{maximumFractionDigits:2})},
     xAxisOptions:{allowLineWrap:false},skipLinkText:'Skip order chart',
-    emptyStateText:'No orders in the available history.',
+    emptyStateText:'No orders recorded yet.',
   })}));
 }

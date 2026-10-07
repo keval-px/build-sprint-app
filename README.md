@@ -45,3 +45,7 @@ Notification activation is separate from refreshing the dashboard. After approvi
 The dashboard uses controlled demo checkout evidence. Test orders do not represent real revenue or prove a recovery effect. Public demo results and authenticated Shopify records are kept separate.
 
 This repository contains a snapshot of the current app source. Local credentials, design reference uploads, and earlier local Git history are excluded.
+
+## Audit and live number checks
+
+See [AUDIT.md](AUDIT.md) for requirements, cleanup, numeric and browser verification, and pilot limits. `npm run audit:metrics` performs a read-only check of live public demo totals. It needs network access; regular CI tests and builds remain independent of live data.

@@ -15,7 +15,7 @@ export function buildRecommendations(events:CheckoutEvent[]):Mission[] {
   // Two different checkout identities, not repeated retries by one shopper.
   if(blocked.length<2)return [];
   const mission=buildMissions(events).find(m=>m.id==='delivery')!;
-  return [{...mission,title:'Check unavailable shipping',count:blocked.length,sessionIds:blocked,
+  return [{...mission,signal:'shipping_unavailable',title:'Check unavailable shipping',count:blocked.length,sessionIds:blocked,
     description:`${blocked.length} checkouts showed shipping unavailable with no later purchase recorded. Confirm these baskets should be eligible before changing shipping settings.`,
   }];
 }

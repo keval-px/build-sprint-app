@@ -38,3 +38,14 @@ test('completed actions reopen on new matching alerts, including resumed old che
  assert.deepEqual(actionState(fix,events,at+100),{done:false,returned:1});
  assert.deepEqual(actionState({...fix,retestedAt:at+4},events,at+100),{done:true,returned:0});
 });
+
+test('shipping-unavailable fix tracks the confirmed signal rather than unrelated delivery alerts',()=>{
+ const events=[e('blocked','checkout_started',at-100),{...e('blocked','alert_displayed',at-90,'delivery'),shippingBlocker:'no_shipping_available' as const},e('general','checkout_started',at-100),e('general','alert_displayed',at-90,'delivery')];
+ const fix=fixBaseline(events,'delivery',at,false,'shipping_unavailable');
+ assert.deepEqual(fix.baseline,{checkouts:2,affected:1,completed:0});assert.deepEqual(fix.affectedIds,['blocked']);
+ const later=[...events,e('general','alert_displayed',at+1,'delivery')];
+ assert.deepEqual(actionState(fix,later,at+10),{done:true,returned:0});
+ assert.deepEqual(retestResults({...fix,retestedAt:at},later,at+10),{returned:0,lastAlert:null});
+ later.push({...e('blocked','alert_displayed',at+2,'delivery'),shippingBlocker:'no_shipping_available' as const});
+ assert.deepEqual(actionState(fix,later,at+10),{done:false,returned:1});
+});

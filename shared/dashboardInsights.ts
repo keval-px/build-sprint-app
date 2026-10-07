@@ -1,5 +1,5 @@
 import {summarize,type CheckoutEvent,type ErrorCategory} from './evidence.ts';
-import {checkoutCohort,dateBounds,localDate} from './dateRange.ts';
+import {checkoutCohort} from './dateRange.ts';
 
 const categories:ErrorCategory[]=['payment','delivery','inventory','discount','validation'];
 export const issueLabels:Record<string,string>={payment:'Payment alerts',delivery:'Shipping alerts',inventory:'Item availability',discount:'Discount or gift-card',validation:'Form errors',shipping_blocker:'Shipping unavailable'};
@@ -30,16 +30,6 @@ export function stepTimings(events:CheckoutEvent[]):StepTiming[] {
  return [span('Contact',start.timestamp,contact,shipping!==undefined||!!complete),span('Shipping',contact,shipping,!!complete),payment];
 }
 export function durationText(seconds:number|null){return seconds===null?'Unknown':`${String(Math.floor(seconds/60)).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`;}
-export function errorDiagnostics(events:CheckoutEvent[]) {
- const rows=ordered(events),sessions=summarize(rows).journeys;
- return [...categories,'shipping_blocker' as const].flatMap(category=>{
-  const alerts=rows.filter(e=>e.name==='alert_displayed'&&(category==='shipping_blocker'?e.shippingBlocker==='no_shipping_available':e.category===category));
-  if(!alerts.length)return [];
-  const ids=[...new Set(alerts.map(e=>e.sessionId))];
-  const completedAfter=ids.filter(id=>{const last=Math.max(...alerts.filter(e=>e.sessionId===id).map(e=>e.timestamp));return sessions.find(j=>j.id===id)?.events.some(e=>e.name==='checkout_completed'&&e.timestamp>last);}).length;
-  return [{category,label:issueLabels[category],count:ids.length,alerts:alerts.length,firstSeen:alerts[0].timestamp,lastSeen:alerts.at(-1)!.timestamp,completedAfter}];
- }).sort((a,b)=>b.count-a.count||b.lastSeen-a.lastSeen);
-}
 // The preceding submission is context, not proof of the field or root cause.
 // Strictly earlier timestamps avoid inventing ordering for simultaneous events.
 export function recordedFindings(events:CheckoutEvent[]) {
@@ -50,9 +40,12 @@ export function recordedFindings(events:CheckoutEvent[]) {
   if(alert.name!=='alert_displayed'||!alert.category)continue;
   const category=alert.shippingBlocker?'shipping_blocker':alert.category;
   const before=journey.events.filter(e=>stepNames[e.name]&&e.timestamp<alert.timestamp);
-  const step=before.at(-1)?.name??'unknown';
+  const latest=before.at(-1)?.timestamp;
+  const tied=[...new Set(before.filter(e=>e.timestamp===latest).map(e=>e.name))].sort();
+  const step=tied.join('+')||'unknown';
+  const stepLabel=tied.length>1?`${tied.map(name=>stepNames[name]).join(' / ')} (same time)`:stepNames[tied[0]]??'Earlier step not recorded';
   const key=`${category}:${step}`;
-  const group=groups.get(key)??{key,category,label:issueLabels[category],step:stepNames[step as CheckoutEvent['name']]??'Earlier step not recorded',alerts:[],sessionIds:[],repeatedCheckouts:0,completedAfter:0,lastSeen:0};
+  const group=groups.get(key)??{key,category,label:issueLabels[category],step:stepLabel,alerts:[],sessionIds:[],repeatedCheckouts:0,completedAfter:0,lastSeen:0};
   group.alerts.push(alert);groups.set(key,group);
  }
  return [...groups.values()].map(group=>{
@@ -61,22 +54,6 @@ export function recordedFindings(events:CheckoutEvent[]) {
    completedAfter:ids.filter(id=>{const last=Math.max(...group.alerts.filter(e=>e.sessionId===id).map(e=>e.timestamp));return journeys.find(j=>j.id===id)!.events.some(e=>e.name==='checkout_completed'&&e.timestamp>last);}).length,
    lastSeen:Math.max(...group.alerts.map(e=>e.timestamp))};
  }).sort((a,b)=>b.sessionIds.length-a.sessionIds.length||b.lastSeen-a.lastSeen);
-}
-export function previousRange(range:string){
- const [first,last]=range.split('--'),days=(Date.parse(last)-Date.parse(first))/86400000+1;
- dateBounds(range);
- const start=new Date(`${first}T12:00:00`),end=new Date(start);start.setDate(start.getDate()-days);end.setDate(end.getDate()-1);
- return `${localDate(start)}--${localDate(end)}`;
-}
-export function periodComparison(events:CheckoutEvent[],range:string,truncated=false,now=Date.now()){
- const previous=previousRange(range),bounds=dateBounds(previous),currentBounds=dateBounds(range);
- const earliest=events.length?Math.min(...events.map(e=>e.timestamp)):Infinity;
- const metric=(selected:string)=>{
-  const journeys=summarize(checkoutCohort(events,selected)).journeys;
-  const total=journeys.length,completed=journeys.filter(j=>j.completed).length,withAlerts=journeys.filter(j=>j.events.some(e=>e.name==='alert_displayed'&&e.category)).length;
-  return {total,completed,withAlerts,completionRate:total?completed/total:null,alertRate:total?withAlerts/total:null};
- };
- return {previous,current:metric(range),baseline:metric(previous),available:!truncated&&earliest<=bounds.start&&currentBounds.start<now,partialCurrent:currentBounds.end>now};
 }
 export interface FocusedAlert {key:string;category:string;title:string;message:string;count:number;at:number;tone:'critical'|'warning'}
 export function focusedAlerts(events:CheckoutEvent[],now:number,truncated=false,boundaries:Partial<Record<string,number>>={}):FocusedAlert[]{

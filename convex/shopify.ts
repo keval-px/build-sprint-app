@@ -8,7 +8,7 @@ import {STORE} from '../shared/evidence';
 import {checkoutIdentity} from '../shared/checkoutIdentity';
 import {savedCheckoutSession} from '../shared/checkoutPrice';
 import {moneyMinor,currencyScale} from '../shared/money';
-import {usdCents, recordDigest} from '../shared/shopifyRecords';
+import { recordDigest} from '../shared/shopifyRecords';
 import {exchangeMerchant, refreshMerchant, verifyMerchant, REQUIRED_SCOPES} from './lib/shopifyAuth';
 import {identityQuery, abandonedQuery, ordersQuery,checkoutSubscriptionsQuery,checkoutSubscriptionCreate,checkoutSubscriptionDelete} from './lib/shopifyQueries';
 import type {Session} from '@shopify/shopify-api';

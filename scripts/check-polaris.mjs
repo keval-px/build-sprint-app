@@ -37,6 +37,16 @@ for (const file of sources) {
   }
 }
 const html = fs.readFileSync('index.html','utf8');
+// Catch handlers and calculations still targeting deleted UI elements.
+const availableIds=new Set([...html.matchAll(/id="([^"]+)"/g)].map(match=>match[1]));
+for(const file of sources.filter(name=>name.endsWith('.ts'))){
+ const code=fs.readFileSync(file,'utf8');
+ for(const match of code.matchAll(/id="([^"]+)"/g))availableIds.add(match[1]);
+}
+for(const file of sources.filter(name=>name.endsWith('.ts'))){
+ const code=fs.readFileSync(file,'utf8');
+ for(const match of code.matchAll(/(?:element|text)\(["']([^"']+)["']/g))if(!availableIds.has(match[1]))failures.push(`${file}: UI target ${match[1]} is missing`);
+}
 if (!html.includes('polaris-2.0-rc.js')) failures.push('Runtime must be pinned to Polaris v2.0 RC');
 if (/<(?:button|input|select|details|summary|div|section|h[1-6]|p|span|svg)\b/.test(html)) failures.push('Use Polaris components for visible HTML UI');
 for(const file of sources.filter(name=>name.endsWith('.ts'))){

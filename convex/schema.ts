@@ -14,6 +14,8 @@ export const eventFields = {
   category: v.union(v.null(), v.literal("discount"), v.literal("payment"), v.literal("delivery"), v.literal("validation"), v.literal("inventory")),
 };
 
+// Historical model/checklist tables remain solely to preserve existing data.
+// Their removed feature functions and HTTP endpoints are no longer deployed.
 // Legacy optional assumptions remain readable for existing demo rows only.
 // The calculator API and UI have been removed; these values are no longer used.
 const projectionFields = { averageOrderValue: v.number(), currency: v.string(), recoveryPercent: v.number() };
@@ -36,9 +38,10 @@ export const capturedItems=v.array(v.object({itemHash:v.string(),quantity:v.numb
 export const fixCounts=v.object({checkouts:v.number(),affected:v.number(),completed:v.number()});
 export const checkoutPriceFields={sessionId:v.string(),currency:v.string(),createdAt:v.string(),updatedAt:v.number(),subtotalCents:v.union(v.number(),v.null()),totalCents:v.union(v.number(),v.null()),recovered:v.boolean()};
 export default defineSchema({
+  pixelCollectionState:defineTable({store:v.literal("build-sprint-demo.myshopify.com"),eventCount:v.number()}).index("by_store",["store"]),
   shopifyCheckoutPrices:defineTable({...checkoutPriceFields,store:v.literal("build-sprint-demo.myshopify.com")}).index("by_store_session",["store","sessionId"]).index("by_store_created",["store","createdAt"]),
-  actionFixHistory:defineTable({scope:v.string(),missionId:v.string(),appliedAt:v.number(),baseline:fixCounts,affectedIds:v.array(v.string()),partial:v.boolean(),active:v.boolean(),retestedAt:v.optional(v.number()),withdrawnAt:v.optional(v.number())}).index("by_scope",["scope"]),
-  actionFixes:defineTable({scope:v.string(),missionId:v.string(),appliedAt:v.number(),baseline:fixCounts,affectedIds:v.array(v.string()),partial:v.boolean(),active:v.boolean(),retestedAt:v.optional(v.number())}).index("by_scope",["scope"]),
+  actionFixHistory:defineTable({scope:v.string(),missionId:v.string(),signal:v.optional(v.literal("shipping_unavailable")),appliedAt:v.number(),baseline:fixCounts,affectedIds:v.array(v.string()),partial:v.boolean(),active:v.boolean(),retestedAt:v.optional(v.number()),withdrawnAt:v.optional(v.number())}).index("by_scope",["scope"]),
+  actionFixes:defineTable({scope:v.string(),missionId:v.string(),signal:v.optional(v.literal("shipping_unavailable")),appliedAt:v.number(),baseline:fixCounts,affectedIds:v.array(v.string()),partial:v.boolean(),active:v.boolean(),retestedAt:v.optional(v.number())}).index("by_scope",["scope"]),
   shopifyCheckoutEvents:defineTable({...eventFields,items:v.optional(capturedItems),subtotalCents:v.optional(v.number()),currency:v.optional(v.literal("USD")),store:v.literal("build-sprint-demo.myshopify.com"),receivedAt:v.number()}).index("by_event",["eventId"]).index("by_timestamp",["timestamp"]),
   shopifyInstallState: defineTable({store:v.literal("build-sprint-demo.myshopify.com"),revokedAt:v.number()}).index("by_store",["store"]),
   shopifyConnections: defineTable({store:v.literal("build-sprint-demo.myshopify.com"), accessToken:v.string(), refreshToken:v.optional(v.string()), expiresAt:v.optional(v.number()), refreshExpiresAt:v.optional(v.number()), scopes:v.array(v.string()), connectedAt:v.number()}).index("by_store",["store"]),

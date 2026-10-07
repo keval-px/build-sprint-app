@@ -3,7 +3,7 @@ import {internalMutation,internalQuery} from './_generated/server';
 import {v} from 'convex/values';
 import {fixCounts} from './schema';
 import {isFixMission} from '../shared/fixTracking';
-async function archiveMarker(ctx:MutationCtx,row:{scope:string;missionId:string;appliedAt:number;baseline:{checkouts:number;affected:number;completed:number};affectedIds:string[];partial:boolean;active:boolean;retestedAt?:number;withdrawnAt?:number}){
+async function archiveMarker(ctx:MutationCtx,row:{scope:string;missionId:string;signal?:"shipping_unavailable";appliedAt:number;baseline:{checkouts:number;affected:number;completed:number};affectedIds:string[];partial:boolean;active:boolean;retestedAt?:number;withdrawnAt?:number}){
  const old=await ctx.db.query('actionFixHistory').withIndex('by_scope',q=>q.eq('scope',row.scope)).filter(q=>q.and(q.eq(q.field('missionId'),row.missionId),q.eq(q.field('appliedAt'),row.appliedAt))).unique();
  if(old)await ctx.db.patch(old._id,row);
  else{
@@ -22,15 +22,15 @@ export const history=internalMutation({args:{scope:v.string()},handler:async(ctx
 }});
 export const read=internalQuery({args:{scope:v.string()},handler:async(ctx,{scope})=>{
  const rows=await ctx.db.query('actionFixes').withIndex('by_scope',q=>q.eq('scope',scope)).collect();
- return rows.filter(r=>r.active).map(({missionId,appliedAt,baseline,affectedIds,partial,retestedAt})=>({missionId,appliedAt,baseline,affectedIds,partial,...(retestedAt===undefined?{}:{retestedAt})}));
+ return rows.filter(r=>r.active).map(({missionId,signal,appliedAt,baseline,affectedIds,partial,retestedAt})=>({missionId,...(signal?{signal}:{}),appliedAt,baseline,affectedIds,partial,...(retestedAt===undefined?{}:{retestedAt})}));
 }});
-export const mark=internalMutation({args:{scope:v.string(),missionId:v.string(),appliedAt:v.number(),baseline:fixCounts,affectedIds:v.array(v.string()),partial:v.boolean(),active:v.boolean()},handler:async(ctx,args)=>{
- if(!isFixMission(args.missionId)||args.affectedIds.length>1000)throw Error('Invalid fix marker.');
+export const mark=internalMutation({args:{scope:v.string(),missionId:v.string(),signal:v.optional(v.literal("shipping_unavailable")),appliedAt:v.number(),baseline:fixCounts,affectedIds:v.array(v.string()),partial:v.boolean(),active:v.boolean()},handler:async(ctx,args)=>{
+ if(!isFixMission(args.missionId)||args.signal&&args.missionId!=='delivery'||args.affectedIds.length>1000)throw Error('Invalid fix marker.');
  const row=await ctx.db.query('actionFixes').withIndex('by_scope',q=>q.eq('scope',args.scope)).filter(q=>q.eq(q.field('missionId'),args.missionId)).unique();
  // Repeated clicks retain the original baseline and time.
  if(args.active&&row?.active)return;
  if(!args.active){if(row){const {_id,_creationTime,...old}=row;await archiveMarker(ctx,{...old,active:false,withdrawnAt:Date.now()});await ctx.db.patch(row._id,{active:false});}return;}
- if(row){const {_id,_creationTime,...old}=row;await archiveMarker(ctx,old);await ctx.db.patch(row._id,{...args,retestedAt:undefined});}
+ if(row){const {_id,_creationTime,...old}=row;await archiveMarker(ctx,old);await ctx.db.patch(row._id,{...args,signal:args.signal,retestedAt:undefined});}
  else {if((await ctx.db.query('actionFixes').take(6000)).length>=6000)throw Error('Fix storage is full.');await ctx.db.insert('actionFixes',args);}
  await archiveMarker(ctx,args);
 }});
