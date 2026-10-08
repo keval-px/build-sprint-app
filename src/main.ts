@@ -47,7 +47,7 @@ const eventLabels: Record<CheckoutEvent["name"], string> = {
 const backendOrigin = ["localhost", "127.0.0.1"].includes(location.hostname) ? "https://neighborly-nightingale-843.convex.site" : location.origin;
 let selectedRange=recentRange(30);
 const openOverlays=new Set<string>();
-for(const id of ['date-range-popover','journey-modal']){
+for(const id of ['date-range-popover','journey-modal','export-menu']){
  element(id).addEventListener('show',()=>openOverlays.add(id));
  element(id).addEventListener('hide',()=>openOverlays.delete(id));
 }
@@ -62,7 +62,7 @@ function updateDateSelection(value:string){
   selectedRange=value;
   journeyPage=0;
   const label=value===recentRange(30)?'Last 30 days':value===recentRange(7)?'Last 7 days':value.split('--').map(date=>new Date(`${date}T12:00:00`).toLocaleDateString(undefined,{month:'short',day:'numeric'})).join(' – ');
-  text('date-range-button',label);
+  for(const id of ['date-range-button','journey-date-range-button'])text(id,label);
   if(latestEvidence)render(filteredEvidence(latestEvidence));
 }
 let appliedFixes:AppliedFix[]=[];
@@ -245,7 +245,7 @@ function applyMissionFilter() {
     missionIds:mission?.sessionIds??(selectedMission?[]:undefined),findingIds:selectedFinding?finding?.sessionIds??[]:undefined});
   filteredJourneyRows=filtered;
   renderQuickFilters();
-  for(const id of ['export-checkouts','export-events'])(element(id) as HTMLElementTagNameMap['s-button']).disabled=!filtered.length||loading;
+  for(const id of ['export-button','export-checkouts','export-events'])(element(id) as HTMLElementTagNameMap['s-button']).disabled=!filtered.length||loading;
   const page=paginateRows(filtered,journeyPage,JOURNEYS_PER_PAGE);journeyPage=page.page;
   element("journey-list").innerHTML=page.rows.map(row=>row.row).join('');
   const table = element('journey-table') as HTMLElementTagNameMap['s-table'];
@@ -520,7 +520,7 @@ async function loadEvidence(background=false) {
   }
 }
 function setLoadingControls(busy:boolean){
-  for(const id of ['export-checkouts','export-events'])(element(id) as HTMLElementTagNameMap['s-button']).disabled=busy||!filteredJourneyRows.length;
+  for(const id of ['export-button','export-checkouts','export-events'])(element(id) as HTMLElementTagNameMap['s-button']).disabled=busy||!filteredJourneyRows.length;
   (element('apply-date-range') as HTMLElementTagNameMap['s-button']).disabled=busy||fixSaving;
   element('mission-list').querySelectorAll<HTMLElementTagNameMap['s-button']>('s-button[data-fix]').forEach(button=>{button.disabled=busy||fixSaving||!fixesReady;});
   element('mission-list').querySelectorAll<HTMLElementTagNameMap['s-checkbox']>('s-checkbox[data-fix-done]').forEach(input=>{input.disabled=busy||fixSaving||!fixesReady||(!embeddedShopify&&!viewerId);});
@@ -544,7 +544,7 @@ element('journey-previous').addEventListener('click', () => {
   element('journey-page-status').scrollIntoView({block:'nearest'});
 });
 // Register component setters before applying saved checkbox values.
-await Promise.all(["s-search-field", "s-select", "s-modal", "s-checkbox", "s-button", "s-section", "s-badge", "s-table", "s-table-header", "s-table-header-row", "s-table-body", "s-table-row", "s-table-cell"].map(tag => customElements.whenDefined(tag)));
+await Promise.all(["s-search-field", "s-select", "s-menu", "s-modal", "s-checkbox", "s-button", "s-section", "s-badge", "s-table", "s-table-header", "s-table-header-row", "s-table-body", "s-table-row", "s-table-cell"].map(tag => customElements.whenDefined(tag)));
 await customElements.whenDefined('s-date-picker');
 const datePicker=element('date-range-picker') as HTMLElementTagNameMap['s-date-picker'];
 datePicker.value=selectedRange;datePicker.allow=recentRange(30);
