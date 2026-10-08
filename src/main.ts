@@ -74,6 +74,7 @@ let journeyPage = 0;
 const JOURNEYS_PER_PAGE = 24;
 let filteredJourneyRows: typeof journeyRows = [];
 let selectedQuickIssue:string|null=null;
+let selectedAlertCategory='all';
 let selectedFinding:string|null=null;
 let fixHistory:FixHistoryRow[]=[];
 let journeyRows: {events:CheckoutEvent[];shippingBlocker:boolean;startedAt: number; basketCents?: number; id: string; label: string; completed: boolean; categories: string[]; row: string; timeline: string}[] = [];
@@ -236,7 +237,7 @@ function applyMissionFilter() {
   if (mission) text("mission-filter-label", `${mission.title}: ${mission.count} matching checkout${mission.count===1?"":"s"}`);
   const query = (element('journey-search') as HTMLElementTagNameMap['s-search-field']).value.trim().toLowerCase();
   const status = (element('journey-status-filter') as HTMLElementTagNameMap['s-select']).value;
-  const alert = (element('journey-alert-filter') as HTMLElementTagNameMap['s-select']).value;
+  const alert = selectedAlertCategory;
   const hasFilters = !!mission || !!query || status !== 'all' || alert !== 'all' || !!selectedQuickIssue || !!selectedFinding;
   element('clear-journey-filters').hidden = !hasFilters;
   const sort = (element('journey-sort') as HTMLElementTagNameMap['s-select']).value;
@@ -258,7 +259,7 @@ function applyMissionFilter() {
 function renderQuickFilters(){
  const query=(element('journey-search') as HTMLElementTagNameMap['s-search-field']).value.trim().toLowerCase();
  const status=(element('journey-status-filter') as HTMLElementTagNameMap['s-select']).value;
- const alert=(element('journey-alert-filter') as HTMLElementTagNameMap['s-select']).value;
+ const alert=selectedAlertCategory;
  const base=journeyRows.filter(row=>(!query||row.id.toLowerCase().includes(query)||row.label.toLowerCase().includes(query))&&(status==='all'||(status==='completed'?row.completed:!row.completed)));
  const choices=[{id:'all',label:'All',count:base.length},...Object.keys(categoryLabels).map(id=>({id,label:issueLabels[id],count:base.filter(row=>row.categories.includes(id)).length})),{id:'shipping_blocker',label:'Shipping unavailable',count:base.filter(row=>row.shippingBlocker).length}].filter(c=>c.id==='all'||c.count);
  element('quick-issue-filters').innerHTML=choices.map(c=>{
@@ -269,13 +270,13 @@ function renderQuickFilters(){
 function viewCategory(category:string){
  resetJourneyFilters();
  if(category==='shipping_blocker')selectedQuickIssue=category;
- else (element('journey-alert-filter') as HTMLElementTagNameMap['s-select']).value=category;
+ else selectedAlertCategory=category;
  applyMissionFilter();showView('journeys',true);
 }
 element('quick-issue-filters').addEventListener('click',event=>{
  const button=(event.target as HTMLElement).closest<HTMLElement>('s-button[data-quick-issue]');if(!button)return;
  selectedFinding=null;selectedMission=null;selectedQuickIssue=button.dataset.quickIssue==='shipping_blocker'?'shipping_blocker':null;
- (element('journey-alert-filter') as HTMLElementTagNameMap['s-select']).value=selectedQuickIssue?'all':button.dataset.quickIssue!;
+ selectedAlertCategory=selectedQuickIssue?'all':button.dataset.quickIssue!;
  journeyPage=0;applyMissionFilter();
 });
 element('error-summary').addEventListener('click',event=>{const button=(event.target as HTMLElement).closest<HTMLElement>('[data-diagnostic]');if(button){resetJourneyFilters();selectedFinding=button.dataset.diagnostic!;applyMissionFilter();showView('journeys',true);}});
@@ -295,12 +296,12 @@ function resetJourneyFilters() {
   selectedMission = null;selectedQuickIssue=null;selectedFinding=null;
   (element('journey-search') as HTMLElementTagNameMap['s-search-field']).value = '';
   (element('journey-status-filter') as HTMLElementTagNameMap['s-select']).value = 'all';
-  (element('journey-alert-filter') as HTMLElementTagNameMap['s-select']).value = 'all';
+  selectedAlertCategory = 'all';
   journeyPage = 0;
 }
 for (const id of ['clear-mission-filter','clear-journey-filters']) element(id).addEventListener('click', () => {resetJourneyFilters(); applyMissionFilter();});
 element('journey-search').addEventListener('input', () => {journeyPage = 0; applyMissionFilter();});
-for (const id of ['journey-status-filter','journey-alert-filter','journey-sort']) element(id).addEventListener('change', () => {if(id==='journey-alert-filter'){selectedQuickIssue=null;selectedFinding=null;}journeyPage = 0; applyMissionFilter();});
+for (const id of ['journey-status-filter','journey-sort']) element(id).addEventListener('change', () => {journeyPage = 0; applyMissionFilter();});
 element("mission-list").addEventListener("click", event => {
   const target = (event.target as HTMLElement).closest<HTMLElement>("s-button[data-mission]");
   const toggle = (event.target as HTMLElement).closest<HTMLElement>("s-button[data-toggle-action]");

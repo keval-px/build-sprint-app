@@ -85,26 +85,17 @@
           <s-section heading="Recorded findings"><s-stack gap="small"><s-text color="subdued">Grouped by alert and last earlier step. Exact messages were not saved; the step does not identify the cause. A checkout can appear in more than one group.</s-text><s-stack id="error-summary" gap="small"></s-stack></s-stack></s-section>
         </s-stack>
         <s-stack id="journeys" gap="base" hidden>
-          <s-section><s-stack direction="inline" justifyContent="space-between" gap="small" alignItems="center"><s-heading>Checkout sessions</s-heading><s-stack direction="inline" gap="small"><s-button id="export-checkouts" variant="secondary" disabled>Export checkouts</s-button><s-button id="export-events" variant="secondary" disabled>Export events</s-button></s-stack></s-stack>
+          <s-stack direction="inline" justifyContent="space-between" gap="small" alignItems="center"><s-heading>Checkout sessions</s-heading><s-stack direction="inline" gap="small"><s-button id="export-checkouts" variant="secondary" disabled>Export checkouts</s-button><s-button id="export-events" variant="secondary" disabled>Export events</s-button></s-stack></s-stack>
+          <s-section>
             <s-stack gap="base">
               <s-stack id="mission-filter" gap="small" hidden><s-text id="mission-filter-label" type="strong"></s-text><s-button id="clear-mission-filter" variant="secondary">Show all checkouts</s-button></s-stack>
               <s-query-container>
-                <s-grid gridTemplateColumns="@container (inline-size > 900px) 1fr 150px 180px 200px, 1fr" gap="small" alignItems="center">
+                <s-grid gridTemplateColumns="@container (inline-size > 700px) 1fr 150px 200px, 1fr" gap="small" alignItems="center">
                   <s-search-field id="journey-search" label="Search checkouts" labelAccessibilityVisibility="exclusive" placeholder="Search checkout ID or order number"></s-search-field>
                   <s-select id="journey-status-filter" label="Checkout status" labelAccessibilityVisibility="exclusive" value="all">
                     <s-option value="all">All statuses</s-option>
                     <s-option value="completed">Completed</s-option>
                     <s-option value="unfinished">Unfinished</s-option>
-                  </s-select>
-                  <s-select id="journey-alert-filter" label="Alert type" labelAccessibilityVisibility="exclusive" value="all">
-                    <s-option value="all">All alert types</s-option>
-                    <s-option value="any">With alerts</s-option>
-                    <s-option value="none">No alerts</s-option>
-                    <s-option value="validation">Form errors</s-option>
-                    <s-option value="payment">Payment</s-option>
-                    <s-option value="discount">Discount or gift-card</s-option>
-                    <s-option value="delivery">Delivery</s-option>
-                    <s-option value="inventory">Item availability</s-option>
                   </s-select>
                   <s-select id="journey-sort" label="Sort checkouts" labelAccessibilityVisibility="exclusive" value="newest">
                     <s-option value="newest">Newest first</s-option>
