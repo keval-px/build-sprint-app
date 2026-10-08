@@ -93,7 +93,6 @@ function showView(view: typeof dashboardViews[number], focus = false) {
     element(`${name}-tab`).setAttribute("aria-pressed", String(name === view));
     element(`${name}-tab`).setAttribute("variant", !embeddedShopify&&name === view ? "primary" : "secondary");
   }
-  text('page-title',({overview:'Jimmy’s Bakery',journeys:'Checkout drill-down',history:'Fix history',alerts:'Alerts'})[view]);
   if (focus) element(`${view}-tab`).focus();
 }
 for (const view of dashboardViews) element(`${view}-tab`).addEventListener("click", () => showView(view));
@@ -366,8 +365,9 @@ function renderOrderPattern(data:EvidenceResponse){
 }
 function render(data: EvidenceResponse) {
   renderOrderPattern(data);
-  const updated=data.shopifySnapshot?.syncedAt??data.abandonedBasketSummary?.syncedAt??data.sampledAt;
-  text('store-meta',`Store: ${data.store.replace('.myshopify.com','')} · Updated ${time(updated)}`);
+  const syncedAt=data.shopifySnapshot?.syncedAt??data.abandonedBasketSummary?.syncedAt;
+  const syncStatus=syncedAt!==undefined&&Number.isFinite(syncedAt)?`Last Shopify sync · ${time(syncedAt)}`:'No successful Shopify sync recorded yet.';
+  for(const id of ['abandoned-basket-sync','journey-basket-sync'])text(id,syncStatus);
   element('error-summary').innerHTML=diagnosticsMarkup(data.events);
   element('fix-history-content').innerHTML=historyMarkup(fixHistory,latestEvidence?.events??data.events,fixesReady);
   renderFocusedAlerts(latestEvidence??data);
