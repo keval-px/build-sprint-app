@@ -27,7 +27,7 @@ export const readTestEvidence = internalQuery({
     const rows = await ctx.db.query("testCheckoutEvents").withIndex("by_store_timestamp", q => q.eq("store", STORE)).filter(q=>q.neq(q.field("auditOnly"),true)).order("desc").take(EVIDENCE_EVENT_LIMIT + 1);
     return {
       store: STORE, totalStored: (await ctx.db.query("testCheckoutEvents").withIndex("by_store_timestamp",q=>q.eq("store",STORE)).filter(q=>q.neq(q.field("auditOnly"),true)).collect()).length, truncated: rows.length > EVIDENCE_EVENT_LIMIT,
-      events: rows.slice(0, EVIDENCE_EVENT_LIMIT).map(({ eventId, sessionId, name, timestamp, category, extensionAppHash, shippingBlocker }) => ({ eventId, sessionId, name, timestamp, category, ...(extensionAppHash?{extensionAppHash}:{}), ...(shippingBlocker?{shippingBlocker}:{}) })),
+      events: rows.slice(0, EVIDENCE_EVENT_LIMIT).map(({ eventId, sessionId, name, timestamp, category, extensionAppName, extensionAppHash, shippingBlocker }) => ({ eventId, sessionId, name, timestamp, category, ...(extensionAppName?{extensionAppName}:{}),...(extensionAppHash?{extensionAppHash}:{}), ...(shippingBlocker?{shippingBlocker}:{}) })),
     };
   },
 });

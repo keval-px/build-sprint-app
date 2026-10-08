@@ -17,6 +17,7 @@ import type * as http from "../http.js";
 import type * as lib_checkoutMatching from "../lib/checkoutMatching.js";
 import type * as lib_shopifyAuth from "../lib/shopifyAuth.js";
 import type * as lib_shopifyQueries from "../lib/shopifyQueries.js";
+import type * as promisedOffers from "../promisedOffers.js";
 import type * as shopify from "../shopify.js";
 import type * as shopifyEvents from "../shopifyEvents.js";
 
@@ -36,6 +37,7 @@ declare const fullApi: ApiFromModules<{
   "lib/checkoutMatching": typeof lib_checkoutMatching;
   "lib/shopifyAuth": typeof lib_shopifyAuth;
   "lib/shopifyQueries": typeof lib_shopifyQueries;
+  promisedOffers: typeof promisedOffers;
   shopify: typeof shopify;
   shopifyEvents: typeof shopifyEvents;
 }>;

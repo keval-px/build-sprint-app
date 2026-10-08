@@ -17,13 +17,15 @@ export const ACTION_CHECKS: Record<MissionId, string> = {
   extension: "Retry the affected checkout. Confirm the app loads and checkout can continue.",
   payment: "Complete a test-mode order using the affected payment method.",
   delivery: "Retry the same basket and address. Shipping should appear and let you continue to payment.",
-  discount: "Use an eligible basket. The discount or gift card should update the total and let you continue to payment.",
+  discount: "Use a basket that meets the promised terms. The code should reduce the total before payment.",
   validation: "Enter valid details in the affected field. You should be able to continue without the same error.",
   inventory: "Use the same item and quantity. It should stay available through payment.",
   unfinished: "Retry the last recorded step and complete a test order. Confirm it appears as completed in Checkout drill-down.",
 };
 
 export interface Mission {
+  appNames?:string[];
+  discountCodes?:string[];
   signal?:"shipping_unavailable";id: MissionId; title: string; description: string; why: string; next: string; count: number;
   sessionIds: string[];
 }
@@ -86,7 +88,7 @@ export function buildMissions(events: CheckoutEvent[]): Mission[] {
 // Use the current alert period for advice after a fix, while keeping the full
 // selected-period counts intact. Without new alerts, retain the retest guidance.
 export function missionRecommendation(mission: Mission, events: CheckoutEvent[], boundary?: number): string {
-  if (boundary === undefined || mission.id === "unfinished") return mission.next;
+  if (boundary === undefined || mission.id === "unfinished" || mission.id === "extension" || mission.id === "discount") return mission.next;
   const current = buildMissions(events.filter(event => event.timestamp >= boundary)).find(item => item.id === mission.id)!;
   return current.count ? current.next : mission.next;
 }
@@ -98,7 +100,7 @@ export function missionSeverity(mission: Mission, events: CheckoutEvent[]): {
     label: "Info", tone: "info", reason: "No purchase was recorded.",
   };
   const unresolved = mission.sessionIds.some(id => {
-    const alerts = events.filter(event => event.sessionId === id && event.category === mission.id && (!mission.signal||event.shippingBlocker==='no_shipping_available'));
+    const alerts = events.filter(event => event.sessionId === id && event.category === mission.id && (!mission.discountCodes||mission.discountCodes.includes(event.discountOfferCode??'')) && (!mission.signal||event.shippingBlocker==='no_shipping_available'));
     const lastAlert = Math.max(...alerts.map(event => event.timestamp));
     return !events.some(event => event.sessionId === id && event.name === "checkout_completed" && event.timestamp > lastAlert);
   });
@@ -115,14 +117,14 @@ export function missionSeverity(mission: Mission, events: CheckoutEvent[]): {
     label: "Critical", tone: "critical", reason: mission.id === "payment" ? "A payment error may have blocked a purchase." : "An unavailable item may have blocked a purchase.",
   };
   return {
-    label: "Warning", tone: "caution", reason: mission.id === "extension" ? "A checkout app failed to load. This does not confirm it blocked payment." : mission.id === "validation" ? "A form alert may have interrupted checkout." : mission.id === "discount" ? "A discount or gift-card alert may have interrupted checkout." : "A shipping alert was recorded; availability is not confirmed.",
+    label: "Warning", tone: "caution", reason: mission.id === "extension" ? "A checkout app failed to load. This does not confirm it blocked payment." : mission.id === "validation" ? "A form alert may have interrupted checkout." : mission.id === "discount" ? mission.sessionIds.some(id=>events.some(e=>e.sessionId===id&&e.discountOfferCode)) ? "A promised discount was rejected. Check that its current rules match the offer." : "A discount or gift-card alert may have interrupted checkout." : "A shipping alert was recorded; availability is not confirmed.",
   };
 }
 
 // A fix marker separates recorded periods; it is not evidence that a problem
 // is fixed or still occurring. Include alerts from resumed older checkouts.
 export function missionSignal(mission: Mission, events: CheckoutEvent[], appliedAt?: number) {
-  const matching = events.filter(event => mission.sessionIds.includes(event.sessionId) && event.category === mission.id && (!mission.signal||event.shippingBlocker==='no_shipping_available'));
+  const matching = events.filter(event => mission.sessionIds.includes(event.sessionId) && event.category === mission.id && (!mission.discountCodes||mission.discountCodes.includes(event.discountOfferCode??'')) && (!mission.signal||event.shippingBlocker==='no_shipping_available'));
   const after = appliedAt === undefined ? matching : matching.filter(event => event.timestamp >= appliedAt);
   const latestAlert = matching.length ? Math.max(...matching.map(event => event.timestamp)) : null;
   const period = appliedAt === undefined ? 'recorded' : after.length ? 'after' : 'before';

@@ -6,7 +6,7 @@ import "./style.css";
 import {lastObservedStep,stepTimings,durationText,focusedAlerts,issueLabels} from '../shared/dashboardInsights';
 import {checkoutCSV,checkoutEventsCSV} from '../shared/checkoutExport';
 import {diagnosticsMarkup,historyMarkup,alertsMarkup,type FixHistoryRow} from './dashboardPanels';
-import {selectedOrderPattern,type SelectedOrderPattern} from "../shared/orderPattern";
+import {orderPattern,type OrderPattern} from "../shared/orderPattern";
 import {buildRecommendations} from "../shared/recommendations";
 import {fixResults,retestResults,actionState,type AppliedFix} from "../shared/fixTracking";
 import {recentRange,dateBounds,checkoutCohort} from '../shared/dateRange';
@@ -32,7 +32,7 @@ interface EvidenceResponse {
   inventoryItemValue?:(ReturnType<typeof inventoryValue>&{rangeStart:number;rangeEnd:number})|null;
   abandonedBasketSummary?:(ReturnType<typeof abandonedSummary>&{syncedAt:number;currency?:string})|null;
   checkoutPrices?:CheckoutPrice[];
-  orderPatterns?:SelectedOrderPattern|null;
+  orderPatterns?:OrderPattern|null;
   shopifySnapshot?:{timeZone?:string;currency?:string;syncedAt:number;periodStart:string;orders:({subtotalCents:number|null;test:boolean;paid:boolean;cancelled:boolean;recordHash:string;createdAt:string;sessionId?:string;orderName?:string;orderId?:string;totalCents?:number|null;conversion?:{shopMinor:number;buyerMinor:number;buyerCurrency:string}})[];abandoned:(SavedBasket&{recordHash:string;createdAt:string;recovered:boolean})[]}|null;
 }
 const element = (id: string) => document.getElementById(id)!;
@@ -355,16 +355,13 @@ let chartRenderVersion=0;
 function renderOrderPattern(data:EvidenceResponse){
   const version=++chartRenderVersion;
   const snapshot=latestEvidence?.shopifySnapshot??data.shopifySnapshot;
-  const candidate=snapshot?selectedOrderPattern(snapshot.orders,snapshot.periodStart,snapshot.syncedAt,snapshot.timeZone??'UTC',selectedRange):data.orderPatterns;
-  const pattern=candidate?.range===selectedRange?candidate:null;
+  const pattern=snapshot?orderPattern(snapshot.orders,snapshot.periodStart,snapshot.syncedAt,snapshot.timeZone??'UTC'):data.orderPatterns;
   element('order-chart-content').hidden=!pattern;
   element('order-chart-empty').hidden=!!pattern;
-  text('order-chart-empty',candidate&&candidate.range!==selectedRange?'Loading orders for these dates…':'Order history isn’t available for these dates.');
+  text('order-chart-empty','Order history isn’t available yet.');
   if(!pattern)return;
-  const [first,last]=pattern.range.split('--');
-  const shortDate=(day:string)=>new Date(`${day}T12:00:00Z`).toLocaleDateString(undefined,{day:'numeric',month:'short',timeZone:'UTC'});
-  text('order-chart-summary',`${first===last?shortDate(first):`${shortDate(first)} – ${shortDate(last)}`} · ${pattern.selectedOrders} recorded order${pattern.selectedOrders===1?'':'s'}${pattern.partial?' · Some dates unavailable':''}`);
-  element('order-chart-viz').setAttribute('aria-label',`${pattern.mode==='daily'?'Daily':'Hourly'} paid orders for ${first} to ${last}, compared with earlier matching weekdays, in ${pattern.timeZone}`);
+  text('order-chart-summary',`Today vs last 30 days${pattern.baselineDays<30?` · ${pattern.baselineDays} days of history available`:''}`);
+  element('order-chart-viz').setAttribute('aria-label',`Hourly paid orders today compared with the hourly average over ${pattern.baselineDays} previous complete days, in ${pattern.timeZone}`);
   element('order-chart-error').hidden=true;
   void import('./orderChart').then(({renderOrderChart})=>{if(version===chartRenderVersion)renderOrderChart(element('order-chart-viz'),pattern);}).catch(()=>{
     if(version!==chartRenderVersion)return;
@@ -454,7 +451,7 @@ function render(data: EvidenceResponse) {
             ${session.events.map((event, eventIndex) => `<s-grid gridTemplateColumns="24px 1fr auto" gap="base" accessibilityRole="list-item">
               <s-box data-timeline-marker="${event.name === "checkout_completed" ? "completed" : "neutral"}" data-first="${eventIndex === 0}" data-last="${eventIndex === session.events.length - 1}" accessibilityVisibility="hidden"></s-box>
               <s-stack direction="inline" gap="small" paddingBlock="small-100" alignItems="center">
-                <s-text>${escape(eventLabels[event.name])}</s-text>
+                <s-text>${escape(eventLabels[event.name])}${event.extensionAppName?` · ${escape(event.extensionAppName)}`:""}${event.discountOfferCode?` · ${escape(event.discountOfferCode)}`:""}</s-text>
                 ${event.category ? `<s-badge tone="${event.shippingBlocker ? "critical" : event.category === "validation" ? "caution" : "neutral"}">${event.shippingBlocker ? "Shipping unavailable" : escape(categoryLabels[event.category])}</s-badge>` : ""}
               </s-stack>
               <s-box paddingBlock="small-100">
@@ -509,7 +506,7 @@ async function loadEvidence(background=false) {
       await shopifyRequest('sync','POST');
       text('shopify-status','Connected to build-sprint-demo · Read-only Shopify data');
     }
-    const response = embeddedShopify ? await shopifyRequest('evidence') : await fetch(`${backendOrigin}/api/test-evidence?start=${dateBounds(selectedRange).start}&end=${dateBounds(selectedRange).end}&range=${encodeURIComponent(selectedRange)}`, { cache: "no-store", signal: AbortSignal.timeout(15000) });
+    const response = embeddedShopify ? await shopifyRequest('evidence') : await fetch(`${backendOrigin}/api/test-evidence?start=${dateBounds(selectedRange).start}&end=${dateBounds(selectedRange).end}`, { cache: "no-store", signal: AbortSignal.timeout(15000) });
     if (!response.ok) throw new Error("Could not read checkout evidence.");
     const data: EvidenceResponse = await response.json();
     if (data.store !== STORE || !Array.isArray(data.events)) throw new Error("Unexpected evidence response.");

@@ -1,6 +1,6 @@
 export const identityQuery = `query ConnectionIdentity {
   shop { name myshopifyDomain currencyCode ianaTimezone }
-  currentAppInstallation { accessScopes { handle } }
+  currentAppInstallation { app { id title } accessScopes { handle } }
 }`;
 export const abandonedQuery = `query AbandonedEvidence($after: String, $filter: String!) {
   abandonedCheckouts(first: 100, after: $after, query: $filter) {

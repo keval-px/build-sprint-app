@@ -43,10 +43,34 @@ test('compiled pixel collects app failures without transmitting raw error detail
  const raw={id:'start',clientId:'fixture-client',timestamp:new Date(now).toISOString(),context:{document:{location:{hostname:'build-sprint-demo.myshopify.com'}}}};
  const emit=async(name:string,data:unknown,id:string,at:number,clientId='fixture-client')=>{subscriptions.get(name)!({...raw,name,data,id,clientId,timestamp:new Date(at).toISOString()});await new Promise(resolve=>setImmediate(resolve));};
  await emit('checkout_started',{checkout:{token:'fixture-checkout'}},'start',now);
- await emit('ui_extension_errored',{error:{appId:'123',message:'customer@example.com',trace:'private trace'}},'error',now+1);
- assert.equal(payloads.length,2);assert.equal(payloads[1].category,'extension');assert.match(payloads[1].extensionAppHash!,/^[a-f0-9]{64}$/);
+ await emit('ui_extension_errored',{error:{appId:'123',appName:'Checkout Helper',message:'customer@example.com',trace:'private trace'}},'error',now+1);
+ assert.equal(payloads.length,2);assert.equal(payloads[1].category,'extension');assert.equal(payloads[1].extensionAppName,'Checkout Helper');assert.match(payloads[1].extensionAppHash!,/^[a-f0-9]{64}$/);
  assert.equal(JSON.stringify(payloads).includes('customer@example.com'),false);assert.equal(JSON.stringify(payloads).includes('private trace'),false);
  await emit('ui_extension_errored',{error:{appId:'123'}},'other-client',now+2,'different-client');assert.equal(payloads.length,2);
  await emit('checkout_completed',{checkout:{token:'fixture-checkout'}},'done',now+3);
  await emit('ui_extension_errored',{error:{appId:'123'}},'after',now+4);assert.equal(payloads.length,3);
+});
+
+test('app names identify only qualifying app failures, never an unrelated one-off failure',()=>{
+ const a={...failure(id,'a'),extensionAppName:'Checkout Helper'},b={...failure(client,'b'),extensionAppName:'Checkout Helper'};
+ const other={...failure('d'.repeat(64),'other'),extensionAppHash:id,extensionAppName:'Unrelated app'};
+ const recommendation=buildRecommendations([a,b,other])[0];
+ assert.equal(recommendation.title,'Check Checkout Helper in checkout');
+ assert.deepEqual(recommendation.appNames,['Checkout Helper']);assert.match(recommendation.next,/Review Checkout Helper/);
+ assert.equal(recommendation.next.includes('Unrelated app'),false);
+});
+test('app names are bounded display text; raw messages and malformed metadata stay rejected',()=>{
+ const row=failure(id,client);
+ assert.ok(parseTestEvent({...row,extensionAppName:'Checkout Helper'},now));
+ for(const name of ['','x'.repeat(121),'unsafe\nname','<script>',' padded '])assert.equal(parseTestEvent({...row,extensionAppName:name},now),null);
+ const publicRows=publicCheckoutEvents([{...row,eventId:'start',name:'checkout_started',category:null,extensionAppHash:undefined}],[{...row,extensionAppName:'Checkout Helper'}]);
+ assert.equal(publicRows[1].extensionAppName,'Checkout Helper');
+});
+test('historical app name lookup matches exact numeric and global App IDs only',async()=>{
+ const {appIdentityHashes,appDisplayName}=await import('../shared/extensionApp.ts');
+ const {checkoutIdentity}=await import('../shared/checkoutIdentity.ts');
+ assert.deepEqual(appIdentityHashes('gid://shopify/App/123'),[checkoutIdentity('123'),checkoutIdentity('gid://shopify/App/123')]);
+ assert.deepEqual(appIdentityHashes('123'),appIdentityHashes('gid://shopify/App/123'));
+ assert.deepEqual(appIdentityHashes('gid://shopify/Order/123'),[]);
+ assert.equal(appDisplayName(' Checkout Helper '),'Checkout Helper');
 });

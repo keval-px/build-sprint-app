@@ -1,4 +1,4 @@
-import {orderPattern,selectedOrderPattern} from '../shared/orderPattern';
+import {orderPattern} from '../shared/orderPattern';
 import {actionValues} from '../shared/actionValues';
 import {checkoutPrice} from '../shared/checkoutPrice';
 import { httpRouter } from "convex/server";
@@ -114,10 +114,10 @@ http.route({path:'/shopify/pixel-events',method:'POST',handler:httpAction(async(
   const cors={'Access-Control-Allow-Origin':'*','Content-Type':'application/json','Cache-Control':'no-store'};
   const body=await request.text();if(body.length>12000)return new Response('{}',{status:413,headers:cors});
   try{
-    const input=JSON.parse(body);const {subtotalCents,currency,items,...base}=input;
+    const input=JSON.parse(body);const {subtotalCents,currency,items,appliedDiscountCount,...base}=input;
     if(!parsePixelBase(base,Date.now())||((subtotalCents!==undefined||currency!==undefined)&&(!Number.isSafeInteger(subtotalCents)||subtotalCents<0||currency!=='USD')))throw Error();
     if(!await ctx.runQuery(internal.shopify.connection,{}))return new Response('{}',{status:503,headers:cors});
-    const result=await ctx.runMutation(internal.shopifyEvents.record,{...base,...(items===undefined?{}:{items}),...(subtotalCents===undefined?{}:{subtotalCents,currency})});
+    const result=await ctx.runMutation(internal.shopifyEvents.record,{...base,...(appliedDiscountCount===undefined?{}:{appliedDiscountCount}),...(items===undefined?{}:{items}),...(subtotalCents===undefined?{}:{subtotalCents,currency})});
     return new Response(JSON.stringify({result}),{status:result==='full'?429:result==='invalid'?400:200,headers:cors});
   }catch{return new Response('{}',{status:400,headers:cors});}
 })});
@@ -153,8 +153,7 @@ http.route({ path: "/test-evidence", method: "GET", handler: httpAction(async (c
     storeName=snapshot?.storeName;
     if(snapshot)abandonedBasketSummary={...abandonedSummary(snapshot.abandoned,start,end),syncedAt:snapshot.syncedAt,currency:snapshot.currency??'USD'};
     if(snapshot){
-      const range=params.get('range');
-      orderPatterns=range?selectedOrderPattern(snapshot.orders,snapshot.periodStart,snapshot.syncedAt,snapshot.timeZone??'UTC',range):orderPattern(snapshot.orders,snapshot.periodStart,snapshot.syncedAt,snapshot.timeZone??'UTC');
+      orderPatterns=orderPattern(snapshot.orders,snapshot.periodStart,snapshot.syncedAt,snapshot.timeZone??'UTC');
       const currency=snapshot.currency??'USD';
       const prices=await ctx.runQuery(internal.checkoutPrices.read,{});
       actionBasketValue=actionValues(events,abandonedCheckouts,snapshot.abandoned,prices,currency,start,end);

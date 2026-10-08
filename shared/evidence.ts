@@ -1,3 +1,4 @@
+import {appDisplayName} from './extensionApp.ts';
 export const EVIDENCE_EVENT_LIMIT = 1000;
 export const STORE = "build-sprint-demo.myshopify.com";
 export const EVENT_NAMES = [
@@ -9,7 +10,10 @@ export type EventName = typeof EVENT_NAMES[number];
 export type ErrorCategory = "discount" | "payment" | "delivery" | "validation" | "inventory" | "extension";
 import type {CapturedLine} from './inventoryValue.ts';
 export interface CheckoutEvent {
+  discountCodeHash?:string;
+  discountOfferCode?:string;
   extensionAppHash?: string;
+  extensionAppName?: string;
   shippingBlocker?: "no_shipping_available";
   items?:CapturedLine[];
   eventId: string;
@@ -48,7 +52,7 @@ export function describeJourney(events: CheckoutEvent[]) {
 export function parseTestEvent(input: unknown, now: number): CheckoutEvent | null {
   if (!input || typeof input !== "object" || Array.isArray(input)) return null;
   const record = input as Record<string, unknown>;
-  if (Object.keys(record).some(key => !["eventId", "sessionId", "name", "timestamp", "category", "shippingBlocker", "extensionAppHash"].includes(key))) return null;
+  if (Object.keys(record).some(key => !["eventId", "sessionId", "name", "timestamp", "category", "shippingBlocker", "extensionAppHash", "extensionAppName", "discountCodeHash"].includes(key))) return null;
   if (typeof record.eventId !== "string" || !/^[a-f0-9]{64}$/.test(record.eventId)) return null;
   if (typeof record.sessionId !== "string" || !/^[a-f0-9]{64}$/.test(record.sessionId)) return null;
   if (typeof record.name !== "string" || !EVENT_NAMES.some(name => name === record.name)) return null;
@@ -56,9 +60,11 @@ export function parseTestEvent(input: unknown, now: number): CheckoutEvent | nul
   if (record.timestamp < now - 86400000 || record.timestamp > now + 60000) return null;
   if (record.category !== null && !["discount", "payment", "delivery", "validation", "inventory", "extension"].includes(String(record.category))) return null;
   if (record.name !== "alert_displayed" && record.name !== "ui_extension_errored" && record.category !== null) return null;
+  if (record.discountCodeHash!==undefined && (record.name!=='alert_displayed'||record.category!=='discount'||typeof record.discountCodeHash!=='string'||!/^[a-f0-9]{64}$/.test(record.discountCodeHash)))return null;
+  if (record.extensionAppName !== undefined && appDisplayName(record.extensionAppName)!==record.extensionAppName) return null;
   if (record.name === "ui_extension_errored") {
     if (record.category !== "extension" || typeof record.extensionAppHash !== "string" || !/^[a-f0-9]{64}$/.test(record.extensionAppHash)) return null;
-  } else if (record.category === "extension" || record.extensionAppHash !== undefined) return null;
+  } else if (record.category === "extension" || record.extensionAppHash !== undefined || record.extensionAppName !== undefined) return null;
   if (record.shippingBlocker !== undefined && (record.shippingBlocker !== "no_shipping_available" || record.name !== "alert_displayed" || record.category !== "delivery")) return null;
   return record as unknown as CheckoutEvent;
 }

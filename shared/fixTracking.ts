@@ -3,7 +3,7 @@ import type {MissionId} from './actions.ts';
 export const FIX_MISSIONS = ['payment','validation','unfinished','delivery','discount','inventory','extension'] as const;
 export function isFixMission(value:unknown):value is MissionId {return FIX_MISSIONS.some(id=>id===value);}
 const WINDOW=30*86400000;
-const matching=(e:CheckoutEvent,id:MissionId,signal?:'shipping_unavailable')=>(e.name==='alert_displayed'||e.name==='ui_extension_errored')&&e.category===id&&(!signal||e.shippingBlocker==='no_shipping_available');
+const matching=(e:CheckoutEvent,id:MissionId,signal?:'shipping_unavailable')=>(e.name==='alert_displayed'||e.name==='ui_extension_errored')&&e.category===id&&(id!=='discount'||!!e.discountOfferCode)&&(!signal||e.shippingBlocker==='no_shipping_available');
 export interface FixCounts {checkouts:number;affected:number;completed:number}
 export interface AppliedFix {signal?:"shipping_unavailable";missionId:MissionId;appliedAt:number;baseline:FixCounts;affectedIds:string[];partial:boolean;retestedAt?:number}
 export function retestResults(fix:AppliedFix,events:CheckoutEvent[],now:number){

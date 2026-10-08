@@ -134,8 +134,9 @@ export async function syncStore(ctx:ActionCtx,idToken:string){
 }
 async function syncWithAccess(ctx:ActionCtx,access:string){
   const startedAt=Date.now();
-  const identity=await adminRead<{shop:{name:string;myshopifyDomain:string;currencyCode:string;ianaTimezone:string};currentAppInstallation:{accessScopes:{handle:string}[]}}>(access,identityQuery);
+  const identity=await adminRead<{shop:{name:string;myshopifyDomain:string;currencyCode:string;ianaTimezone:string};currentAppInstallation:{app:{id:string;title:string};accessScopes:{handle:string}[]}}>(access,identityQuery);
   if(identity.shop.myshopifyDomain!==STORE || REQUIRED_SCOPES.some(s=>!identity.currentAppInstallation.accessScopes.some(x=>x.handle===s)))throw Error('Unexpected store or missing Shopify permissions.');
+  await ctx.runMutation(internal.shopifyEvents.labelInstalledApp,{appId:identity.currentAppInstallation.app.id,name:identity.currentAppInstallation.app.title});
   const currency=identity.shop.currencyCode;if(currencyScale(currency)===null)throw Error('Store currency is not supported.');
   const timeZone=identity.shop.ianaTimezone;
   const periodStart=orderHistoryStart(startedAt,timeZone);

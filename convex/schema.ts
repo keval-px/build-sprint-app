@@ -2,7 +2,10 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export const eventFields = {
+  discountCodeHash:v.optional(v.string()),
+  discountOfferCode:v.optional(v.string()),
   extensionAppHash: v.optional(v.string()),
+  extensionAppName: v.optional(v.string()),
   shippingBlocker: v.optional(v.literal("no_shipping_available")),
   eventId: v.string(),
   sessionId: v.string(),
@@ -39,6 +42,7 @@ export const capturedItems=v.array(v.object({itemHash:v.string(),quantity:v.numb
 export const fixCounts=v.object({checkouts:v.number(),affected:v.number(),completed:v.number()});
 export const checkoutPriceFields={sessionId:v.string(),currency:v.string(),createdAt:v.string(),updatedAt:v.number(),subtotalCents:v.union(v.number(),v.null()),totalCents:v.union(v.number(),v.null()),recovered:v.boolean()};
 export default defineSchema({
+  promisedDiscountOffers:defineTable({store:v.literal("build-sprint-demo.myshopify.com"),code:v.string(),codeHash:v.string(),currency:v.string(),minimumCents:v.number(),startsAt:v.number(),endsAt:v.number(),verifiedAt:v.number(),source:v.literal('demo-browser-verified-offer')}).index('by_code',['codeHash']),
   pixelCollectionState:defineTable({store:v.literal("build-sprint-demo.myshopify.com"),eventCount:v.number()}).index("by_store",["store"]),
   shopifyCheckoutPrices:defineTable({...checkoutPriceFields,store:v.literal("build-sprint-demo.myshopify.com")}).index("by_store_session",["store","sessionId"]).index("by_store_created",["store","createdAt"]),
   actionFixHistory:defineTable({scope:v.string(),missionId:v.string(),signal:v.optional(v.literal("shipping_unavailable")),appliedAt:v.number(),baseline:fixCounts,affectedIds:v.array(v.string()),partial:v.boolean(),active:v.boolean(),retestedAt:v.optional(v.number()),withdrawnAt:v.optional(v.number())}).index("by_scope",["scope"]),
