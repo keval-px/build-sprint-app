@@ -42,7 +42,7 @@ const time = (timestamp: number) => new Date(timestamp).toLocaleString(undefined
 const eventLabels: Record<CheckoutEvent["name"], string> = {
   checkout_started: "Checkout started", checkout_contact_info_submitted: "Contact information submitted",
   checkout_address_info_submitted: "Address information submitted", checkout_shipping_info_submitted: "Shipping information submitted",
-  payment_info_submitted: "Payment information submitted", checkout_completed: "Checkout completed", alert_displayed: "Checkout alert displayed",
+  payment_info_submitted: "Payment information submitted", checkout_completed: "Checkout completed", alert_displayed: "Checkout alert displayed", ui_extension_errored: "Checkout app failed to load",
 };
 const backendOrigin = ["localhost", "127.0.0.1"].includes(location.hostname) ? "https://neighborly-nightingale-843.convex.site" : location.origin;
 let selectedRange=recentRange(30);
@@ -84,7 +84,7 @@ try {
   viewerId = isViewerId(stored) ? stored : [...crypto.getRandomValues(new Uint8Array(16))].map(byte => byte.toString(16).padStart(2, "0")).join("");
   localStorage.setItem("checkout-demo-viewer", viewerId);
 } catch { /* Checklist remains disabled; viewing evidence still works. */ }
-const categoryLabels = { discount: "Discount or gift-card", payment: "Payment", delivery: "Delivery", validation: "Form errors", inventory: "Item availability" };
+const categoryLabels = { discount: "Discount or gift-card", payment: "Payment", delivery: "Delivery", validation: "Form errors", inventory: "Item availability", extension: "Checkout app failed" };
 
 const dashboardViews=["overview","journeys","history","alerts"] as const;
 function showView(view: typeof dashboardViews[number], focus = false) {
@@ -177,7 +177,7 @@ function renderMissions(events: CheckoutEvent[]) {
   const recorded = !embeddedShopify&&sharedValues?.rangeStart===bounds.start&&sharedValues.rangeEnd===bounds.end
     ? sharedValues
     : actionValues(events,latestEvidence?.abandonedCheckouts??null,latestEvidence?.shopifySnapshot?.abandoned??[],latestEvidence?.checkoutPrices??[],storeCurrency,bounds.start,bounds.end);
-  const priority:Record<MissionId,number>={delivery:0,payment:0,inventory:0,discount:1,validation:2,unfinished:3};
+  const priority:Record<MissionId,number>={delivery:0,payment:0,inventory:0,discount:1,validation:2,unfinished:3,extension:1};
   const severityRank = {Critical:0, Warning:1, Info:2};
   const state=(mission:Mission)=>actionState(appliedFixes.find(f=>f.missionId===mission.id),latestEvidence?.events??events,Date.now());
   missions = recommendations.sort((a,b)=>Number(state(a).done)-Number(state(b).done)||severityRank[missionSignal(a,events,signalBoundary(a.id)).severity.label]-severityRank[missionSignal(b,events,signalBoundary(b.id)).severity.label]||priority[a.id]-priority[b.id]||unfinishedCount(b)-unfinishedCount(a));
@@ -365,9 +365,6 @@ function renderOrderPattern(data:EvidenceResponse){
 }
 function render(data: EvidenceResponse) {
   renderOrderPattern(data);
-  const syncedAt=data.shopifySnapshot?.syncedAt??data.abandonedBasketSummary?.syncedAt;
-  const syncStatus=syncedAt!==undefined&&Number.isFinite(syncedAt)?`Last Shopify sync · ${time(syncedAt)}`:'No successful Shopify sync recorded yet.';
-  for(const id of ['abandoned-basket-sync','journey-basket-sync'])text(id,syncStatus);
   element('error-summary').innerHTML=diagnosticsMarkup(data.events);
   element('fix-history-content').innerHTML=historyMarkup(fixHistory,latestEvidence?.events??data.events,fixesReady);
   renderFocusedAlerts(latestEvidence??data);
@@ -425,7 +422,7 @@ function render(data: EvidenceResponse) {
   element("completion-progress").setAttribute("value",String(summary.completed));
   element("completion-progress").setAttribute("accessibilityLabel",`${summary.completed} of ${summary.sessionCount} checkouts recorded completion`);
   journeyRows = summary.journeys.reverse().map(session => {
-    const alerts = session.events.filter(event => event.name === "alert_displayed" && event.category);
+    const alerts = session.events.filter(event => event.category !== null);
     const detail = describeJourney(session.events);
     const status = session.completed ? (detail.outcome === "Completed after an observed error" ? "Completed after an error" : "Completed") : "Unfinished";
     const basketCents = journeyPrice(session.id,session.completed,session.events,storeCurrency,nativeSnapshot?.orders??[],baskets,(data.abandonedCheckouts?.records??[]).filter(row=>row.currency===storeCurrency&&row.sessionId).map(row=>({...row,sessionId:row.sessionId!})),(latestEvidence?.checkoutPrices??data.checkoutPrices??[]).filter(row=>row.currency===storeCurrency));

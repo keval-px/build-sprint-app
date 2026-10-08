@@ -70,7 +70,7 @@
             <s-heading id="abandoned-heading" fontSize="large">Abandoned checkout</s-heading>
             <s-stack gap="base">
               <s-query-container><s-grid id="abandoned-metrics" gridTemplateColumns="@container (inline-size > 600px) 1fr 1fr 1fr, 1fr" gap="base">
-                <s-section id="abandoned-value-metric"><s-stack gap="small"><s-text id="abandoned-value-label" color="subdued">Total abandoned basket value</s-text><s-number id="abandoned-value" fontSize="large-100" fontWeight="bold">—</s-number><s-text id="abandoned-count" color="subdued" hidden></s-text><s-text id="abandoned-basket-sync" color="subdued">Checking Shopify sync…</s-text></s-stack></s-section>
+                <s-section id="abandoned-value-metric"><s-stack gap="small"><s-text id="abandoned-value-label" color="subdued">Total abandoned basket value</s-text><s-number id="abandoned-value" fontSize="large-100" fontWeight="bold">—</s-number><s-text id="abandoned-count" color="subdued" hidden></s-text></s-stack></s-section>
                 <s-section><s-stack gap="small"><s-text color="subdued" id="abandoned-checkouts-label">Abandoned checkouts</s-text><s-number id="abandoned-checkouts-count" fontSize="large-100" fontWeight="bold">—</s-number></s-stack></s-section>
                 <s-section><s-stack gap="small"><s-text color="subdued" id="abandoned-average-label">Average abandoned basket value</s-text><s-number id="abandoned-average" tone="success" fontSize="large-100" fontWeight="bold">—</s-number></s-stack></s-section>
               </s-grid></s-query-container>
@@ -108,7 +108,6 @@
               <s-stack id="quick-issue-filters" direction="inline" gap="small" accessibilityRole="region" accessibilityLabel="Quick issue filters"></s-stack>
               <s-text id="export-status" color="subdued" role="status" aria-live="polite"></s-text>
               <s-button id="clear-journey-filters" variant="tertiary" hidden>Clear filters</s-button>
-              <s-text id="journey-basket-sync" color="subdued">Checking Shopify sync…</s-text>
               <s-table id="journey-table">
                 <s-table-header-row>
                   <s-table-header listSlot="primary">Checkout / order</s-table-header>
