@@ -1,4 +1,4 @@
-import {orderPattern} from '../shared/orderPattern';
+import {orderPattern,selectedOrderPattern} from '../shared/orderPattern';
 import {actionValues} from '../shared/actionValues';
 import {checkoutPrice} from '../shared/checkoutPrice';
 import { httpRouter } from "convex/server";
@@ -83,7 +83,7 @@ for(const operation of ['status','sync','evidence','pixel/enable']){
       const pixel=await ctx.runQuery(internal.shopifyEvents.read,{});
       const abandonedCheckouts=await ctx.runQuery(internal.abandoned.read,{});
       const checkoutPrices=await ctx.runQuery(internal.checkoutPrices.read,{});
-      return privateReply({...original,events:mergeCheckoutEvents(original.events,pixel.events),truncated:original.truncated||pixel.truncated,totalStored:original.totalStored+pixel.totalStored,abandonedCheckouts,checkoutPrices,shopifySnapshot:snapshot?{timeZone:snapshot.timeZone,currency:snapshot.currency??'USD',syncedAt:snapshot.syncedAt,periodStart:snapshot.periodStart,orders:snapshot.orders,abandoned:snapshot.abandoned}:null,enabled:true,source:'Demo Shopify browser and server evidence.',sampledAt:Date.now()});
+      return privateReply({...original,events:mergeCheckoutEvents(original.events,pixel.events),truncated:original.truncated||pixel.truncated,totalStored:original.totalStored+pixel.totalStored,abandonedCheckouts,checkoutPrices,storeName:snapshot?.storeName,shopifySnapshot:snapshot?{timeZone:snapshot.timeZone,currency:snapshot.currency??'USD',syncedAt:snapshot.syncedAt,periodStart:snapshot.periodStart,orders:snapshot.orders,abandoned:snapshot.abandoned}:null,enabled:true,source:'Demo Shopify browser and server evidence.',sampledAt:Date.now()});
     }catch(error){
       const message=error instanceof Error ? error.message : '';
       const reasons=['Shopify authorization failed. Check installation and permissions.','Install the requested Shopify permissions first.','Shopify could not return data. Check permissions and retry; previous results are retained.','Unexpected store or missing Shopify permissions.'];
@@ -144,14 +144,17 @@ http.route({ path: "/test-evidence", method: "GET", handler: httpAction(async (c
   const events=publicCheckoutEvents(evidence.events,pixel.events);
   const abandonedCheckouts = await ctx.runQuery(internal.abandoned.read, {});
   const params=new URL(request.url).searchParams,start=Number(params.get('start')),end=Number(params.get('end'));
+  let storeName:string|undefined;
   let abandonedBasketSummary=null,inventoryItemValue=null,actionBasketValue=null,orderPatterns=null;
   // Publish only aggregate test-store metrics. Private order/checkout records stay private.
   if(params.has('start')&&params.has('end')&&Number.isSafeInteger(start)&&Number.isSafeInteger(end)&&start<end&&end-start<=31*86400000){
     const connection=await ctx.runQuery(internal.shopify.connection,{});
     const snapshot=canReadShopifyEvidence(connection)?await ctx.runQuery(internal.shopify.snapshot,{}):null;
+    storeName=snapshot?.storeName;
     if(snapshot)abandonedBasketSummary={...abandonedSummary(snapshot.abandoned,start,end),syncedAt:snapshot.syncedAt,currency:snapshot.currency??'USD'};
     if(snapshot){
-      orderPatterns=orderPattern(snapshot.orders,snapshot.periodStart,snapshot.syncedAt,snapshot.timeZone??'UTC');
+      const range=params.get('range');
+      orderPatterns=range?selectedOrderPattern(snapshot.orders,snapshot.periodStart,snapshot.syncedAt,snapshot.timeZone??'UTC',range):orderPattern(snapshot.orders,snapshot.periodStart,snapshot.syncedAt,snapshot.timeZone??'UTC');
       const currency=snapshot.currency??'USD';
       const prices=await ctx.runQuery(internal.checkoutPrices.read,{});
       actionBasketValue=actionValues(events,abandonedCheckouts,snapshot.abandoned,prices,currency,start,end);
@@ -161,7 +164,7 @@ http.route({ path: "/test-evidence", method: "GET", handler: httpAction(async (c
       inventoryItemValue={...inventoryValue(pixel.events,ids,currency,quotes),rangeStart:start,rangeEnd:end};
     }
   }
-  return reply({ ...evidence, events, abandonedCheckouts, abandonedBasketSummary, inventoryItemValue, actionBasketValue, orderPatterns, enabled: process.env.SHOPIFY_TEST_COLLECTION_ENABLED === "true", source: "Unverified browser test events. No live merchant data.", sampledAt: Date.now() });
+  return reply({ ...evidence, storeName, events, abandonedCheckouts, abandonedBasketSummary, inventoryItemValue, actionBasketValue, orderPatterns, enabled: process.env.SHOPIFY_TEST_COLLECTION_ENABLED === "true", source: "Unverified browser test events. No live merchant data.", sampledAt: Date.now() });
 }) });
 
 

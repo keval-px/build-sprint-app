@@ -23,7 +23,7 @@ export const saveConnection = internalMutation({args:{accessToken:v.string(),ref
   if(old)await ctx.db.replace(old._id,{...values,store:STORE,connectedAt:Date.now()});
   else await ctx.db.insert('shopifyConnections',{...values,store:STORE,connectedAt:Date.now()});
 }});
-export const saveSnapshot = internalMutation({args:{timeZone:v.optional(v.string()),currency:v.optional(v.string()),syncedAt:v.number(),periodStart:v.string(),orders:v.array(v.object({recordHash:v.string(),conversion:v.optional(v.object({shopMinor:v.number(),buyerMinor:v.number(),buyerCurrency:v.string()})),sessionId:v.optional(v.string()),orderName:v.optional(v.string()),orderId:v.optional(v.string()),totalCents:v.optional(v.union(v.number(),v.null())),createdAt:v.string(),subtotalCents:v.union(v.number(),v.null()),test:v.boolean(),paid:v.boolean(),cancelled:v.boolean()})),abandoned:v.array(v.object({recordHash:v.string(),sessionId:v.optional(v.string()),totalCents:v.optional(v.union(v.number(),v.null())),createdAt:v.string(),subtotalCents:v.union(v.number(),v.null()),recovered:v.boolean()}))},handler:async(ctx,args)=>{
+export const saveSnapshot = internalMutation({args:{storeName:v.optional(v.string()),timeZone:v.optional(v.string()),currency:v.optional(v.string()),syncedAt:v.number(),periodStart:v.string(),orders:v.array(v.object({recordHash:v.string(),conversion:v.optional(v.object({shopMinor:v.number(),buyerMinor:v.number(),buyerCurrency:v.string()})),sessionId:v.optional(v.string()),orderName:v.optional(v.string()),orderId:v.optional(v.string()),totalCents:v.optional(v.union(v.number(),v.null())),createdAt:v.string(),subtotalCents:v.union(v.number(),v.null()),test:v.boolean(),paid:v.boolean(),cancelled:v.boolean()})),abandoned:v.array(v.object({recordHash:v.string(),sessionId:v.optional(v.string()),totalCents:v.optional(v.union(v.number(),v.null())),createdAt:v.string(),subtotalCents:v.union(v.number(),v.null()),recovered:v.boolean()}))},handler:async(ctx,args)=>{
   const state=await ctx.db.query('shopifyInstallState').withIndex('by_store',q=>q.eq('store',STORE)).unique();
   const liveConnection=await ctx.db.query('shopifyConnections').withIndex('by_store',q=>q.eq('store',STORE)).unique();
   if(!canSaveSyncedSnapshot(args.syncedAt,liveConnection?.connectedAt,state?.revokedAt))throw Error('Shopify installation changed. Reopen the app.');
@@ -134,7 +134,7 @@ export async function syncStore(ctx:ActionCtx,idToken:string){
 }
 async function syncWithAccess(ctx:ActionCtx,access:string){
   const startedAt=Date.now();
-  const identity=await adminRead<{shop:{myshopifyDomain:string;currencyCode:string;ianaTimezone:string};currentAppInstallation:{accessScopes:{handle:string}[]}}>(access,identityQuery);
+  const identity=await adminRead<{shop:{name:string;myshopifyDomain:string;currencyCode:string;ianaTimezone:string};currentAppInstallation:{accessScopes:{handle:string}[]}}>(access,identityQuery);
   if(identity.shop.myshopifyDomain!==STORE || REQUIRED_SCOPES.some(s=>!identity.currentAppInstallation.accessScopes.some(x=>x.handle===s)))throw Error('Unexpected store or missing Shopify permissions.');
   const currency=identity.shop.currencyCode;if(currencyScale(currency)===null)throw Error('Store currency is not supported.');
   const timeZone=identity.shop.ianaTimezone;
@@ -151,7 +151,7 @@ async function syncWithAccess(ctx:ActionCtx,access:string){
     const sessionId=savedCheckoutSession(recordHash,previous?.abandoned??[]);
     return {recordHash,...(sessionId?{sessionId}:{}),createdAt:row.createdAt,totalCents:storeMinor(row.totalPriceSet?.shopMoney),subtotalCents:storeMinor(row.subtotalPriceSet?.shopMoney),recovered:!!row.completedAt};
   }));
-  await ctx.runMutation(internal.shopify.saveSnapshot,{timeZone,currency,syncedAt:startedAt,periodStart,orders:safeOrders,abandoned:safeAbandoned});
+  await ctx.runMutation(internal.shopify.saveSnapshot,{storeName:identity.shop.name,timeZone,currency,syncedAt:startedAt,periodStart,orders:safeOrders,abandoned:safeAbandoned});
   return{store:STORE,syncedAt:startedAt,orders:safeOrders.length,abandoned:safeAbandoned.length};
 }
 

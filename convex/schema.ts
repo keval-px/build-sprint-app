@@ -2,16 +2,17 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export const eventFields = {
+  extensionAppHash: v.optional(v.string()),
   shippingBlocker: v.optional(v.literal("no_shipping_available")),
   eventId: v.string(),
   sessionId: v.string(),
   name: v.union(
     v.literal("checkout_started"), v.literal("checkout_contact_info_submitted"),
     v.literal("checkout_address_info_submitted"), v.literal("checkout_shipping_info_submitted"),
-    v.literal("payment_info_submitted"), v.literal("checkout_completed"), v.literal("alert_displayed"),
+    v.literal("payment_info_submitted"), v.literal("checkout_completed"), v.literal("alert_displayed"), v.literal("ui_extension_errored"),
   ),
   timestamp: v.number(),
-  category: v.union(v.null(), v.literal("discount"), v.literal("payment"), v.literal("delivery"), v.literal("validation"), v.literal("inventory")),
+  category: v.union(v.null(), v.literal("discount"), v.literal("payment"), v.literal("delivery"), v.literal("validation"), v.literal("inventory"), v.literal("extension")),
 };
 
 // Historical model/checklist tables remain solely to preserve existing data.
@@ -45,7 +46,7 @@ export default defineSchema({
   shopifyCheckoutEvents:defineTable({...eventFields,items:v.optional(capturedItems),subtotalCents:v.optional(v.number()),currency:v.optional(v.literal("USD")),store:v.literal("build-sprint-demo.myshopify.com"),receivedAt:v.number()}).index("by_event",["eventId"]).index("by_timestamp",["timestamp"]),
   shopifyInstallState: defineTable({store:v.literal("build-sprint-demo.myshopify.com"),revokedAt:v.number()}).index("by_store",["store"]),
   shopifyConnections: defineTable({store:v.literal("build-sprint-demo.myshopify.com"), accessToken:v.string(), refreshToken:v.optional(v.string()), expiresAt:v.optional(v.number()), refreshExpiresAt:v.optional(v.number()), scopes:v.array(v.string()), connectedAt:v.number()}).index("by_store",["store"]),
-  shopifySnapshots: defineTable({timeZone:v.optional(v.string()),currency:v.optional(v.string()),store:v.literal("build-sprint-demo.myshopify.com"), syncedAt:v.number(), periodStart:v.string(), orders:v.array(v.object({recordHash:v.string(),conversion:v.optional(v.object({shopMinor:v.number(),buyerMinor:v.number(),buyerCurrency:v.string()})),sessionId:v.optional(v.string()),orderName:v.optional(v.string()),orderId:v.optional(v.string()),totalCents:v.optional(v.union(v.number(),v.null())),createdAt:v.string(),subtotalCents:v.union(v.number(),v.null()),test:v.boolean(),paid:v.boolean(),cancelled:v.boolean()})), abandoned:v.array(v.object({recordHash:v.string(),sessionId:v.optional(v.string()),totalCents:v.optional(v.union(v.number(),v.null())),createdAt:v.string(),subtotalCents:v.union(v.number(),v.null()),recovered:v.boolean()}))}).index("by_store",["store"]),
+  shopifySnapshots: defineTable({storeName:v.optional(v.string()),timeZone:v.optional(v.string()),currency:v.optional(v.string()),store:v.literal("build-sprint-demo.myshopify.com"), syncedAt:v.number(), periodStart:v.string(), orders:v.array(v.object({recordHash:v.string(),conversion:v.optional(v.object({shopMinor:v.number(),buyerMinor:v.number(),buyerCurrency:v.string()})),sessionId:v.optional(v.string()),orderName:v.optional(v.string()),orderId:v.optional(v.string()),totalCents:v.optional(v.union(v.number(),v.null())),createdAt:v.string(),subtotalCents:v.union(v.number(),v.null()),test:v.boolean(),paid:v.boolean(),cancelled:v.boolean()})), abandoned:v.array(v.object({recordHash:v.string(),sessionId:v.optional(v.string()),totalCents:v.optional(v.union(v.number(),v.null())),createdAt:v.string(),subtotalCents:v.union(v.number(),v.null()),recovered:v.boolean()}))}).index("by_store",["store"]),
   shopifyLifecycleEvents: defineTable({eventId:v.string(),receivedAt:v.number()}).index("by_event",["eventId"]),
   demoAbandonedSnapshots:defineTable(abandonedFields),
   demoPurchaseSnapshots: defineTable(observedPurchaseFields).index("by_store",["store"]),

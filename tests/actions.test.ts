@@ -33,7 +33,7 @@ test('availability investigation deduplicates repeated alerts and keeps shipping
 test("severity prioritizes possible buying blockers without treating missing completion as a cause", () => {
  const events = [event("checkout_started",1), event("alert_displayed",2,"a","payment"), event("alert_displayed",3,"a","inventory"), event("alert_displayed",4,"a","delivery"), event("alert_displayed",5,"a","discount"), event("alert_displayed",6,"a","validation")];
  for (const mission of buildMissions(events)) {
-  assert.equal(missionSeverity(mission,events).label, ["payment","inventory"].includes(mission.id) ? "Critical" : mission.id === "unfinished" ? "Info" : "Warning");
+  assert.equal(missionSeverity(mission,events).label, ["payment","inventory"].includes(mission.id) ? "Critical" : mission.id === "unfinished" || mission.count===0 ? "Info" : "Warning");
  }
  const completed = [...events,event("checkout_completed",7)];
  assert.equal(buildMissions(completed).every(m => missionSeverity(m,completed).label === "Info"),true);

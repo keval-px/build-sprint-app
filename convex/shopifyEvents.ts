@@ -21,5 +21,5 @@ export const read=internalQuery({args:{},handler:async ctx=>{
   const rows=await ctx.db.query('shopifyCheckoutEvents').withIndex('by_timestamp').order('desc').take(1001);
   const state=await ctx.db.query('pixelCollectionState').withIndex('by_store',q=>q.eq('store',STORE)).unique();
   const totalStored=state?.eventCount??(rows.length>1000?(await ctx.db.query('shopifyCheckoutEvents').collect()).length:rows.length);
-  return{totalStored,events:rows.slice(0,1000).map(({eventId,sessionId,name,timestamp,category,shippingBlocker,subtotalCents,currency,items})=>({eventId,sessionId,name,timestamp,category,...(shippingBlocker===undefined?{}:{shippingBlocker}),...(items===undefined?{}:{items}),...(subtotalCents===undefined?{}:{subtotalCents,currency})})),truncated:rows.length>1000};
+  return{totalStored,events:rows.slice(0,1000).map(({eventId,sessionId,name,timestamp,category,extensionAppHash,shippingBlocker,subtotalCents,currency,items})=>({eventId,sessionId,name,timestamp,category,...(extensionAppHash?{extensionAppHash}:{}),...(shippingBlocker===undefined?{}:{shippingBlocker}),...(items===undefined?{}:{items}),...(subtotalCents===undefined?{}:{subtotalCents,currency})})),truncated:rows.length>1000};
 }});

@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="light" />
-    <title>Jimmy’s Bakery · Checkout Health</title>
+    <title>Checkout Health</title>
     <script src="https://cdn.shopify.com/shopifycloud/polaris-2.0-rc.js"></script>
   </head>
   <body>
@@ -21,7 +21,7 @@
       </s-popover>
       <s-stack gap="base" paddingBlockStart="large">
         <s-query-container><s-grid gridTemplateColumns="@container (inline-size > 600px) 1fr auto, 1fr" gap="base" alignItems="center">
-          <s-stack gap="small"><s-heading id="page-title" fontSize="large-200">Jimmy’s Bakery</s-heading></s-stack>
+          <s-stack gap="small"><s-heading id="page-title" fontSize="large-200">Checkout Health</s-heading></s-stack>
           <s-stack id="view-navigation" direction="inline" gap="small" accessibilityRole="navigation" accessibilityLabel="Checkout views">
             <s-button id="overview-tab" variant="primary" aria-pressed="true">Overview</s-button>
             <s-button id="journeys-tab" variant="secondary" aria-pressed="false">Checkout drill-down</s-button>
@@ -36,13 +36,14 @@
           <s-stack gap="base">
           <s-stack direction="inline" justifyContent="space-between" alignItems="center" gap="base">
             <s-heading>Checkout activity</s-heading>
-            <s-stack direction="inline" gap="small"><s-button id="date-range-button" variant="secondary" icon="calendar" commandFor="date-range-popover">Last 30 days</s-button></s-stack>
+            <s-stack direction="inline" gap="small"><s-button id="date-range-button" variant="tertiary" icon="calendar" commandFor="date-range-popover">Last 30 days</s-button></s-stack>
           </s-stack>
           <s-query-container>
             <s-grid id="activity-layout" gridTemplateColumns="@container (inline-size > 800px) 2fr 1fr, 1fr" gap="base" alignItems="stretch">
               <s-section heading="Order patterns">
                 <s-paragraph id="order-chart-empty" color="subdued">Order history isn’t available yet.</s-paragraph>
                 <s-stack id="order-chart-content" gap="base" hidden>
+                  <s-text id="order-chart-summary" color="subdued"></s-text>
                   <s-box paddingBlockStart="base" id="order-chart-viz" role="region" aria-label="Today’s hourly orders compared with the matching weekday hourly average, in UTC"></s-box>
                   <s-paragraph id="order-chart-error" tone="critical" hidden></s-paragraph>
                 </s-stack>

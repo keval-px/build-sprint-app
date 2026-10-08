@@ -3,12 +3,13 @@ export const STORE = "build-sprint-demo.myshopify.com";
 export const EVENT_NAMES = [
   "checkout_started", "checkout_contact_info_submitted",
   "checkout_address_info_submitted", "checkout_shipping_info_submitted",
-  "payment_info_submitted", "checkout_completed", "alert_displayed",
+  "payment_info_submitted", "checkout_completed", "alert_displayed", "ui_extension_errored",
 ] as const;
 export type EventName = typeof EVENT_NAMES[number];
-export type ErrorCategory = "discount" | "payment" | "delivery" | "validation" | "inventory";
+export type ErrorCategory = "discount" | "payment" | "delivery" | "validation" | "inventory" | "extension";
 import type {CapturedLine} from './inventoryValue.ts';
 export interface CheckoutEvent {
+  extensionAppHash?: string;
   shippingBlocker?: "no_shipping_available";
   items?:CapturedLine[];
   eventId: string;
@@ -31,7 +32,7 @@ export function describeJourney(events: CheckoutEvent[]) {
     payment_info_submitted: "Payment submitted",
   };
   const progress = ordered.filter(event => progressLabels[event.name] && (!completion || event.timestamp <= completion.timestamp)).at(-1);
-  const errors = ordered.filter(event => event.name === "alert_displayed" && event.category);
+  const errors = ordered.filter(event => event.category !== null);
   const categories = [...new Set(errors.map(event => event.category!))];
   const recovered = completion && errors.some(event => event.timestamp < completion.timestamp);
   return {
@@ -47,14 +48,17 @@ export function describeJourney(events: CheckoutEvent[]) {
 export function parseTestEvent(input: unknown, now: number): CheckoutEvent | null {
   if (!input || typeof input !== "object" || Array.isArray(input)) return null;
   const record = input as Record<string, unknown>;
-  if (Object.keys(record).some(key => !["eventId", "sessionId", "name", "timestamp", "category", "shippingBlocker"].includes(key))) return null;
+  if (Object.keys(record).some(key => !["eventId", "sessionId", "name", "timestamp", "category", "shippingBlocker", "extensionAppHash"].includes(key))) return null;
   if (typeof record.eventId !== "string" || !/^[a-f0-9]{64}$/.test(record.eventId)) return null;
   if (typeof record.sessionId !== "string" || !/^[a-f0-9]{64}$/.test(record.sessionId)) return null;
   if (typeof record.name !== "string" || !EVENT_NAMES.some(name => name === record.name)) return null;
   if (typeof record.timestamp !== "number" || !Number.isFinite(record.timestamp)) return null;
   if (record.timestamp < now - 86400000 || record.timestamp > now + 60000) return null;
-  if (record.category !== null && !["discount", "payment", "delivery", "validation", "inventory"].includes(String(record.category))) return null;
-  if (record.name !== "alert_displayed" && record.category !== null) return null;
+  if (record.category !== null && !["discount", "payment", "delivery", "validation", "inventory", "extension"].includes(String(record.category))) return null;
+  if (record.name !== "alert_displayed" && record.name !== "ui_extension_errored" && record.category !== null) return null;
+  if (record.name === "ui_extension_errored") {
+    if (record.category !== "extension" || typeof record.extensionAppHash !== "string" || !/^[a-f0-9]{64}$/.test(record.extensionAppHash)) return null;
+  } else if (record.category === "extension" || record.extensionAppHash !== undefined) return null;
   if (record.shippingBlocker !== undefined && (record.shippingBlocker !== "no_shipping_available" || record.name !== "alert_displayed" || record.category !== "delivery")) return null;
   return record as unknown as CheckoutEvent;
 }
@@ -71,8 +75,8 @@ export function summarize(events: CheckoutEvent[]) {
     sessions.set(event.sessionId, session);
   }
   const journeys = [...sessions.values()];
-  const groups = (["discount", "payment", "delivery", "validation", "inventory"] as const).map(category => {
-    const alerts = unique.filter(event => event.name === "alert_displayed" && event.category === category);
+  const groups = (["discount", "payment", "delivery", "validation", "inventory", "extension"] as const).map(category => {
+    const alerts = unique.filter(event => event.category === category);
     return { category, alerts: alerts.length, sessions: new Set(alerts.map(event => event.sessionId)).size };
   }).filter(group => group.alerts > 0).sort((a, b) => b.sessions - a.sessions || b.alerts - a.alerts);
   return {

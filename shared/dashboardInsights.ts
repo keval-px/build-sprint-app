@@ -2,7 +2,7 @@ import {summarize,type CheckoutEvent,type ErrorCategory} from './evidence.ts';
 import {checkoutCohort} from './dateRange.ts';
 
 const categories:ErrorCategory[]=['payment','delivery','inventory','discount','validation'];
-export const issueLabels:Record<string,string>={payment:'Payment alerts',delivery:'Shipping alerts',inventory:'Item availability',discount:'Discount or gift-card',validation:'Form errors',shipping_blocker:'Shipping unavailable'};
+export const issueLabels:Record<string,string>={extension:'Checkout app failed',payment:'Payment alerts',delivery:'Shipping alerts',inventory:'Item availability',discount:'Discount or gift-card',validation:'Form errors',shipping_blocker:'Shipping unavailable'};
 const ordered=(events:CheckoutEvent[])=>summarize(events).journeys.flatMap(j=>j.events).sort((a,b)=>a.timestamp-b.timestamp);
 export function lastObservedStep(events:CheckoutEvent[]) {
  const rows=ordered(events);const completed=rows.find(e=>e.name==='checkout_completed');
@@ -37,7 +37,7 @@ export function recordedFindings(events:CheckoutEvent[]) {
  const stepNames:Partial<Record<CheckoutEvent['name'],string>>={checkout_started:'Checkout started',checkout_contact_info_submitted:'Contact submitted',checkout_address_info_submitted:'Address submitted',checkout_shipping_info_submitted:'Shipping submitted',payment_info_submitted:'Payment submitted',checkout_completed:'Checkout completed'};
  const journeys=summarize(events).journeys;
  for(const journey of journeys)for(const alert of journey.events){
-  if(alert.name!=='alert_displayed'||!alert.category)continue;
+  if(!alert.category)continue;
   const category=alert.shippingBlocker?'shipping_blocker':alert.category;
   const before=journey.events.filter(e=>stepNames[e.name]&&e.timestamp<alert.timestamp);
   const latest=before.at(-1)?.timestamp;

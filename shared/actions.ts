@@ -1,10 +1,11 @@
 import { summarize } from "./evidence.ts";
 import type { CheckoutEvent, ErrorCategory } from "./evidence.ts";
 
-export type MissionId = "payment" | "validation" | "unfinished" | "delivery" | "discount" | "inventory";
+export type MissionId = "payment" | "validation" | "unfinished" | "delivery" | "discount" | "inventory" | "extension";
 // Destinations are verified in the demo store admin. These links open settings;
 // they do not apply a fix or grant additional permissions.
 export const ACTION_DESTINATIONS: Partial<Record<MissionId, {label:string; path:string}>> = {
+  extension: {label:"Open checkout apps", path:"settings/checkout"},
   payment: {label:"Open payment settings", path:"settings/payments"},
   delivery: {label:"Open shipping settings", path:"settings/shipping"},
   discount: {label:"Open discounts", path:"discounts"},
@@ -13,6 +14,7 @@ export const ACTION_DESTINATIONS: Partial<Record<MissionId, {label:string; path:
 };
 
 export const ACTION_CHECKS: Record<MissionId, string> = {
+  extension: "Retry the affected checkout. Confirm the app loads and checkout can continue.",
   payment: "Complete a test-mode order using the affected payment method.",
   delivery: "Retry the same basket and address. Shipping should appear and let you continue to payment.",
   discount: "Use an eligible basket. The discount or gift card should update the total and let you continue to payment.",
@@ -74,6 +76,10 @@ export function buildMissions(events: CheckoutEvent[]): Mission[] {
       description:`${inventoryIds.length} checkout${inventoryIds.length===1?"":"s"} had stock or item-availability alerts. Check whether the item was sold out, restricted, or unavailable from a fulfilment location.`,
       why:'Customers may reach checkout with an item they cannot buy. An availability alert does not prove that restocking alone will resolve it.',
       next:'Check the affected item’s stock, selling permissions and fulfilment location. If it should be available, correct its availability. If sold out, update the offer or provide an alternative.',},
+    {id:'extension',title:'Check checkout apps that failed to load',count:matching('extension').length,sessionIds:matching('extension'),
+      description:'A checkout app failed to load in multiple checkouts.',
+      why:'A missing checkout app may interrupt buying or remove information customers need.',
+      next:'Review the app in checkout settings. Retry an affected checkout and contact the app provider if it still fails. Remove it only after checking what it does.'},
   ];
 }
 
@@ -109,7 +115,7 @@ export function missionSeverity(mission: Mission, events: CheckoutEvent[]): {
     label: "Critical", tone: "critical", reason: mission.id === "payment" ? "A payment error may have blocked a purchase." : "An unavailable item may have blocked a purchase.",
   };
   return {
-    label: "Warning", tone: "caution", reason: mission.id === "validation" ? "A form alert may have interrupted checkout." : mission.id === "discount" ? "A discount or gift-card alert may have interrupted checkout." : "A shipping alert was recorded; availability is not confirmed.",
+    label: "Warning", tone: "caution", reason: mission.id === "extension" ? "A checkout app failed to load. This does not confirm it blocked payment." : mission.id === "validation" ? "A form alert may have interrupted checkout." : mission.id === "discount" ? "A discount or gift-card alert may have interrupted checkout." : "A shipping alert was recorded; availability is not confirmed.",
   };
 }
 

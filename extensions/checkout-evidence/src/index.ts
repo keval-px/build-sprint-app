@@ -1,3 +1,4 @@
+import {recentCheckout} from '../../../shared/pixelSession';
 import {register} from '@shopify/web-pixels-extension';
 import {moneyMinor} from '../../../shared/money';
 import {usdCents} from '../../../shared/shopifyRecords';
@@ -5,7 +6,7 @@ import {checkoutIdentity} from '../../../shared/checkoutIdentity';
 import {alertCategory,shippingBlocker} from '../../../shared/alertCategory';
 const store='build-sprint-demo.myshopify.com';
 const endpoint='https://neighborly-nightingale-843.convex.site/api/shopify/pixel-events';
-type SafeEvent={id:string;name:string;timestamp:string;context:{document:{location:{hostname:string}}};data?:{checkout?:{token?:string|null;lineItems?:{id?:string|null;quantity:number;finalLinePrice?:{amount:number;currencyCode:string}}[];subtotalPrice?:{amount:number;currencyCode:string}|null};alert?:{type?:string;target?:string;message?:string}}};
+type SafeEvent={clientId?:string;id:string;name:string;timestamp:string;context:{document:{location:{hostname:string}}};data?:{error?:{appId?:string};checkout?:{token?:string|null;lineItems?:{id?:string|null;quantity:number;finalLinePrice?:{amount:number;currencyCode:string}}[];subtotalPrice?:{amount:number;currencyCode:string}|null};alert?:{type?:string;target?:string;message?:string}}};
 register(({analytics,browser,settings})=>{
   if(settings.endpoint!==endpoint)return;
   let sequence=Promise.resolve();
@@ -19,12 +20,14 @@ register(({analytics,browser,settings})=>{
       if(token){
         // Preserve the legacy checkout hash convention for exact identities.
         sessionId=checkoutIdentity(token);
-        await browser.sessionStorage.setItem(storage,JSON.stringify({sessionId,at:Date.now()}));
-      }else if(event.name==='alert_displayed'){
+        await browser.sessionStorage.setItem(storage,JSON.stringify({sessionId,at:Date.parse(event.timestamp),clientHash:event.clientId?checkoutIdentity(event.clientId):null}));
+      }else if(event.name==='alert_displayed'||event.name==='ui_extension_errored'){
         const saved=await browser.sessionStorage.getItem(storage);
-        if(saved){const value=JSON.parse(saved);if(Date.now()-value.at<15*60000 && value.at<=Date.now())sessionId=value.sessionId;}
+        if(saved)sessionId=recentCheckout(saved,Date.parse(event.timestamp),event.clientId?checkoutIdentity(event.clientId):null,event.name==='ui_extension_errored');
       }
       if(!sessionId)return;
+      const extensionAppId=event.data?.error?.appId;
+      if(event.name==='ui_extension_errored'&&(!extensionAppId||!/^(?:gid:\/\/shopify\/App\/)?[0-9]{1,30}$/.test(extensionAppId)))return;
       const alert=event.data?.alert;
       const category=alertCategory(alert?.type,alert?.target,alert?.message);
       const money=event.data?.checkout?.subtotalPrice;
@@ -33,7 +36,7 @@ register(({analytics,browser,settings})=>{
       const items=lines?.length!==undefined&&lines.length<=20?lines.map(line=>({itemHash:line.id?checkoutIdentity(line.id):null,quantity:line.quantity,minor:line.finalLinePrice?moneyMinor(String(line.finalLinePrice.amount),line.finalLinePrice.currencyCode):null,currency:line.finalLinePrice?.currencyCode})):undefined;
       const validItems=items?.every(i=>i.itemHash&&i.minor!==null&&Number.isSafeInteger(i.quantity)&&i.quantity>0);
       const blocker=event.name==='alert_displayed'?shippingBlocker(alert?.type,alert?.message):undefined;
-      const payload={...(blocker?{shippingBlocker:blocker}:{}),...(validItems?{items}:{}),eventId:checkoutIdentity(event.id),sessionId,name:event.name,timestamp:Date.parse(event.timestamp),category:event.name==='alert_displayed'?category:null,...(subtotalCents===null?{}:{subtotalCents,currency:'USD'})};
+      const payload={...(event.name==='ui_extension_errored'?{extensionAppHash:checkoutIdentity(extensionAppId!)}:{}),...(blocker?{shippingBlocker:blocker}:{}),...(validItems?{items}:{}),eventId:checkoutIdentity(event.id),sessionId,name:event.name,timestamp:Date.parse(event.timestamp),category:event.name==='ui_extension_errored'?'extension':event.name==='alert_displayed'?category:null,...(subtotalCents===null?{}:{subtotalCents,currency:'USD'})};
       await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload),keepalive:true});
       if(event.name==='checkout_completed')await browser.sessionStorage.removeItem(storage);
     }).catch(()=>{/* Never log Shopify payloads or buyer data. */});
@@ -45,4 +48,5 @@ register(({analytics,browser,settings})=>{
   analytics.subscribe('payment_info_submitted',collect);
   analytics.subscribe('checkout_completed',collect);
   analytics.subscribe('alert_displayed',collect);
+  analytics.subscribe('ui_extension_errored',collect);
 });

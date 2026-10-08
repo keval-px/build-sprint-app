@@ -12,10 +12,14 @@ export function canReadShopifyEvidence(connection:{scopes:string[]}|null){
 
 export function publicCheckoutEvents(legacy:CheckoutEvent[],pixel:CheckoutEvent[]){
  const observed=new Map(pixel.map(event=>[event.eventId,event]));
- return legacy.map(event=>{
+ const corrected=legacy.map(event=>{
   const current=observed.get(event.eventId);
   if(!current||current.sessionId!==event.sessionId)return event;
   const {shippingBlocker:previous,...base}=event;
   return {...base,category:current.category,...(current.shippingBlocker?{shippingBlocker:current.shippingBlocker}:{})};
  });
+ // New anonymous app-failure events can join only a checkout already public.
+ const publicIds=new Set(legacy.map(event=>event.sessionId));
+ const eventIds=new Set(corrected.map(event=>event.eventId));
+ return [...corrected,...pixel.filter(event=>event.name==='ui_extension_errored'&&publicIds.has(event.sessionId)&&!eventIds.has(event.eventId)).map(({eventId,sessionId,name,timestamp,category,extensionAppHash})=>({eventId,sessionId,name,timestamp,category,extensionAppHash}))];
 }

@@ -12,7 +12,7 @@ export function diagnosticsMarkup(events:CheckoutEvent[]){
 export function historyMarkup(rows:FixHistoryRow[],events:CheckoutEvent[],ready:boolean){
  if(!ready)return '<s-paragraph>Fix history could not load. Reload the page to try again.</s-paragraph>';
  if(!rows.length)return '<s-paragraph>No fixes marked as done yet. Mark an action as done after fixing it.</s-paragraph>';
- const labels:Record<string,string>={delivery:'Shipping alerts',payment:'Payment',discount:'Discount or gift-card',validation:'Form validation',inventory:'Item availability',unfinished:'Unfinished checkouts'};
+ const labels:Record<string,string>={extension:'Checkout app failed',delivery:'Shipping alerts',payment:'Payment',discount:'Discount or gift-card',validation:'Form validation',inventory:'Item availability',unfinished:'Unfinished checkouts'};
  return `<s-table><s-table-header-row><s-table-header listSlot="primary">Fix</s-table-header><s-table-header listSlot="kicker">Applied</s-table-header><s-table-header listSlot="secondary">Status</s-table-header><s-table-header listSlot="labeled">Retested</s-table-header><s-table-header listSlot="labeled">Before</s-table-header><s-table-header listSlot="labeled">After</s-table-header><s-table-header listSlot="inline">Details</s-table-header></s-table-header-row><s-table-body>${[...rows].sort((a,b)=>b.appliedAt-a.appliedAt).map(f=>{
  const end=Math.min(Date.now(),f.withdrawnAt??Infinity),results=fixResults(f,events,end),state=actionState(f,events,end);
  const status=!f.active?'Undone':state.returned?'Alerts returned':f.retestedAt?'Retested':'Watching';

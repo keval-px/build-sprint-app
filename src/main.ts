@@ -6,7 +6,7 @@ import "./style.css";
 import {lastObservedStep,stepTimings,durationText,focusedAlerts,issueLabels} from '../shared/dashboardInsights';
 import {checkoutCSV,checkoutEventsCSV} from '../shared/checkoutExport';
 import {diagnosticsMarkup,historyMarkup,alertsMarkup,type FixHistoryRow} from './dashboardPanels';
-import {orderPattern,type OrderPattern} from "../shared/orderPattern";
+import {selectedOrderPattern,type SelectedOrderPattern} from "../shared/orderPattern";
 import {buildRecommendations} from "../shared/recommendations";
 import {fixResults,retestResults,actionState,type AppliedFix} from "../shared/fixTracking";
 import {recentRange,dateBounds,checkoutCohort} from '../shared/dateRange';
@@ -26,13 +26,13 @@ import type { Mission, MissionId } from "../shared/actions";
 
 declare global { interface ImportMeta { readonly env: Record<string, string | undefined> } }
 interface EvidenceResponse {
-  store: string; events: CheckoutEvent[]; totalStored: number; truncated: boolean;
+  storeName?:string; store: string; events: CheckoutEvent[]; totalStored: number; truncated: boolean;
   abandonedCheckouts?:AbandonedSnapshot|null; enabled: boolean; sampledAt: number; 
   actionBasketValue?:(ReturnType<typeof actionValues>)|null;
   inventoryItemValue?:(ReturnType<typeof inventoryValue>&{rangeStart:number;rangeEnd:number})|null;
   abandonedBasketSummary?:(ReturnType<typeof abandonedSummary>&{syncedAt:number;currency?:string})|null;
   checkoutPrices?:CheckoutPrice[];
-  orderPatterns?:OrderPattern|null;
+  orderPatterns?:SelectedOrderPattern|null;
   shopifySnapshot?:{timeZone?:string;currency?:string;syncedAt:number;periodStart:string;orders:({subtotalCents:number|null;test:boolean;paid:boolean;cancelled:boolean;recordHash:string;createdAt:string;sessionId?:string;orderName?:string;orderId?:string;totalCents?:number|null;conversion?:{shopMinor:number;buyerMinor:number;buyerCurrency:string}})[];abandoned:(SavedBasket&{recordHash:string;createdAt:string;recovered:boolean})[]}|null;
 }
 const element = (id: string) => document.getElementById(id)!;
@@ -61,7 +61,7 @@ function filteredEvidence(data:EvidenceResponse):EvidenceResponse{
 function updateDateSelection(value:string){
   selectedRange=value;
   journeyPage=0;
-  const label=value===recentRange(30)?'Last 30 days':value===recentRange(7)?'Last 7 days':value.split('--').map(date=>new Date(`${date}T12:00:00`).toLocaleDateString(undefined,{month:'short',day:'numeric'})).join(' – ');
+  const label=value===recentRange(30)?'Last 30 days':value===recentRange(7)?'Last 7 days':[...new Set(value.split('--').map(date=>new Date(`${date}T12:00:00`).toLocaleDateString(undefined,{month:'short',day:'numeric'})))].join(' – ');
   for(const id of ['date-range-button','journey-date-range-button'])text(id,label);
   if(latestEvidence)render(filteredEvidence(latestEvidence));
 }
@@ -351,19 +351,30 @@ element('focused-alert-list').addEventListener('click',async event=>{
  if(button){await loadEvidence(true);viewCategory(button.dataset.alertCategory!);}
 });
 element('check-alerts').addEventListener('click',()=>void checkFocusedAlerts());
+let chartRenderVersion=0;
 function renderOrderPattern(data:EvidenceResponse){
+  const version=++chartRenderVersion;
   const snapshot=latestEvidence?.shopifySnapshot??data.shopifySnapshot;
-  const pattern=snapshot?orderPattern(snapshot.orders,snapshot.periodStart,snapshot.syncedAt,snapshot.timeZone??'UTC'):data.orderPatterns;
+  const candidate=snapshot?selectedOrderPattern(snapshot.orders,snapshot.periodStart,snapshot.syncedAt,snapshot.timeZone??'UTC',selectedRange):data.orderPatterns;
+  const pattern=candidate?.range===selectedRange?candidate:null;
   element('order-chart-content').hidden=!pattern;
   element('order-chart-empty').hidden=!!pattern;
+  text('order-chart-empty',candidate&&candidate.range!==selectedRange?'Loading orders for these dates…':'Order history isn’t available for these dates.');
   if(!pattern)return;
-  element('order-chart-viz').setAttribute('aria-label',`Hourly paid orders on ${pattern.day} compared with ${pattern.baselineDays} matching weekdays from the previous 30 days, in ${pattern.timeZone}`);
+  const [first,last]=pattern.range.split('--');
+  const shortDate=(day:string)=>new Date(`${day}T12:00:00Z`).toLocaleDateString(undefined,{day:'numeric',month:'short',timeZone:'UTC'});
+  text('order-chart-summary',`${first===last?shortDate(first):`${shortDate(first)} – ${shortDate(last)}`} · ${pattern.selectedOrders} recorded order${pattern.selectedOrders===1?'':'s'}${pattern.partial?' · Some dates unavailable':''}`);
+  element('order-chart-viz').setAttribute('aria-label',`${pattern.mode==='daily'?'Daily':'Hourly'} paid orders for ${first} to ${last}, compared with earlier matching weekdays, in ${pattern.timeZone}`);
   element('order-chart-error').hidden=true;
-  void import('./orderChart').then(({renderOrderChart})=>renderOrderChart(element('order-chart-viz'),pattern)).catch(()=>{
+  void import('./orderChart').then(({renderOrderChart})=>{if(version===chartRenderVersion)renderOrderChart(element('order-chart-viz'),pattern);}).catch(()=>{
+    if(version!==chartRenderVersion)return;
     text('order-chart-error','The chart could not load. Reload the page to try again.');element('order-chart-error').hidden=false;
   });
 }
 function render(data: EvidenceResponse) {
+  const storeName=data.storeName?.trim()||'Checkout Health';
+  text('page-title',storeName);
+  document.title=storeName==='Checkout Health'?storeName:`${storeName} · Checkout Health`;
   renderOrderPattern(data);
   element('error-summary').innerHTML=diagnosticsMarkup(data.events);
   element('fix-history-content').innerHTML=historyMarkup(fixHistory,latestEvidence?.events??data.events,fixesReady);
@@ -498,7 +509,7 @@ async function loadEvidence(background=false) {
       await shopifyRequest('sync','POST');
       text('shopify-status','Connected to build-sprint-demo · Read-only Shopify data');
     }
-    const response = embeddedShopify ? await shopifyRequest('evidence') : await fetch(`${backendOrigin}/api/test-evidence?start=${dateBounds(selectedRange).start}&end=${dateBounds(selectedRange).end}`, { cache: "no-store", signal: AbortSignal.timeout(15000) });
+    const response = embeddedShopify ? await shopifyRequest('evidence') : await fetch(`${backendOrigin}/api/test-evidence?start=${dateBounds(selectedRange).start}&end=${dateBounds(selectedRange).end}&range=${encodeURIComponent(selectedRange)}`, { cache: "no-store", signal: AbortSignal.timeout(15000) });
     if (!response.ok) throw new Error("Could not read checkout evidence.");
     const data: EvidenceResponse = await response.json();
     if (data.store !== STORE || !Array.isArray(data.events)) throw new Error("Unexpected evidence response.");
