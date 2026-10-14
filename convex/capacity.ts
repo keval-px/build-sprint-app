@@ -137,15 +137,18 @@ export const page=internalQuery({args:{dataset:v.union(v.literal('legacy'),v.lit
   const result=await ctx.db.query('shopifyCheckoutPrices').withIndex('by_store_created',q=>q.eq('store',STORE).gte('createdAt',new Date(args.start).toISOString()).lte('createdAt',new Date(args.asOf).toISOString())).filter(q=>q.lte(q.field('_creationTime'),args.asOf)).paginate(options);
   return {...result,changed:result.page.some(r=>r.updatedAt>args.asOf||(r.receivedAt??0)>args.asOf),page:result.page.map(({_id,_creationTime,store,receivedAt,...price})=>price)};
  }
- const base=args.dataset==='legacy'?ctx.db.query('testCheckoutEvents').withIndex('by_store_timestamp',q=>q.eq('store',STORE).gte('timestamp',args.start).lte('timestamp',args.asOf)).filter(q=>q.neq(q.field('auditOnly'),true)):ctx.db.query('shopifyCheckoutEvents').withIndex('by_store_timestamp',q=>q.eq('store',STORE).gte('timestamp',args.start).lte('timestamp',args.asOf));
- const result=await base.filter(q=>q.lte(q.field('_creationTime'),args.asOf)).paginate(options);
- // Include the actual original start for sessions crossing the window boundary.
- // Never manufacture a start or split one checkout into a new denominator.
- const eventRows:Array<(typeof result.page)[number]>= [...result.page];
- const sessionIds=[...new Set(result.page.map(r=>r.sessionId))];
- const firsts=await Promise.all(sessionIds.map(sessionId=>args.dataset==='legacy'?ctx.db.query('testCheckoutEvents').withIndex('by_store_session_name',q=>q.eq('store',STORE).eq('sessionId',sessionId).eq('name','checkout_started')).filter(q=>q.neq(q.field('auditOnly'),true)).first():ctx.db.query('shopifyCheckoutEvents').withIndex('by_store_session_name',q=>q.eq('store',STORE).eq('sessionId',sessionId).eq('name','checkout_started')).first()));
- for(const first of firsts)if(first&&first.timestamp<args.start&&first._creationTime<=args.asOf)eventRows.push(first);
- return {...result,changed:false,page:eventRows.map(eventShape)};
+ // Audit-only rows and late arrivals are skipped here rather than with database filters,
+ // which cost more than reading the rows; the result is the same.
+ const result=args.dataset==='legacy'?await ctx.db.query('testCheckoutEvents').withIndex('by_store_timestamp',q=>q.eq('store',STORE).gte('timestamp',args.start).lte('timestamp',args.asOf)).paginate(options):await ctx.db.query('shopifyCheckoutEvents').withIndex('by_store_timestamp',q=>q.eq('store',STORE).gte('timestamp',args.start).lte('timestamp',args.asOf)).paginate(options);
+ const page:StoredEvent[]=result.page;
+ return {...result,changed:false,page:page.filter(r=>r._creationTime<=args.asOf&&!('auditOnly'in r&&r.auditOnly===true)).map(eventShape)};
+}});
+// The original start of checkouts that cross the window boundary, so an old checkout
+// never becomes a fresh one. Never manufacture a start or split one checkout into a
+// new denominator. Called once per batch of checkouts after the pages are read.
+export const earlierStarts=internalQuery({args:{dataset:v.union(v.literal('legacy'),v.literal('pixel')),sessionIds:v.array(v.string()),asOf:v.number(),start:v.number()},handler:async(ctx,args)=>{
+ const firsts=await Promise.all(args.sessionIds.map(sessionId=>args.dataset==='legacy'?ctx.db.query('testCheckoutEvents').withIndex('by_store_session_name',q=>q.eq('store',STORE).eq('sessionId',sessionId).eq('name','checkout_started')).filter(q=>q.neq(q.field('auditOnly'),true)).first():ctx.db.query('shopifyCheckoutEvents').withIndex('by_store_session_name',q=>q.eq('store',STORE).eq('sessionId',sessionId).eq('name','checkout_started')).first()));
+ return firsts.flatMap(first=>first&&first.timestamp<args.start&&first._creationTime<=args.asOf?[eventShape(first)]:[]);
 }});
 type StoredEvent=Doc<'testCheckoutEvents'>|Doc<'shopifyCheckoutEvents'>;
 // The event fields the page reads; storage fields stay on the server.
@@ -173,6 +176,7 @@ export const collection=internalQuery({args:{pixel:v.boolean(),start:v.number()}
 }});
 // HTTP actions aggregate bounded database pages, never giant query arrays.
 // A fixed creation-time watermark excludes late arrivals until the next read.
+const STARTS_BATCH=250;
 export async function readWindow(ctx:ActionCtx,asOf=Date.now()){
  const start=asOf-REPORT_WINDOW_MS;
  const pinned=await ctx.runQuery(internal.capacity.header,{}),metadata=pinned.snapshot;
@@ -189,7 +193,16 @@ export async function readWindow(ctx:ActionCtx,asOf=Date.now()){
  // The datasets are independent; read them concurrently against the same watermark and budget.
  const generation=metadata&&'generation'in metadata?metadata.generation:undefined;
  const [legacyRows,pixelRows,prices,orders,abandoned,legacyCollection,pixelCollection]=await Promise.all([all<CheckoutEvent>('legacy'),all<CheckoutEvent>('pixel'),all<CheckoutPrice>('prices'),generation?all<Snapshot['orders'][number]>('orders',generation):null,generation?all<Snapshot['abandoned'][number]>('abandoned',generation):null,ctx.runQuery(internal.capacity.collection,{pixel:false,start}),ctx.runQuery(internal.capacity.collection,{pixel:true,start})]);
- const legacy=[...new Map(legacyRows.map(e=>[e.eventId,e])).values()],pixel=[...new Map(pixelRows.map(e=>[e.eventId,e])).values()];
+ // Each checkout's earliest start, looked up in a few large batches rather than per page.
+ async function withStarts(dataset:'legacy'|'pixel',rows:CheckoutEvent[]){
+  const ids=[...new Set(rows.map(r=>r.sessionId))],batches=[];
+  for(let i=0;i<ids.length;i+=STARTS_BATCH)batches.push(ids.slice(i,i+STARTS_BATCH));
+  const starts=(await Promise.all(batches.map(sessionIds=>ctx.runQuery(internal.capacity.earlierStarts,{dataset,sessionIds,asOf,start})))).flat();
+  bytes+=new TextEncoder().encode(JSON.stringify(starts)).length;if(bytes>REPORT_BYTES)throw new ReportLimit();
+  return [...rows,...starts];
+ }
+ const [legacyAll,pixelAll]=await Promise.all([withStarts('legacy',legacyRows),withStarts('pixel',pixelRows)]);
+ const legacy=[...new Map(legacyAll.map(e=>[e.eventId,e])).values()],pixel=[...new Map(pixelAll.map(e=>[e.eventId,e])).values()];
  // Legacy snapshots remain untouched and readable during staged migration.
  const snapshot=metadata&&'generation'in metadata?{...metadata,orders:orders!,abandoned:abandoned!}:metadata;
  const result={legacy:{store:STORE,events:legacy,totalStored:legacy.length,truncated:false,collection:legacyCollection},pixel:{events:pixel,totalStored:pixel.length,truncated:false,collection:pixelCollection},prices,snapshot,truncated:false,historyUnavailable:false,start,asOf,syncHeader:{connectedAt:pinned.connectedAt,generation:metadata&&'generation'in metadata?metadata.generation:undefined,syncedAt:metadata?.syncedAt,periodStart:metadata?.periodStart}};
@@ -197,14 +210,14 @@ export async function readWindow(ctx:ActionCtx,asOf=Date.now()){
  reportJSON(result);return result;
 }
 
-// One evidence read for every route. Merchants see merged private and pixel events
-// with their server completion facts; the public demo sees only already-public
-// identities and no facts. `orphan` flags events whose start lies outside the window.
 // One checkout's events for its details, with the same audience rules as readEvidence.
 export async function readCheckout(ctx:ActionCtx,audience:'merchant'|'public',sessionId:string,asOf:number){
  const {legacy,pixel}=await ctx.runQuery(internal.capacity.sessionEvents,{sessionId,asOf});
  return audience==='merchant'?mergeCheckoutEvents(legacy,pixel):publicCheckoutEvents(legacy,pixel);
 }
+// One evidence read for every route. Merchants see merged private and pixel events
+// with their server completion facts; the public demo sees only already-public
+// identities and no facts. `orphan` flags events whose start lies outside the window.
 export async function readEvidence(ctx:ActionCtx,audience:'merchant'|'public'){
  const window=await readWindow(ctx);
  const events=audience==='merchant'?mergeCheckoutEvents(window.legacy.events,window.pixel.events):publicCheckoutEvents(window.legacy.events,window.pixel.events);
