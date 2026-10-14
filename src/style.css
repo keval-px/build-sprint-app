@@ -38,8 +38,19 @@ s-box[data-timeline-marker="completed"]::after {
   border-color: #d4f4b4;
 }
 
-/* Polaris Viz measures its host; its official styles own the chart itself. */
+/* Order chart: a small inline SVG (DESIGN.md chart exception). Only its marks, the tooltip's
+   position and the legend colour keys are styled here; Polaris components own the text. */
 #order-chart-viz { display: block; min-width: 0; width: 100%; }
+s-box[data-order-chart] { display: block; position: relative; }
+s-box[data-order-chart] svg { display: block; width: 100%; height: auto; overflow: visible; }
+s-box[data-order-chart] svg:focus-visible { outline: 2px solid #005bd3; outline-offset: 2px; border-radius: 4px; }
+s-box[data-order-chart] svg text { font-family: inherit; font-variant-numeric: tabular-nums; }
+s-box[data-chart-tip] { display: block; position: absolute; top: 0; width: 190px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12); pointer-events: none; z-index: 1; }
+s-box[data-chart-key] { display: block; width: 12px; border-top: 2px solid; }
+s-box[data-chart-key="orders"] { border-top-color: #13acf0; }
+s-box[data-chart-key="average"] { border-top: 2px dashed #8a8a8a; }
+s-box[data-chart-key="abandoned"] { border-top-color: #d86b76; }
+table[data-chart-data] { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
 
 /* Match Shopify's help-term affordance while native overlays own interaction. */
 #order-chart-summary { display: inline-block; text-decoration: underline dotted; text-underline-offset: 3px; }

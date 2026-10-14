@@ -53,7 +53,9 @@ for(const file of sources.filter(name=>name.endsWith('.ts'))){
 const source = ts.createSourceFile(file, fs.readFileSync(file,'utf8'), ts.ScriptTarget.Latest, true);
 function visit(node) {
   if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node) || ts.isTemplateExpression(node)) {
-    if (/<(?:button|input|select|details|summary|div|section|h[1-6]|p|span|svg)\b/.test(node.getText(source))) failures.push('Use Polaris components for generated visible UI');
+    // The order chart's marks need SVG (DESIGN.md chart exception); nothing else may use it.
+    const markup=file.endsWith('src/orderChart.ts')?node.getText(source).replace(/<\/?svg\b/g,''):node.getText(source);
+    if (/<(?:button|input|select|details|summary|div|section|h[1-6]|p|span|svg)\b/.test(markup)) failures.push('Use Polaris components for generated visible UI');
   }
   ts.forEachChild(node,visit);
 }

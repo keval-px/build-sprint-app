@@ -164,7 +164,7 @@ These existing rules in `src/style.css` and the chart code are the only other pe
 - `s-text[data-funnel-drop="high"]` uses red `#c52233` for stage drops above 50%. The embedded theme renders `tone="critical"` text near-black, so the tone alone does not distinguish a high drop. The element keeps `tone="critical"` for semantics.
 - `#order-chart-summary` uses a dotted underline to mark the chart title as a help term, matching Shopify's help-term affordance.
 - `#order-chart-help-anchor` / `#order-chart-tooltip` position the help overlay below its trigger (300px wide, 8px offset, above the chart) so opening it never changes card geometry.
-- `ABANDONED_LINE_COLOR` (`#D86B76`, `shared/abandonedPattern.ts`) colours the abandoned-checkout series in the Polaris Viz order chart, which has no semantic series tone.
+- **Order chart (14 October 2026).** The order chart is a small inline SVG (`src/orderChart.ts`, geometry in `shared/lineChart.ts`) instead of Polaris Viz, which pulled in React and 427KB for one line chart. SVG is permitted only in that file, and `npm run check:ui` enforces this. Chart marks keep the former Polaris Viz look: today's orders `#13ACF0`, the dashed average `#8A8A8A`, abandoned checkouts `ABANDONED_LINE_COLOR` (`#D86B76`), grid `#E3E3E3`, axis labels `#616161`, and area fills that fade to the baseline. Lines are monotone-smoothed so they never overshoot recorded counts; unknown hours stay gaps, and isolated values are dots. The legend and hover/keyboard tooltip use Polaris components, with CSS only for their colour keys and the tooltip's position beside the cursor. A visually hidden table lists every hour for screen readers.
 
 ### Card wording — 13 October 2026
 
