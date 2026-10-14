@@ -28,21 +28,20 @@
           </s-stack>
         <s-paragraph id="request-status" color="subdued" role="status" aria-live="polite">Loading checkouts…</s-paragraph>
         <s-stack id="overview" gap="base">
-          <s-stack gap="base">
           <s-stack direction="inline" justifyContent="end" gap="small"><s-button id="date-range-button" variant="tertiary" icon="calendar" commandFor="date-range-popover">Last 30 days</s-button></s-stack>
           <s-query-container>
             <s-grid id="activity-layout" gridTemplateColumns="@container (inline-size > 800px) 2fr 1fr, 1fr" gap="base" alignItems="stretch">
               <s-section padding="base">
-                <s-paragraph id="order-chart-empty" color="subdued">Order history isn’t available yet.</s-paragraph>
+                <s-paragraph id="order-chart-empty" color="subdued">Loading order pattern…</s-paragraph>
                 <s-stack id="order-chart-content" gap="small" hidden>
                   <s-box id="order-chart-help-anchor"><s-clickable id="order-chart-help" aria-describedby="order-chart-tooltip" aria-expanded="false"><s-heading id="order-chart-summary" fontSize="base"></s-heading></s-clickable><s-box id="order-chart-tooltip" role="tooltip" padding="base" background="base" border="base" borderRadius="base" hidden><s-text>Compare today’s paid orders by hour with the average from up to 30 previous days. The red line shows abandoned checkouts.</s-text></s-box></s-box>
                   <s-box id="order-chart-viz" role="region" aria-label="Paid orders by hour compared with the hourly average, in UTC"></s-box>
                   <s-text id="order-chart-baseline" color="subdued" hidden></s-text><s-paragraph id="order-chart-error" tone="critical" hidden></s-paragraph>
                 </s-stack>
               </s-section>
-              <s-section>
+              <s-section id="checkout-performance">
                 <s-stack gap="base">
-                  <s-heading>Checkout completion</s-heading>
+                  <s-heading>Checkout performance</s-heading>
                   <s-heading id="summary-title">Loading checkout activity…</s-heading>
                   <s-stack gap="small" id="completion-summary" hidden>
                     <s-text id="completion-label"></s-text>
@@ -52,27 +51,20 @@
                   <s-stack gap="small">
                     <s-stack direction="inline" justifyContent="space-between" gap="small"><s-text color="subdued">Checkouts recorded</s-text><s-number id="session-count" fontWeight="bold">—</s-number></s-stack>
                     <s-stack direction="inline" justifyContent="space-between" gap="small"><s-text color="subdued">Completed checkouts</s-text><s-number id="completed-count" fontWeight="bold">—</s-number></s-stack>
-                    <s-stack direction="inline" justifyContent="space-between" gap="small"><s-text color="subdued">Abandoned</s-text><s-number id="incomplete-count" fontWeight="bold">—</s-number></s-stack>
+                    <s-stack direction="inline" justifyContent="space-between" gap="small"><s-text color="subdued">Abandoned checkouts</s-text><s-number id="incomplete-count" fontWeight="bold">—</s-number></s-stack>
+                  </s-stack>
+                  <s-divider></s-divider>
+                  <s-stack id="abandoned-baskets" gap="small">
+                    <s-stack direction="inline" justifyContent="space-between" gap="small"><s-text color="subdued">Abandoned value</s-text><s-number id="abandoned-value" fontWeight="bold">—</s-number></s-stack>
+                    <s-stack direction="inline" justifyContent="space-between" gap="small"><s-text color="subdued">Average abandoned value</s-text><s-number id="abandoned-average" fontWeight="bold">—</s-number></s-stack>
+                    <s-text id="abandoned-basis" color="subdued" hidden></s-text>
+                    <s-text id="abandoned-count" color="subdued" hidden></s-text>
                   </s-stack>
                   <s-button id="open-journeys" variant="secondary" disabled>View checkouts</s-button>
                 </s-stack>
               </s-section>
             </s-grid>
           </s-query-container>
-          </s-stack>
-          <s-stack id="abandoned-baskets" gap="base">
-            <s-heading id="abandoned-heading" fontSize="large">Abandoned checkouts</s-heading>
-            <s-stack gap="base">
-              <s-query-container><s-grid id="abandoned-metrics" gridTemplateColumns="@container (inline-size > 600px) 1fr 1fr 1fr, 1fr" gap="base">
-                <s-section id="abandoned-value-metric"><s-stack gap="small"><s-text id="abandoned-value-label" color="subdued">Abandoned checkout value</s-text><s-number id="abandoned-value" fontSize="large-100" fontWeight="bold">—</s-number><s-text id="abandoned-count" color="subdued" hidden></s-text></s-stack></s-section>
-                <s-section><s-stack gap="small"><s-text color="subdued" id="abandoned-checkouts-label">Abandoned checkouts</s-text><s-number id="abandoned-checkouts-count" fontSize="large-100" fontWeight="bold">—</s-number></s-stack></s-section>
-                <s-section><s-stack gap="small"><s-text color="subdued" id="abandoned-average-label">Average checkout value</s-text><s-number id="abandoned-average" aria-label="Average abandoned checkout value" tone="auto" fontSize="large-100" fontWeight="bold">—</s-number></s-stack></s-section>
-              </s-grid></s-query-container>
-
-
-            </s-stack>
-          </s-stack>
-          <s-section id="checkout-funnel"><s-paragraph>Loading checkout stages…</s-paragraph></s-section>
           <s-stack gap="large-100">
           <s-stack gap="small">
             <s-stack direction="inline" justifyContent="space-between" alignItems="center" gap="small">
@@ -82,13 +74,14 @@
             <s-paragraph color="subdued">Changes we’ve detected, and what we recommend checking next.</s-paragraph>
           </s-stack>
           <s-stack gap="base">
-          <s-popover id="insight-method"><s-box padding="base" maxInlineSize="400px"><s-stack gap="base"><s-heading>How comparisons work</s-heading><s-paragraph>Each checkout has one hour to progress. Newer checkouts are excluded until that hour has passed.</s-paragraph><s-paragraph>Time comparisons split the eligible period into equal halves. Mobile and desktop use the same period; unknown devices and tablets are excluded.</s-paragraph><s-paragraph>Each group needs at least 20 checkouts and current, complete tracking data. A completion drop, device gap or increase in shipping stops of 10 percentage points or more—for example, from 60% to 50% completion—is flagged for review.</s-paragraph><s-paragraph color="subdued">A difference is a reason to investigate, not proof of a checkout problem.</s-paragraph><s-button variant="secondary" commandFor="insight-method" command="--hide">Close</s-button></s-stack></s-box></s-popover>
+          <s-popover id="insight-method"><s-box padding="base" maxInlineSize="400px"><s-stack gap="base"><s-heading>How comparisons work</s-heading><s-paragraph>Each checkout has one hour to progress. Newer checkouts are excluded until that hour has passed.</s-paragraph><s-paragraph>Time comparisons split the eligible period into equal halves. Mobile and desktop use the same period; unknown devices and tablets are excluded.</s-paragraph><s-paragraph>Each group needs at least 20 checkouts and current, complete tracking data. A completion drop, device gap or increase in shipping stops of 10 percentage points or more (for example, from 60% to 50% completion) is flagged for review.</s-paragraph><s-paragraph color="subdued">A difference is a reason to investigate, not proof of a checkout problem.</s-paragraph><s-button variant="secondary" commandFor="insight-method" command="--hide">Close</s-button></s-stack></s-box></s-popover>
           <s-text id="action-save-status" accessibilityVisibility="exclusive" role="status" aria-live="polite"></s-text>
           <s-banner id="action-save-error" heading="Change wasn’t saved" tone="critical" hidden></s-banner>
           <s-stack id="mission-list" gap="base"><s-paragraph color="subdued">Loading recommendations…</s-paragraph></s-stack>
-          <s-paragraph id="recommendation-value-note" color="subdued" hidden>Values cover affected checkouts with no recorded completion, not confirmed lost revenue. These differ from the abandoned checkouts above. Groups can overlap.</s-paragraph>
+          <s-paragraph id="recommendation-value-note" color="subdued" hidden>Values cover affected checkouts with no recorded completion, not confirmed lost revenue. These differ from the abandoned checkouts in Checkout performance. Groups can overlap.</s-paragraph>
           </s-stack>
           </s-stack>
+          <s-section id="checkout-funnel"><s-paragraph>Loading checkout stages…</s-paragraph></s-section>
         </s-stack>
         <s-stack id="journeys" gap="base" hidden>
           <s-stack direction="inline" justifyContent="space-between" gap="small" alignItems="center"><s-heading>Checkouts recorded</s-heading><s-stack direction="inline" gap="small"><s-button id="journey-date-range-button" variant="tertiary" icon="calendar" commandFor="date-range-popover">Last 30 days</s-button><s-button id="export-button" variant="tertiary" commandFor="export-menu" disabled><s-icon type="export" size="small" aria-hidden="true"></s-icon> Export</s-button><s-menu id="export-menu" accessibilityLabel="Export checkout data"><s-button id="export-checkouts" commandFor="export-menu" command="--hide" disabled>Export checkouts</s-button><s-button id="export-events" commandFor="export-menu" command="--hide" disabled>Export activity</s-button></s-menu></s-stack></s-stack>
@@ -96,7 +89,7 @@
             <s-stack gap="base">
               <s-query-container>
                 <s-grid gridTemplateColumns="@container (inline-size > 700px) 1fr 150px 200px, 1fr" gap="small" alignItems="center">
-                  <s-search-field id="journey-search" label="Search checkouts" labelAccessibilityVisibility="exclusive" placeholder="Search checkout reference or order number"></s-search-field>
+                  <s-search-field id="journey-search" label="Search checkouts" labelAccessibilityVisibility="exclusive" placeholder="Search reference or order"></s-search-field>
                   <s-select id="journey-status-filter" label="Checkout status" labelAccessibilityVisibility="exclusive" value="all">
                     <s-option value="all">All statuses</s-option>
                     <s-option value="completed">Completed</s-option>

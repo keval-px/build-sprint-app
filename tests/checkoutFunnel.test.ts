@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {checkoutFunnel} from '../shared/checkoutFunnel.ts';
+import {checkoutFunnel,funnelScope} from '../shared/checkoutFunnel.ts';
 import {deviceClass,hasExpressPayment} from '../shared/checkoutSegments.ts';
 import {parseTestEvent,type CheckoutEvent,type EventName} from '../shared/evidence.ts';
 const event=(session:string,name:EventName,details:Partial<CheckoutEvent>={}):CheckoutEvent=>({sessionId:session.repeat(64),eventId:(session+name).padEnd(64,'0'),name,timestamp:100,category:null,...details});
@@ -54,4 +54,10 @@ test('stage percentages compare adjacent observed totals and handle increases',(
  assert.deepEqual(checkoutFunnel(rows).rows.map(r=>r.drop),[null,9,60,25,67]);
  const skipped=[event('a','checkout_started'),event('b','checkout_started'),event('a','checkout_contact_info_submitted'),event('a','checkout_shipping_info_submitted'),event('b','checkout_shipping_info_submitted')];
  assert.equal(checkoutFunnel(skipped).rows[2].drop,-100);
+});
+test('each funnel segment states how many checkouts it covers and what it excludes',()=>{
+ const model={count:206,total:1011,unknownDevice:12};
+ assert.match(funnelScope(model,'all'),/^1,011 started checkouts\. .*skipped step isn’t counted as a drop-off/);
+ assert.match(funnelScope(model,'express'),/^206 of 1,011 started checkouts used express pay\..*only when the order is placed/);
+ assert.equal(funnelScope(model,'mobile'),'206 of 1,011 started checkouts on mobile. Tablets and 12 checkouts with an unknown device are excluded.');
 });

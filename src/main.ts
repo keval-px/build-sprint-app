@@ -259,7 +259,6 @@ function renderMissions(events: CheckoutEvent[]) {
     const hasAmount = basketCents !== null && basketCents !== undefined;
     const inventory=sharedInventory??inventoryValue(events,mission.sessionIds,storeCurrency,orderQuotes);
     const percent = summary.sessionCount ? Math.round(mission.count / summary.sessionCount * 100) : 0;
-    const brief = `${mission.count} of ${summary.sessionCount} checkouts affected`;
     return {done:status.done,rank:severityRank[severity.label],html:`<s-section id="mission-${mission.id}">
       <s-stack gap="base">
         <s-stack direction="inline" justifyContent="space-between" gap="small" alignItems="center">
@@ -275,7 +274,7 @@ function renderMissions(events: CheckoutEvent[]) {
             <s-paragraph data-recommendation-summary>${escape(recommendation)}</s-paragraph>
           </s-stack>
           <s-grid gridTemplateColumns="1fr 1fr" gap="base">
-            <s-stack gap="small" data-action-metric><s-text color="subdued">Checkouts affected</s-text><s-number fontSize="large-100" fontWeight="bold">${mission.count}</s-number><s-text color="subdued">${percent}% of ${summary.sessionCount} checkouts</s-text></s-stack>
+            <s-stack gap="small" data-action-metric><s-text color="subdued">Checkouts affected</s-text><s-number fontSize="large-100" fontWeight="bold">${mission.count.toLocaleString()}</s-number><s-text color="subdued">${percent}% of ${summary.sessionCount.toLocaleString()} checkouts</s-text></s-stack>
             <s-stack gap="small" data-action-value><s-text color="subdued">${mission.id==='inventory'?'Item value before alert':'Affected basket value'}</s-text><s-number fontSize="large-100" fontWeight="bold" id="risk-${mission.id}">${mission.id==='inventory'?(inventory.totalMinor===null?'Unavailable':money(inventory.totalMinor)):hasAmount?money(basketCents!):'Unavailable'}</s-number><s-text color="subdued">${(mission.id==='inventory'?inventory.totalMinor===null:!hasAmount)?'Some prices weren’t recorded':'Not confirmed lost revenue'}</s-text></s-stack>
           </s-grid>
         </s-grid></s-query-container>
@@ -289,7 +288,7 @@ function renderMissions(events: CheckoutEvent[]) {
         <s-stack id="body-${mission.id}" data-action-body gap="base" ${open?'':'hidden'}>
           <s-divider></s-divider>
           <s-query-container><s-grid gridTemplateColumns="@container (inline-size > 700px) 1fr 1fr, 1fr" gap="large-100" alignItems="start">
-            <s-stack gap="small"><s-heading>Why we flagged this</s-heading><s-paragraph>${escape(severity.reason)}</s-paragraph><s-text color="subdued">${escape(brief)}</s-text>${mission.id==='delivery'&&mission.count>shippingBlockers?`<s-text color="subdued">${shippingBlockers} confirmed shipping blocker${shippingBlockers===1?'':'s'} · ${mission.count-shippingBlockers} checkouts with general shipping alerts</s-text>`:''}${mission.id==='payment'?'<s-paragraph>A card decline does not prove checkout is broken. Check whether another payment method is available, and review payment settings before changing them.</s-paragraph>':''}</s-stack>
+            <s-stack gap="small"><s-heading>Why we flagged this</s-heading><s-paragraph>${escape(severity.reason)}</s-paragraph>${mission.id==='delivery'&&mission.count>shippingBlockers?`<s-text color="subdued">${shippingBlockers} confirmed shipping blocker${shippingBlockers===1?'':'s'} · ${mission.count-shippingBlockers} checkouts with general shipping alerts</s-text>`:''}${mission.id==='payment'?'<s-paragraph>A card decline does not prove checkout is broken. Check whether another payment method is available, and review payment settings before changing them.</s-paragraph>':''}</s-stack>
             <s-stack gap="small"><s-heading>How you can test your change</s-heading><s-paragraph>${escape(ACTION_CHECKS[mission.id])}</s-paragraph>${destination?`<s-stack direction="inline"><s-button variant="secondary" href="https://admin.shopify.com/store/${STORE.replace('.myshopify.com','')}/${destination.path}" target="_blank" accessibilityLabel="${destination.label} (opens in a new tab)">${destination.label}</s-button></s-stack>`:''}</s-stack>
           </s-grid></s-query-container>
           <s-divider></s-divider>
@@ -331,11 +330,13 @@ function renderQuickFilters(){
  const status=(element('journey-status-filter') as HTMLElementTagNameMap['s-select']).value;
  const alert=selectedAlertCategory;
  const base=journeyRows.filter(row=>(!query||row.id.toLowerCase().includes(query)||row.label.toLowerCase().includes(query))&&(status==='all'||(status==='completed'?row.completed:!row.completed)));
- const choices=[{id:'all',label:'All',count:base.length},...Object.keys(categoryLabels).map(id=>({id,label:issueLabels[id],count:base.filter(row=>row.categories.includes(id)).length})),{id:'shipping_blocker',label:'Shipping unavailable',count:base.filter(row=>row.shippingBlocker).length}].filter(c=>c.id==='all'||c.count);
+ const issues=[...Object.keys(categoryLabels).map(id=>({id,label:issueLabels[id],count:base.filter(row=>row.categories.includes(id)).length})),...(blockerSameAsShipping(base)?[]:[{id:'shipping_blocker',label:'Shipping unavailable',count:base.filter(row=>row.shippingBlocker).length}])];
+ // Largest issues first; empty issues are hidden.
+ const choices=[{id:'all',label:'All',count:base.length},...issues.filter(c=>c.count).sort((a,b)=>b.count-a.count)];
  element('quick-issue-filters').setAttribute('gridTemplateColumns',`repeat(${choices.length}, max-content)`);
  element('quick-issue-filters').innerHTML=choices.map(c=>{
-  const selected=!selectedMission&&(selectedQuickIssue?c.id===selectedQuickIssue:c.id===alert);
-  return `<s-button variant="${selected?'primary':'secondary'}" data-quick-issue="${c.id}" aria-pressed="${selected}">${escape(c.label)} · ${c.count}</s-button>`;
+  const selected=selectedMission?c.id===missionChip():selectedQuickIssue?c.id===selectedQuickIssue:c.id===alert;
+  return `<s-button variant="${selected?'primary':'secondary'}" data-quick-issue="${c.id}" aria-pressed="${selected}" accessibilityLabel="${escape(c.label)}, ${c.count.toLocaleString()} checkouts${selected?', selected':''}">${escape(c.label)} · ${c.count.toLocaleString()}</s-button>`;
  }).join('');
 }
 function viewCategory(category:string){
@@ -370,6 +371,22 @@ function exportFiltered(events:boolean){
 }
 element('export-checkouts').addEventListener('click',()=>exportFiltered(false));
 element('export-events').addEventListener('click',()=>exportFiltered(true));
+// Cards count unfinished checkouts. When every affected checkout is unfinished, show the
+// Abandoned status so the chip counts match the card instead of including completed checkouts.
+function matchMissionStatus(){
+  const mission=missions.find(item=>item.id===selectedMission);
+  const completed=new Set(journeyRows.filter(row=>row.completed).map(row=>row.id));
+  if(mission?.sessionIds.length&&mission.sessionIds.every(id=>!completed.has(id)))(element('journey-status-filter') as HTMLElementTagNameMap['s-select']).value='unfinished';
+}
+function missionChip(){
+  const mission=missions.find(item=>item.id===selectedMission);
+  if(mission?.signal==='shipping_unavailable')return blockerSameAsShipping(journeyRows)?'delivery':'shipping_blocker';
+  return mission&&mission.id!=='unfinished'?mission.id:null;
+}
+// "Shipping unavailable" is a subset of shipping alerts; show it only when it narrows the list.
+function blockerSameAsShipping(rows:typeof journeyRows){
+  return rows.every(row=>!!row.shippingBlocker===row.categories.includes('delivery'));
+}
 function resetJourneyFilters() {
   selectedTrend=null;selectedMission = null;selectedQuickIssue=null;
   (element('journey-search') as HTMLElementTagNameMap['s-search-field']).value = '';
@@ -391,6 +408,7 @@ element("mission-list").addEventListener("click", event => {
   resetJourneyFilters();
   selectedMission = target.dataset.mission as MissionId;
   journeyPage = 0;
+  matchMissionStatus();
   applyMissionFilter(); showView("journeys", true);
   element("journeys").scrollIntoView({ behavior: "instant", block: "start" });
 });
@@ -477,23 +495,19 @@ function render(data: EvidenceResponse) {
     const sim=data.events.some(e=>e.simulated)?simulationRecords(data.events,data.sampledAt,latestEvidence??data):null;
     const aggregate=sim?abandonedSummary(sim.abandoned,start,end):data.shopifySnapshot?abandonedSummary(data.shopifySnapshot.abandoned,start,end):data.abandonedBasketSummary;
     const current=aggregate&&aggregate.rangeStart===start&&aggregate.rangeEnd===end?aggregate:null;
-    element("abandoned-value-metric").hidden=false;
-    element("abandoned-metrics").setAttribute("gridTemplateColumns","@container (inline-size > 600px) 1fr 1fr 1fr, 1fr");
-    text("abandoned-value-label","Abandoned checkout value");
     text("abandoned-value",current?.totalCents!=null?money(current.totalCents):"Unavailable");
-    text("abandoned-checkouts-label","Abandoned checkouts");
-    text("abandoned-checkouts-count",current?current.count:"Unavailable");
-    text("abandoned-average-label","Average checkout value");
     text("abandoned-average",current?.averageCents!=null?money(current.averageCents):current?.count===0?"No checkouts":"Unavailable");
     text("abandoned-value-note",!current?"Abandoned checkout data is unavailable.":current.unpricedCount?"Some abandoned checkouts have no recorded value. Total and average are unavailable.":current.count===0?"No abandoned checkouts in these dates. Total value is zero; there’s no average.":sim?"Generated test basket values saved with simulated checkouts.":"Imported totals may differ from those in your admin.");
-    element("abandoned-average").setAttribute("tone","auto");
-    text("abandoned-count",current?.unpricedCount?`${current.unpricedCount} checkouts without a recorded value`:"");
+    // The value comes from Shopify's abandoned-checkout records, a different population from
+    // observed unfinished journeys. Say so whenever the two counts differ.
+    const basis=current&&current.count!==summary.noCompletionObserved?`Value based on ${current.count.toLocaleString()} abandoned checkout${current.count===1?'':'s'} recorded by ${sim?'the simulation':'Shopify'}.`:'';
+    text("abandoned-basis",basis);element("abandoned-basis").hidden=!basis;
+    text("abandoned-count",current?.unpricedCount?`${current.unpricedCount.toLocaleString()} checkouts without a recorded value`:"");
     element("abandoned-count").hidden=!current?.unpricedCount;
-    text("abandoned-heading","Abandoned checkouts");
   }
-  text("session-count", summary.sessionCount);
-  text("completed-count", summary.completed);
-  text("incomplete-count", summary.noCompletionObserved);
+  text("session-count", summary.sessionCount.toLocaleString());
+  text("completed-count", summary.completed.toLocaleString());
+  text("incomplete-count", summary.noCompletionObserved.toLocaleString());
   text("event-count", summary.eventCount);
   text("stored-count", data.totalStored);
   text("collection-state", data.enabled ? "Set up" : "Paused");
@@ -516,7 +530,7 @@ function render(data: EvidenceResponse) {
   element("summary-title").hidden=hasSessions;
   element("completion-summary").hidden=!hasSessions;
   element("summary-description").hidden=hasSessions;
-  text("completion-label",`${summary.completed} of ${summary.sessionCount} · ${hasSessions ? Math.round(summary.completed/summary.sessionCount*100) : 0}%`);
+  text("completion-label",`${summary.completed.toLocaleString()} of ${summary.sessionCount.toLocaleString()} · ${hasSessions ? Math.round(summary.completed/summary.sessionCount*100) : 0}%`);
   element("completion-progress").setAttribute("max",String(Math.max(1,summary.sessionCount)));
   element("completion-progress").setAttribute("value",String(summary.completed));
   element("completion-progress").setAttribute("accessibilityLabel",`${summary.completed} of ${summary.sessionCount} checkouts have completion evidence`);
@@ -655,7 +669,7 @@ async function loadEvidence() {
     if(readRange!==selectedRange){pendingEvidenceRead=true;return;}
     evidenceReadFailed=true;
     if(latestEvidence){try{render(filteredEvidence(latestEvidence));}catch{renderMonitoring();}}
-    else {renderMonitoring();text('summary-title','Checkout data unavailable');text('summary-description','Checkout activity couldn’t be loaded.');element('summary-description').hidden=false;text('mission-list','Findings are unavailable until checkout activity loads.');text('focused-alert-list','Alerts are unavailable until checkout activity loads.');text('fix-history-content','Fix history is unavailable until checkout activity loads.');}
+    else {renderMonitoring();text('order-chart-empty','Order history couldn’t be loaded.');element('checkout-funnel').innerHTML='<s-paragraph color="subdued">Checkout stages are unavailable until checkout activity loads.</s-paragraph>';text('summary-title','Checkout data unavailable');text('summary-description','Checkout activity couldn’t be loaded.');element('summary-description').hidden=false;text('mission-list','Findings are unavailable until checkout activity loads.');text('focused-alert-list','Alerts are unavailable until checkout activity loads.');text('fix-history-content','Fix history is unavailable until checkout activity loads.');}
   } finally {
     loading = false;setLoadingControls(false);text("request-status", "");element("request-status").hidden=true;
     if(pendingEvidenceRead){pendingEvidenceRead=false;void loadEvidence();}

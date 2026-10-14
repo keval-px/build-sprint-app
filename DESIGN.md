@@ -184,3 +184,7 @@ Long modal references use standard word-break opportunities between 16-character
 ### Checkout reference labels — 13 October 2026
 
 The table header and unmatched-detail heading say Checkout reference. Search prompts accept a checkout reference or order number. A unique exact Shopify order match still displays its original order name and existing admin link; label changes never alter checkout identity.
+
+### Overview order and checkout performance — 14 October 2026
+
+User-approved order: the daily order chart beside one **Checkout performance** card, then Insights & recommendations, then Where checkouts drop off. Checkout performance merges completion (recorded, completed, abandoned) with abandoned value and average abandoned value; the separate Abandoned checkouts tiles are removed. When Shopify's abandoned-record count differs from observed abandoned checkouts, the card states the basis of the value rather than presenting one total. Opening an insight card whose checkouts are all unfinished sets the Abandoned status and selects the matching issue chip, so the card, chip and list show the same count. Each funnel segment states its share of started checkouts and its exclusions. Counts use thousands separators.

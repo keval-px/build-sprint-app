@@ -24,6 +24,8 @@ export function stepTimings(events:CheckoutEvent[]):StepTiming[] {
   if(from===undefined)return {step,seconds:null,note:laterObserved?'Step timing unavailable':'Step not recorded'};
   if(to!==undefined)return {step,seconds:Math.floor((to-from)/1000),note:'Time between recorded steps'};
   if(laterObserved)return {step,seconds:null,note:'Step timing unavailable'};
+  // Nothing was recorded after the previous step, so this step was never reached.
+  if(end<=from)return {step,seconds:null,note:'Not reached'};
   return {step,seconds:Math.max(0,Math.floor((end-from)/1000)),note:'Until the last recorded step'};
  };
  const paymentObserved=rows.some(e=>e.name==='payment_info_submitted'&&e.timestamp>=start.timestamp&&e.timestamp<=end);

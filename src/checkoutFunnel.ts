@@ -1,13 +1,14 @@
-import {checkoutFunnel,funnelFilters,funnelLabels,type FunnelFilter} from '../shared/checkoutFunnel';
+import {checkoutFunnel,funnelFilters,funnelLabels,funnelScope,type FunnelFilter} from '../shared/checkoutFunnel';
 import type {CheckoutEvent} from '../shared/evidence';
 import type {OutcomeFacts} from '../shared/checkoutOutcome';
 export function funnelMarkup(events:CheckoutEvent[],facts:OutcomeFacts,filter:FunnelFilter){
  const model=checkoutFunnel(events,facts,filter);
  return `<s-stack gap="base">
   <s-stack direction="inline" justifyContent="space-between" alignItems="center" gap="base">
-   <s-heading>Where sessions drop off</s-heading>
-   <s-stack direction="inline" gap="small" accessibilityLabel="Checkout segment">${funnelFilters.map(id=>`<s-button data-funnel-filter="${id}" variant="${filter===id?'secondary':'tertiary'}" aria-pressed="${filter===id}">${funnelLabels[id]}</s-button>`).join('')}</s-stack>
+   <s-heading>Where checkouts drop off</s-heading>
+   <s-stack direction="inline" gap="small" accessibilityLabel="Checkout segment">${funnelFilters.map(id=>`<s-button data-funnel-filter="${id}" variant="${filter===id?'secondary':'tertiary'}" aria-pressed="${filter===id}" accessibilityLabel="${funnelLabels[id]}${filter===id?', selected':''}">${funnelLabels[id]}</s-button>`).join('')}</s-stack>
   </s-stack>
+  <s-paragraph color="subdued">${funnelScope(model,filter)}</s-paragraph>
   <s-query-container><s-stack gap="small">${model.rows.map((row,index)=>`<s-grid gridTemplateColumns="@container (inline-size > 600px) 170px 1fr, 1fr" gap="small" alignItems="center">
    <s-text color="subdued">${row.label}</s-text>
    <s-grid gridTemplateColumns="1fr 48px 56px" gap="base" alignItems="center">

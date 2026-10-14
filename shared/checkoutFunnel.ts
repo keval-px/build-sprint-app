@@ -2,7 +2,7 @@ import {summarize,type CheckoutEvent} from './evidence.ts';
 import type {OutcomeFacts} from './checkoutOutcome.ts';
 export const funnelFilters=['all','mobile','desktop','express'] as const;
 export type FunnelFilter=typeof funnelFilters[number];
-export const funnelLabels={all:'All sessions',mobile:'Mobile',desktop:'Desktop',express:'Express pay'};
+export const funnelLabels={all:'All checkouts',mobile:'Mobile',desktop:'Desktop',express:'Express pay'};
 export function checkoutFunnel(events:CheckoutEvent[],facts:OutcomeFacts={},filter:FunnelFilter='all'){
  const all=summarize(events,facts).journeys.filter(j=>j.started);
  const category=(rows:CheckoutEvent[])=>{
@@ -25,4 +25,11 @@ export function checkoutFunnel(events:CheckoutEvent[],facts:OutcomeFacts={},filt
   return {...stage,count:stage.ids.length,percent:sessions.length?stage.ids.length/sessions.length*100:0,drop};
  });
  return {rows,count:sessions.length,total:all.length,unknownDevice:all.filter(j=>!category(j.events)).length,completed:stages[4].ids.length};
+}
+// What each segment covers, including the limits of the device and wallet signals.
+export function funnelScope(model:{count:number;total:number;unknownDevice:number},filter:FunnelFilter){
+ const share=`${model.count.toLocaleString()} of ${model.total.toLocaleString()} started checkouts`;
+ if(filter==='all')return `${model.total.toLocaleString()} started checkouts. Each stage counts checkouts with that step recorded; a skipped step isn’t counted as a drop-off.`;
+ if(filter==='express')return `${share} used express pay. Express pay details may arrive only when the order is placed, so earlier stages can be undercounted.`;
+ return `${share} on ${filter}. Tablets and ${model.unknownDevice.toLocaleString()} checkouts with an unknown device are excluded.`;
 }

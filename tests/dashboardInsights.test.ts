@@ -56,3 +56,9 @@ test('scoped alert details retain earlier steps and later completions while excl
  assert.deepEqual(groups[0].sessionIds,['a','b']);assert.equal(groups[0].alerts.length,3);
  assert.equal(groups[0].repeatedCheckouts,1);assert.equal(groups[0].completedAfter,1);assert.equal(groups[0].lastSeen,35);
 });
+
+test('a step after the last recorded activity is not reached, never a zero duration',()=>{
+ const rows=[event('a','checkout_started',100000),event('a','checkout_contact_info_submitted',112000)];
+ const [contact,shipping]=stepTimings(rows);
+ assert.equal(contact.seconds,12);assert.equal(shipping.seconds,null);assert.equal(shipping.note,'Not reached');
+});

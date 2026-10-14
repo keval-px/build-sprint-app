@@ -19,3 +19,9 @@ test('later completion removes a blocked checkout, but a subsequent blocker can 
  assert.deepEqual(buildRecommendations(events),[]);
  assert.equal(buildRecommendations([...events,e('a',4,'delivery',true)])[0].count,2);
 });
+test('a completion at the same moment as a shipping blocker counts as completed, not as no later purchase',()=>{
+ const done=(id:string,t:number):CheckoutEvent=>({sessionId:id,eventId:`${id}-done`,timestamp:t,name:'checkout_completed',category:null});
+ const events=[e('a',5,'delivery',true),e('b',5,'delivery',true),e('c',5,'delivery',true),done('c',5)];
+ const shipping=buildRecommendations(events).find(m=>m.signal==='shipping_unavailable')!;
+ assert.deepEqual(shipping.sessionIds.sort(),['a','b']);assert.equal(shipping.count,2);
+});

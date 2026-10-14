@@ -15,12 +15,13 @@ export function buildRecommendations(events:CheckoutEvent[],facts:OutcomeFacts={
     const blockers=j.events.filter(e=>e.category==='delivery'&&e.shippingBlocker==='no_shipping_available');
     if(!blockers.length)return false;
     const last=Math.max(...blockers.map(e=>e.timestamp));
-    return !j.events.some(e=>e.name==='checkout_completed'&&e.timestamp>last);
+    // A completion recorded at the same moment still means the checkout completed.
+    return !j.events.some(e=>e.name==='checkout_completed'&&e.timestamp>=last);
   }).map(j=>j.id);
   const results:Mission[]=[];
   const rejected=new Map<string,Set<string>>();
   for(const journey of journeys.filter(j=>!j.outcome.serverCompleted))for(const error of journey.events.filter(e=>e.discountOfferCode)){
-    if(journey.events.some(e=>e.name==='checkout_completed'&&e.timestamp>error.timestamp))continue;
+    if(journey.events.some(e=>e.name==='checkout_completed'&&e.timestamp>=error.timestamp))continue;
     const ids=rejected.get(error.discountOfferCode!)??new Set<string>();ids.add(journey.id);rejected.set(error.discountOfferCode!,ids);
   }
   const codes=[...rejected].filter(([,ids])=>ids.size>=2).map(([code])=>code).sort();
@@ -32,7 +33,7 @@ export function buildRecommendations(events:CheckoutEvent[],facts:OutcomeFacts={
   const apps=new Map<string,Set<string>>();
   for(const journey of journeys.filter(j=>!j.outcome.serverCompleted)){
     for(const error of journey.events.filter(e=>e.name==='ui_extension_errored'&&e.extensionAppHash)){
-      if(journey.events.some(e=>e.name==='checkout_completed'&&e.timestamp>error.timestamp))continue;
+      if(journey.events.some(e=>e.name==='checkout_completed'&&e.timestamp>=error.timestamp))continue;
       const ids=apps.get(error.extensionAppHash!)??new Set<string>();
       ids.add(journey.id);apps.set(error.extensionAppHash!,ids);
     }

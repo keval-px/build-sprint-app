@@ -237,10 +237,12 @@ test('cards link to filtered Checkouts and full activity without an alert summar
  assert.doesNotMatch(overview,/Recorded findings|id="error-summary"/);
  assert.doesNotMatch(html,/journey-alert-summary|error-summary|Alerts in these checkouts|A value is unavailable when/);
  assert.match(html,/>Checkout reference<\/s-table-header>/);
- assert.match(html,/Search checkout reference or order number/);
+ assert.match(html,/Search reference or order/);
  c.get('mission-list').dispatch('click',{target:{closest:(selector:string)=>selector==='s-button[data-mission]'?{dataset:{mission:'delivery'}}:null}});
  assert.equal(c.get('journeys').hidden,false);
  assert.equal((c.get('journey-list').innerHTML.match(/data-session=/g)??[]).length,2);
+ assert.equal(c.get('journey-status-filter').value,'unfinished','an all-unfinished card opens the Abandoned status so chip counts match the card');
+ assert.match(c.get('quick-issue-filters').innerHTML,/variant="primary" data-quick-issue="(delivery|shipping_blocker)"[^>]*>[^<]* · 2</,'the matching chip is selected and shows the card count');
  c.get('journey-search').value=ids[0];c.get('journey-search').dispatch('input');
  assert.equal((c.get('journey-list').innerHTML.match(/data-session=/g)??[]).length,1);
  assert.equal(c.get('journey-search').value,ids[0]);assert.equal(c.get('clear-journey-filters').hidden,false);

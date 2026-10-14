@@ -56,7 +56,8 @@ function stage(origin){
     if(uid)writePrivate(resolve(state,'extension-identity.json'),JSON.stringify({uid}));
   }
   rmSync(staged,{recursive:true,force:true});mkdirSync(staged,{recursive:true,mode:0o700});
-  for(const file of sources)cpSync(resolve(root,file),resolve(staged,file),{recursive:true});
+  // Optional folders such as public/ may be absent; Git does not keep empty directories.
+  for(const file of sources)if(existsSync(resolve(root,file)))cpSync(resolve(root,file),resolve(staged,file),{recursive:true});
   // A previous cloud extension bundle must not accompany the renamed dev one.
   rmSync(resolve(staged,'extensions/checkout-evidence/dist'),{recursive:true,force:true});
   symlinkSync(resolve(root,'node_modules'),resolve(staged,'node_modules'),'dir');
