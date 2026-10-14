@@ -8,6 +8,8 @@ import type {CheckoutPrice} from './checkoutPrice.ts';
 import type {AbandonedSnapshot} from './abandoned.ts';
 import type {OrderPattern} from './orderPattern.ts';
 import type {SavedBasket} from './basketValue.ts';
+import type {OverviewSummary} from './overviewSummary.ts';
+import {funnelFilters} from './checkoutFunnel.ts';
 export interface EvidenceResponse {
   monitoring?:MonitoringEvidence; storeName?:string; store: string; events: CheckoutEvent[]; totalStored: number; truncated: boolean;
   abandonedCheckouts?:AbandonedSnapshot|null; enabled: boolean; sampledAt: number; 
@@ -16,6 +18,7 @@ export interface EvidenceResponse {
   abandonedBasketSummary?:(ReturnType<typeof abandonedSummary>&{syncedAt:number;currency?:string})|null;
   checkoutPrices?:CheckoutPrice[];
   orderPatterns?:OrderPattern|null;
+  overview?:OverviewSummary;
   shopifySnapshot?:{timeZone?:string;currency?:string;syncedAt:number;periodStart:string;orders:({subtotalCents:number|null;test:boolean;paid:boolean;cancelled:boolean;recordHash:string;createdAt:string;sessionId?:string;orderName?:string;orderId?:string;totalCents?:number|null;conversion?:{shopMinor:number;buyerMinor:number;buyerCurrency:string}})[];abandoned:(SavedBasket&{recordHash:string;createdAt:string;recovered:boolean})[]}|null;
 }
 
@@ -40,13 +43,16 @@ const range=(v:Record<string,unknown>)=>finite(v.rangeStart)&&finite(v.rangeEnd)
 const amount=(v:unknown)=>object(v)&&string(v.id)&&count(v.eligibleSessions)&&count(v.matchedSessions)&&count(v.unknownSessions)&&money(v.totalCents);
 const line=(v:unknown)=>object(v)&&session(v.itemHash)&&count(v.quantity)&&v.quantity!==0&&count(v.minor)&&currency(v.currency);
 const eventDetails=(v:unknown)=>object(v)&&optional(v.deviceClass,x=>x==='mobile'||x==='desktop'||x==='tablet')&&optional(v.expressPay,x=>x===true)&&optional(v.subtotalCents,count)&&optional(v.currency,currency)&&optional(v.items,x=>list(x,line))&&optional(v.extensionAppName,string)&&optional(v.extensionAppHash,session)&&optional(v.discountCodeHash,session)&&optional(v.discountOfferCode,string)&&optional(v.shippingBlocker,x=>x==='no_shipping_available');
+const funnelRow=(v:unknown)=>object(v)&&string(v.label)&&count(v.count)&&finite(v.percent)&&(v.drop===null||typeof v.drop==='number'&&Number.isInteger(v.drop));
+const funnel=(v:unknown)=>object(v)&&list(v.rows,funnelRow)&&(v.rows as unknown[]).length===5&&count(v.count)&&count(v.total)&&count(v.unknownDevice)&&count(v.completed);
+const overview=(v:unknown)=>object(v)&&range(v)&&count(v.sessionCount)&&count(v.completed)&&count(v.noCompletionObserved)&&count(v.eventCount)&&object(v.funnels)&&funnelFilters.every(f=>funnel((v.funnels as Record<string,unknown>)[f]));
 const pattern=(v:unknown)=>object(v)&&string(v.day)&&zone(v.timeZone)&&count(v.baselineDays)&&finite(v.syncedAt)&&count(v.testOrders)&&count(v.totalOrders)&&Array.isArray(v.hours)&&v.hours.length===24&&v.hours.every(h=>object(h)&&count(h.hour)&&h.hour<24&&money(h.count)&&(h.average===null||finite(h.average)));
 
 // Validate every nested structure consumed by filtering, calculations and UI
 // before it can replace the last successful response. No partial coercion.
 export function prepareEvidence(value:unknown,store:string):EvidenceResponse {
  if(!object(value)||value.store!==store||!validMonitoringEvents(value.events)||!value.events.every(eventDetails)||!optional(value.storeName,string)||typeof value.enabled!=='boolean'||!finite(value.sampledAt)||!count(value.totalStored)||typeof value.truncated!=='boolean'||!optional(value.monitoring,validMonitoring))throw Error('Invalid evidence response.');
- if(!nullable(value.shopifySnapshot,s=>object(s)&&optional(s.timeZone,zone)&&optional(s.currency,currency)&&finite(s.syncedAt)&&date(s.periodStart)&&list(s.orders,order)&&list(s.abandoned,basket))||!optional(value.checkoutPrices,p=>list(p,price))||!nullable(value.orderPatterns,pattern))throw Error('Invalid server evidence.');
+ if(!nullable(value.shopifySnapshot,s=>object(s)&&optional(s.timeZone,zone)&&optional(s.currency,currency)&&finite(s.syncedAt)&&date(s.periodStart)&&list(s.orders,order)&&list(s.abandoned,basket))||!optional(value.checkoutPrices,p=>list(p,price))||!nullable(value.orderPatterns,pattern)||!optional(value.overview,overview))throw Error('Invalid server evidence.');
  if(!nullable(value.abandonedCheckouts,s=>object(s)&&string(s.importedOn)&&count(s.emailSent)&&count(s.emailNotSent)&&list(s.records,r=>object(r)&&string(r.recordHash)&&nullable(r.sessionId,session)&&count(r.subtotalCents)&&r.currency==='USD'&&typeof r.recovered==='boolean'))||!nullable(value.abandonedBasketSummary,s=>object(s)&&range(s)&&finite(s.syncedAt)&&optional(s.currency,currency)&&count(s.count)&&money(s.totalCents)&&money(s.averageCents)&&count(s.unpricedCount)))throw Error('Invalid basket evidence.');
  if(!nullable(value.actionBasketValue,s=>object(s)&&range(s)&&list(s.actions,amount)&&object(s.combined)&&amount({...s.combined,id:'combined'}))||!nullable(value.inventoryItemValue,s=>object(s)&&range(s)&&money(s.totalMinor)&&count(s.priced)&&count(s.missing)&&currency(s.currency)))throw Error('Invalid aggregate evidence.');
  return value as unknown as EvidenceResponse;

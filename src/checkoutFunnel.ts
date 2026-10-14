@@ -1,8 +1,6 @@
-import {checkoutFunnel,funnelFilters,funnelLabels,funnelScope,type FunnelFilter} from '../shared/checkoutFunnel';
-import type {CheckoutEvent} from '../shared/evidence';
-import type {OutcomeFacts} from '../shared/checkoutOutcome';
-export function funnelMarkup(events:CheckoutEvent[],facts:OutcomeFacts,filter:FunnelFilter){
- const model=checkoutFunnel(events,facts,filter);
+import {funnelFilters,funnelLabels,funnelScope,type FunnelFilter} from '../shared/checkoutFunnel';
+import type {FunnelSummary} from '../shared/overviewSummary';
+export function funnelMarkup(model:FunnelSummary,filter:FunnelFilter){
  return `<s-stack gap="base">
   <s-stack direction="inline" justifyContent="space-between" alignItems="center" gap="base">
    <s-heading>Where checkouts drop off</s-heading>
@@ -20,7 +18,7 @@ export function funnelMarkup(events:CheckoutEvent[],facts:OutcomeFacts,filter:Fu
  </s-stack>`;
 }
 
-export function renderFunnel(host:HTMLElement,events:CheckoutEvent[],facts:OutcomeFacts,filter:FunnelFilter){
- host.innerHTML=funnelMarkup(events,facts,filter);
+export function renderFunnel(host:HTMLElement,model:FunnelSummary,filter:FunnelFilter){
+ host.innerHTML=funnelMarkup(model,filter);
  host.querySelectorAll<HTMLElement>('[data-funnel-width]').forEach(bar=>bar.style.setProperty('--funnel-width',`${bar.dataset.funnelWidth}%`));
 }

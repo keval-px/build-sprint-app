@@ -27,6 +27,7 @@ import {inventoryValue} from '../shared/inventoryValue';
 import {formatMoney} from '../shared/money';
 import {abandonedSummary} from "../shared/abandonedSummary";
 import {renderFunnel} from './checkoutFunnel';
+import {overviewSummary,type OverviewSummary} from '../shared/overviewSummary';
 import {funnelFilters,type FunnelFilter} from '../shared/checkoutFunnel';
 let funnelFilter:FunnelFilter='all';
 import {checkoutRow,categoryLabels,type CheckoutRow} from "./checkoutRows";
@@ -72,6 +73,12 @@ function filteredEvidence(data:EvidenceResponse):EvidenceResponse{
   const within=(value:string)=>{const at=Date.parse(value);return at>=start&&at<end;};
   return {...data,events:checkoutCohort(data.events,selectedRange),
     shopifySnapshot:data.shopifySnapshot?{...data.shopifySnapshot,orders:data.shopifySnapshot.orders.filter(row=>within(row.createdAt)),abandoned:data.shopifySnapshot.abandoned.filter(row=>within(row.createdAt))}:null};
+}
+// Overview counts come from the server for the dates it was asked about. Until the
+// next read arrives for newly chosen dates, count the loaded events here instead.
+function currentOverview(data:EvidenceResponse):OverviewSummary{
+  const range=dateBounds(selectedRange),overview=latestEvidence?.overview;
+  return overview&&overview.rangeStart===range.start&&overview.rangeEnd===range.end?overview:overviewSummary(data.events,outcomeFacts(latestEvidence??data),range);
 }
 function updateDateSelection(value:string){
   chartHelp.dismiss();
@@ -265,7 +272,7 @@ element('checkout-funnel').addEventListener('click',event=>{
  const selected=button?.dataset.funnelFilter;
  if(!selected||!funnelFilters.some(id=>id===selected)||!latestEvidence)return;
  funnelFilter=selected as FunnelFilter;
- renderFunnel(element('checkout-funnel'),filteredEvidence(latestEvidence).events,outcomeFacts(latestEvidence),funnelFilter);
+ renderFunnel(element('checkout-funnel'),currentOverview(filteredEvidence(latestEvidence)).funnels[funnelFilter],funnelFilter);
  element('checkout-funnel').querySelector<HTMLElement>(`[data-funnel-filter="${funnelFilter}"]`)?.focus();
 });
 element('quick-issue-filters').addEventListener('click',event=>{
@@ -386,7 +393,8 @@ function bySession<T extends {sessionId?:string}>(rows:T[]){
 }
 function render(data: EvidenceResponse) {
   const facts=outcomeFacts(latestEvidence??data);
-  renderFunnel(element('checkout-funnel'),data.events,facts,funnelFilter);
+  const summary=currentOverview(data);
+  renderFunnel(element('checkout-funnel'),summary.funnels[funnelFilter],funnelFilter);
   renderMonitoring();
   const storeName=data.storeName?.trim()||'Checkout Health';
   element('demo-label').hidden=embeddedShopify;
@@ -401,7 +409,6 @@ function render(data: EvidenceResponse) {
   const nativeSnapshot=latestEvidence?.shopifySnapshot??data.shopifySnapshot;
   storeCurrency=data.shopifySnapshot?.currency??data.abandonedBasketSummary?.currency??'USD';
   text('report-currency',data.events.some(e=>e.simulated)?'Test view · all recorded sessions are included. Generated basket values and Shopify basket values are shown in USD.':`Values are shown in ${storeCurrency}.`);
-  const summary = summarize(data.events,facts);
   {
     const {start,end}=dateBounds(selectedRange);
     const sim=data.events.some(e=>e.simulated)?simulationRecords(data.events,data.sampledAt,latestEvidence??data):null;
@@ -448,7 +455,7 @@ function render(data: EvidenceResponse) {
   // Order labels only match rows by session, so give each journey its own rows.
   const orders=bySession(nativeSnapshot?.orders??[]);
   const basketPrice=basketPricer({currency:storeCurrency,orders:nativeSnapshot?.orders,abandoned:nativeSnapshot?.abandoned,prices:latestEvidence?.checkoutPrices??data.checkoutPrices,legacy:data.abandonedCheckouts?.records});
-  journeyRows = summary.journeys.reverse().map(session => checkoutRow(session, orders.get(session.id)??[], basketPrice(session), money));
+  journeyRows = summarize(data.events,facts).journeys.reverse().map(session => checkoutRow(session, orders.get(session.id)??[], basketPrice(session), money));
   renderMissions(data.events);
   applyMissionFilter();
 }

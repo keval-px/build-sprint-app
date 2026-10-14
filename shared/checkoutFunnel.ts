@@ -3,8 +3,13 @@ import type {OutcomeFacts} from './checkoutOutcome.ts';
 export const funnelFilters=['all','mobile','desktop','express'] as const;
 export type FunnelFilter=typeof funnelFilters[number];
 export const funnelLabels={all:'All checkouts',mobile:'Mobile',desktop:'Desktop',express:'Express pay'};
+type Journey=ReturnType<typeof summarize>['journeys'][number];
 export function checkoutFunnel(events:CheckoutEvent[],facts:OutcomeFacts={},filter:FunnelFilter='all'){
- const all=summarize(events,facts).journeys.filter(j=>j.started);
+ return journeyFunnel(summarize(events,facts).journeys,filter);
+}
+// Same model from journeys already summarised, so several segments share one pass.
+export function journeyFunnel(journeys:Journey[],filter:FunnelFilter='all'){
+ const all=journeys.filter(j=>j.started);
  const category=(rows:CheckoutEvent[])=>{
   const devices=new Set(rows.map(e=>e.deviceClass).filter(Boolean));
   return devices.size===1?[...devices][0]:undefined;

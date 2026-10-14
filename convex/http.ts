@@ -13,6 +13,7 @@ import {inventoryValue} from '../shared/inventoryValue';
 import {checkoutCohort} from '../shared/dateRange';
 import {summarize} from '../shared/evidence';
 import {abandonedSummary} from '../shared/abandonedSummary';
+import {overviewSummary} from '../shared/overviewSummary';
 
 import { isViewerId } from "../shared/actions";
 
@@ -25,6 +26,12 @@ import {STORE,parseTestEvent as parsePixelBase} from '../shared/evidence';
 
 import {fixBaseline,isFixMission} from '../shared/fixTracking';
 const http = httpRouter();
+// Dates the page asked for, as epoch milliseconds. Anything else gets no overview,
+// and the page falls back to counting the events itself.
+function requestedRange(url:string){
+ const params=new URL(url).searchParams,start=Number(params.get('start')),end=Number(params.get('end'));
+ return params.has('start')&&params.has('end')&&Number.isSafeInteger(start)&&Number.isSafeInteger(end)&&start<end?{start,end}:null;
+}
 const privateReply=(body:unknown,status=200,bounded=false)=>new Response(bounded?reportJSON(body):JSON.stringify(body),{status,headers:{'Content-Type':'application/json','Cache-Control':'no-store'}});
 const bearer=(request:Request)=>request.headers.get('Authorization')?.match(/^Bearer ([^\s]+)$/)?.[1]??'';
 for(const page of ['', '/checkouts', '/fix-history', '/alerts'])http.route({path:`/shopify/app${page}`,method:'GET',handler:httpAction(async(ctx,request)=>{
@@ -95,7 +102,10 @@ for(const operation of ['status','sync','evidence','pixel/enable']){
       const historyUnavailable=window.historyUnavailable,checkoutPrices=window.prices,completeSnapshot=window.snapshot;
       const sync=await ctx.runQuery(internal.capacity.reportMonitoring,window.syncHeader);
       const selectedStart=new URL(request.url).searchParams.get('start');const outside=selectedStart!==null&&Number.isFinite(Number(selectedStart))&&Number(selectedStart)<window.start;const serverHistoryMissing=selectedStart!==null&&!!completeSnapshot&&!coversPeriod(completeSnapshot.periodStart,Number(selectedStart));
-      return privateReply({...original,monitoring:{collection:pixel.collection,sync,historyUnavailable:historyUnavailable||serverHistoryMissing},events:combined,truncated:outside||serverHistoryMissing||orphan||original.truncated||pixel.truncated,totalStored:combined.length,abandonedCheckouts,checkoutPrices,storeName:completeSnapshot?.storeName,shopifySnapshot:completeSnapshot&&!serverHistoryMissing?{timeZone:completeSnapshot.timeZone,currency:completeSnapshot.currency??'USD',syncedAt:completeSnapshot.syncedAt,periodStart:completeSnapshot.periodStart,orders:completeSnapshot.orders,abandoned:completeSnapshot.abandoned}:null,enabled:true,source:'Demo Shopify browser and server evidence.',sampledAt:window.asOf},200,true);
+      const shopifySnapshot=completeSnapshot&&!serverHistoryMissing?{timeZone:completeSnapshot.timeZone,currency:completeSnapshot.currency??'USD',syncedAt:completeSnapshot.syncedAt,periodStart:completeSnapshot.periodStart,orders:completeSnapshot.orders,abandoned:completeSnapshot.abandoned}:null;
+      // Same completion facts the page uses: the orders it receives and the checkout prices.
+      const range=requestedRange(request.url),overview=range?overviewSummary(combined,{orders:shopifySnapshot?.orders??[],prices:checkoutPrices??[],asOf:window.asOf},range):undefined;
+      return privateReply({...original,overview,monitoring:{collection:pixel.collection,sync,historyUnavailable:historyUnavailable||serverHistoryMissing},events:combined,truncated:outside||serverHistoryMissing||orphan||original.truncated||pixel.truncated,totalStored:combined.length,abandonedCheckouts,checkoutPrices,storeName:completeSnapshot?.storeName,shopifySnapshot,enabled:true,source:'Demo Shopify browser and server evidence.',sampledAt:window.asOf},200,true);
     }catch(error){
       const message=error instanceof Error ? error.message : '';
       const reasons=['Shopify authorization failed. Check installation and permissions.','Install the requested Shopify permissions first.','Shopify could not return data. Check permissions and retry; previous results are retained.','Unexpected store or missing Shopify permissions.'];
@@ -175,7 +185,9 @@ http.route({ path: "/test-evidence", method: "GET", handler: httpAction(async (c
       inventoryItemValue={...inventoryValue(pixel.events,ids,currency,quotes),rangeStart:start,rangeEnd:end};
     }
   }
-  return reply({ ...evidence,totalStored:events.length,truncated:serverHistoryMissing||orphan||evidence.truncated||(params.has('start')&&start<window.start), monitoring:{collection:evidence.collection,historyUnavailable:window.historyUnavailable||serverHistoryMissing}, storeName, events, abandonedCheckouts, abandonedBasketSummary, inventoryItemValue, actionBasketValue, orderPatterns, enabled: process.env.SHOPIFY_TEST_COLLECTION_ENABLED === "true", source: "Unverified browser test events. No live merchant data.", sampledAt:window.asOf },200,true);
+  // The public page receives no Shopify orders or prices, so it counts browser evidence only.
+  const range=requestedRange(request.url),overview=range?overviewSummary(events,{asOf:window.asOf},range):undefined;
+  return reply({ ...evidence,overview,totalStored:events.length,truncated:serverHistoryMissing||orphan||evidence.truncated||(params.has('start')&&start<window.start), monitoring:{collection:evidence.collection,historyUnavailable:window.historyUnavailable||serverHistoryMissing}, storeName, events, abandonedCheckouts, abandonedBasketSummary, inventoryItemValue, actionBasketValue, orderPatterns, enabled: process.env.SHOPIFY_TEST_COLLECTION_ENABLED === "true", source: "Unverified browser test events. No live merchant data.", sampledAt:window.asOf },200,true);
   }catch(error){return reply({error:error instanceof ReportLimit?error.message:"Evidence could not be read. Previous results are retained."},503);}
 }) });
 
