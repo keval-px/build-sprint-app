@@ -280,3 +280,19 @@ test('checkout statuses use short labels while details retain the recorded evide
  assert.match(c.get('journey-list').innerHTML,/Order #1001/);
  assert.match(c.get('journey-modal-content').innerHTML,/Completed · paid order/);
 });
+test('a saved change uses the evidence returned with it, and reads again only when none came back',async()=>{
+ const c=await controller(false,true),events=comparisonEvents(c.clock.now);
+ const affectedIds=[119,120].map(id=>id.toString(16).padStart(64,'0'));
+ for(const sessionId of affectedIds)events.push({sessionId,eventId:sessionId+'alert',name:'alert_displayed',timestamp:c.clock.now-5*86400000+4000,category:'delivery',shippingBlocker:'no_shipping_available'});
+ c.setCandidate({...c.good(),events,totalStored:events.length});await c.window.__controller.loadEvidence();
+ const fixes=[{missionId:'delivery',appliedAt:c.clock.now-10000,baseline:{checkouts:40,affected:2,completed:26},affectedIds,partial:false}];
+ const evidenceReads=()=>c.requestLog.filter(r=>r.url.includes('/evidence')).length,settle=()=>new Promise(resolve=>setImmediate(resolve));
+ const mark=async()=>{c.get('mission-list').dispatch('change',{target:{closest:()=>({checked:true,dataset:{fixDone:'delivery'}})}});await settle();await settle();};
+ c.setFixCandidate({fixes,history:[],evidence:{...c.good(),events,totalStored:events.length}});
+ let before=evidenceReads();await mark();
+ assert.equal(evidenceReads(),before,'no second read when the change returns evidence');
+ assert.equal(c.get('recommendation-count').textContent,'3 items to review');
+ c.setFixCandidate({fixes,history:[]});
+ before=evidenceReads();await mark();
+ assert.equal(evidenceReads(),before+1,'reads again when the change returns no evidence');
+});

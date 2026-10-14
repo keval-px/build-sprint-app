@@ -1,20 +1,15 @@
-import {fixResults,fixAssessment,retestResults,actionState,type AppliedFix} from '../shared/fixTracking';
-import {ACTION_CHECKS,ACTION_DESTINATIONS,type Mission,type missionSignal} from '../shared/actions';
-import type {CheckoutEvent} from '../shared/evidence';
-import type {OutcomeFacts} from '../shared/checkoutOutcome';
+import {assessFix} from '../shared/fixTracking';
+import {ACTION_CHECKS,ACTION_DESTINATIONS} from '../shared/actions';
 import type {MonitoringHealth} from '../shared/monitoringHealth';
+import type {InsightCardData} from '../shared/insightReport';
 import {fixOutcomeCopy} from './dashboardCopy';
 import {time} from './checkoutRows';
 
-// Insight card markup. main.ts works out each card's numbers; this module only draws them.
+// Insight card markup. The server works out each card's numbers; this module only draws them.
 const escape = (value: string) => value.replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]!);
 // busy: saving or loading. retestDisabled: busy or saved statuses not loaded.
-export interface CardContext {embedded:boolean;busy:boolean;retestDisabled:boolean;events:CheckoutEvent[];facts:OutcomeFacts;now:number;health:MonitoringHealth;truncated:boolean;money:(minor:number)=>string;storeHandle:string}
-export interface InsightCard {
-  mission:Mission;open:boolean;fix?:AppliedFix;status:ReturnType<typeof actionState>;signal:ReturnType<typeof missionSignal>;
-  recommendation:string;shippingBlockers:number;basketCents:number|null|undefined;inventoryMinor:number|null;
-  percent:number;sessionCount:number;controlsDisabled:boolean;
-}
+export interface CardContext {embedded:boolean;busy:boolean;retestDisabled:boolean;health:MonitoringHealth;truncated:boolean;money:(minor:number)=>string;storeHandle:string}
+export interface InsightCard extends InsightCardData {open:boolean;sessionCount:number;controlsDisabled:boolean}
 export function insightCard(card:InsightCard,ctx:CardContext){
   const {mission,open,fix,status,signal,recommendation,shippingBlockers,basketCents,percent}=card,severity=signal.severity;
   const destination=ACTION_DESTINATIONS[mission.id],hasAmount=basketCents!==null&&basketCents!==undefined,inventory={totalMinor:card.inventoryMinor};
@@ -38,13 +33,13 @@ export function insightCard(card:InsightCard,ctx:CardContext){
             <s-stack gap="small" data-action-value><s-text color="subdued">${mission.id==='inventory'?'Item value before alert':'Affected basket value'}</s-text><s-number fontSize="large-100" fontWeight="bold" id="risk-${mission.id}">${mission.id==='inventory'?(inventory.totalMinor===null?'Unavailable':ctx.money(inventory.totalMinor)):hasAmount?ctx.money(basketCents!):'Unavailable'}</s-number><s-text color="subdued">${(mission.id==='inventory'?inventory.totalMinor===null:!hasAmount)?'Some prices weren’t recorded':'Not confirmed lost revenue'}</s-text></s-stack>
           </s-grid>
         </s-grid></s-query-container>
-        ${fix?`<s-text data-fix-outcome="${mission.id}" tone="${status.returned?'caution':'auto'}">${escape(fixOutcomeCopy(fix,ctx.events,ctx.now,ctx.health,ctx.facts))}</s-text>`:''}
+        ${fix?`<s-text data-fix-outcome="${mission.id}" tone="${status.returned?'caution':'auto'}">${escape(fixOutcomeCopy(fix,card.results!,status.returned,ctx.health))}</s-text>`:''}
         <s-divider></s-divider>
         <s-stack direction="inline" justifyContent="space-between" gap="small" alignItems="center">
           <s-button variant="secondary" data-mission="${mission.id}" ${mission.count?'':'disabled'} accessibilityLabel="View ${mission.count} affected checkouts: ${escape(mission.title)}">View affected checkouts</s-button>
           <s-button id="toggle-${mission.id}" variant="tertiary" data-toggle-action="${mission.id}" aria-expanded="${open}" aria-controls="metrics-${mission.id} body-${mission.id}" accessibilityLabel="${open?'Hide':'Show'} details: ${escape(mission.title)}">${open?'Hide details':'Show details'}</s-button>
         </s-stack>
-        <s-stack id="metrics-${mission.id}" gap="base" ${open?'':'hidden'}>${fix?`<s-divider></s-divider>${fixPanel(mission,fix,ctx)}`:''}</s-stack>
+        <s-stack id="metrics-${mission.id}" gap="base" ${open?'':'hidden'}>${fix?`<s-divider></s-divider>${fixPanel(card,fix,ctx)}`:''}</s-stack>
         <s-stack id="body-${mission.id}" data-action-body gap="base" ${open?'':'hidden'}>
           <s-divider></s-divider>
           <s-query-container><s-grid gridTemplateColumns="@container (inline-size > 700px) 1fr 1fr, 1fr" gap="large-100" alignItems="start">
@@ -62,15 +57,14 @@ export function insightList(cards:{done:boolean;rank:number;html:string}[],canAs
   const sorted=[...cards].sort((a,b)=>Number(a.done)-Number(b.done)||a.rank-b.rank);
   return sorted.map((card,index)=>`${card.done&&(index===0||!sorted[index-1].done)?'<s-divider></s-divider><s-heading>Marked as done</s-heading>':''}${card.html}`).join('') || `<s-section><s-stack gap="small"><s-heading>No issues flagged in the checkouts we’ve recorded.</s-heading><s-paragraph color="subdued">${canAssess?'We’ll show comparisons here when enough data supports a warning.':'Some checks need more current data. See Data details below.'}</s-paragraph><s-stack direction="inline"><s-button variant="secondary" data-review-checkouts>Browse recorded checkouts</s-button></s-stack></s-stack></s-section>`;
 }
-export function fixPanel(mission:Mission,fix:AppliedFix,ctx:CardContext){
-  const results=fixResults(fix,ctx.events,ctx.now,ctx.facts);
-  const retest=retestResults(fix,ctx.events,ctx.now);
+export function fixPanel(card:InsightCardData,fix:NonNullable<InsightCardData['fix']>,ctx:CardContext){
+  const {mission,retest}=card,results=card.results!;
   const health=ctx.health;
-  const assessment=fixAssessment(fix,ctx.events,ctx.now,health,ctx.facts);
+  const returned=card.status.returned;
+  const assessment=assessFix(fix,results,returned,health);
   const checked=fix.retestedAt!==undefined;
   const retestPanel=mission.id==='unfinished'?'':`<s-stack gap="small"><s-stack direction="inline" gap="small" alignItems="center">${checked?`<s-badge tone="${retest?.returned?'caution':'neutral'}">${retest?.returned?'Alerts after retest':'Retest reported'}</s-badge><s-text color="subdued">Reported by ${ctx.embedded?'your team':'this demo viewer'} · ${escape(time(fix.retestedAt!))}</s-text>`:'<s-text>Repeat the affected checkout and confirm the problem no longer appears.</s-text>'}</s-stack>${retest?.returned?`<s-text>${retest.returned} checkout${retest.returned===1?'':'s'} recorded matching alerts after the retest. Check again.</s-text>`:''}<s-stack direction="inline" gap="small"><s-button data-fix="${mission.id}" data-fix-operation="retest" variant="secondary" ${ctx.retestDisabled?'disabled':''}>${checked?'Record another successful retest':'Record successful retest'}</s-button>${checked?`<s-button data-fix="${mission.id}" data-fix-operation="undo-retest" variant="tertiary" ${ctx.busy?'disabled':''}>Undo retest</s-button>`:''}</s-stack></s-stack>`;
   const rate=(n:number,d:number)=>d?`${Math.round(n/d*100)}% (${n}/${d})`:'No checkouts yet';
-  const returned = actionState(fix, ctx.events, ctx.now).returned;
   const resultMessage = !assessment.canAssess
     ? `Result not verified: ${!health.canAssess||fix.partial?"data is limited":"waiting for more checkout activity"}.`
     : returned

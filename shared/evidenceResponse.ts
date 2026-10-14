@@ -8,8 +8,10 @@ import type {CheckoutPrice} from './checkoutPrice.ts';
 import type {AbandonedSnapshot} from './abandoned.ts';
 import type {OrderPattern} from './orderPattern.ts';
 import type {SavedBasket} from './basketValue.ts';
+import {FIX_MISSIONS,type AppliedFix} from './fixTracking.ts';
 import type {OverviewSummary} from './overviewSummary.ts';
 import type {CheckoutTable} from './checkoutTable.ts';
+import type {InsightReport} from './insightReport.ts';
 import {funnelFilters} from './checkoutFunnel.ts';
 export interface EvidenceResponse {
   monitoring?:MonitoringEvidence; storeName?:string; store: string; events: CheckoutEvent[]; totalStored: number; truncated: boolean;
@@ -21,6 +23,7 @@ export interface EvidenceResponse {
   orderPatterns?:OrderPattern|null;
   overview?:OverviewSummary;
   table?:CheckoutTable;
+  insights?:InsightReport;
   shopifySnapshot?:{timeZone?:string;currency?:string;syncedAt:number;periodStart:string;orders:({subtotalCents:number|null;test:boolean;paid:boolean;cancelled:boolean;recordHash:string;createdAt:string;sessionId?:string;orderName?:string;orderId?:string;totalCents?:number|null;conversion?:{shopMinor:number;buyerMinor:number;buyerCurrency:string}})[];abandoned:(SavedBasket&{recordHash:string;createdAt:string;recovered:boolean})[]}|null;
 }
 
@@ -52,13 +55,23 @@ const bool=(v:unknown)=>typeof v==='boolean';
 const outcome=(v:unknown)=>object(v)&&bool(v.serverCompleted)&&list(v.sources,x=>x==='browser'||x==='paid_order'||x==='signed_checkout')&&bool(v.legacySignedCompletion)&&bool(v.conflicting);
 const tableRow=(v:unknown)=>object(v)&&session(v.id)&&string(v.label)&&(v.orderHref===null||typeof v.orderHref==='string'&&/^shopify:\/\/admin\/orders\/[1-9]\d*$/.test(v.orderHref))&&finite(v.startedAt)&&bool(v.completed)&&string(v.outcomeText)&&outcome(v.outcome)&&list(v.categories,x=>['discount','payment','delivery','validation','inventory','extension'].includes(x as string))&&bool(v.shippingBlocker)&&string(v.lastStep)&&bool(v.simulated)&&count(v.eventCount)&&v.eventCount!==0&&count(v.alertCount)&&optional(v.basketCents,count);
 const table=(v:unknown)=>object(v)&&range(v)&&finite(v.asOf)&&list(v.rows,tableRow);
+const missionId=(v:unknown)=>typeof v==='string'&&FIX_MISSIONS.includes(v as AppliedFix['missionId']);
+const fix=(v:unknown)=>object(v)&&missionId(v.missionId)&&finite(v.appliedAt)&&object(v.baseline)&&count(v.baseline.checkouts)&&count(v.baseline.affected)&&count(v.baseline.completed)&&list(v.affectedIds,session)&&typeof v.partial==='boolean'&&optional(v.retestedAt,finite)&&optional(v.signal,x=>x==='shipping_unavailable');
+const tally=(v:unknown)=>object(v)&&count(v.count)&&count(v.total);
+const mission=(v:unknown)=>object(v)&&missionId(v.id)&&string(v.title)&&string(v.description)&&string(v.why)&&string(v.next)&&count(v.count)&&list(v.sessionIds,session)&&optional(v.discountCodes,x=>list(x,string))&&optional(v.appNames,x=>list(x,string))&&optional(v.signal,x=>x==='shipping_unavailable');
+const severity=(v:unknown)=>object(v)&&['Critical','Warning','Info'].includes(v.label as string)&&string(v.tone)&&string(v.reason);
+const results=(v:unknown)=>object(v)&&object(v.after)&&count(v.after.checkouts)&&count(v.after.affected)&&count(v.after.completed)&&count(v.affectedCompleted)&&count(v.affectedTotal)&&bool(v.ended);
+const card=(v:unknown)=>object(v)&&mission(v.mission)&&optional(v.fix,fix)&&(v.fix===undefined||results(v.results))&&optional(v.retest,x=>x===null||object(x)&&count(x.returned)&&(x.lastAlert===null||finite(x.lastAlert)))&&object(v.status)&&bool(v.status.done)&&count(v.status.returned)
+ &&object(v.signal)&&string(v.signal.period)&&(v.signal.latestAlert===null||finite(v.signal.latestAlert))&&severity(v.signal.severity)&&string(v.recommendation)&&count(v.shippingBlockers)&&nullable(v.basketCents,count)&&(v.inventoryMinor===null||count(v.inventoryMinor))&&finite(v.percent);
+const trend=(v:unknown)=>object(v)&&['completion-drop','device-gap','shipping-drop'].includes(v.id as string)&&string(v.title)&&['collecting','review','stable'].includes(v.state as string)&&optional(v.waitingFor,x=>x==='tracking'||x==='sample')&&string(v.detail)&&string(v.next)&&list(v.sessionIds,session)&&tally(v.current)&&tally(v.comparison);
+const insights=(v:unknown)=>object(v)&&range(v)&&count(v.sessionCount)&&list(v.cards,card)&&list(v.trends,trend)&&object(v.trendWindow)&&finite(v.trendWindow.start)&&finite(v.trendWindow.end)&&bool(v.trendWindow.simulationMode)&&list(v.otherMissions,x=>object(x)&&missionId(x.id)&&list(x.sessionIds,session));
 const pattern=(v:unknown)=>object(v)&&string(v.day)&&zone(v.timeZone)&&count(v.baselineDays)&&finite(v.syncedAt)&&count(v.testOrders)&&count(v.totalOrders)&&Array.isArray(v.hours)&&v.hours.length===24&&v.hours.every(h=>object(h)&&count(h.hour)&&h.hour<24&&money(h.count)&&(h.average===null||finite(h.average)));
 
 // Validate every nested structure consumed by filtering, calculations and UI
 // before it can replace the last successful response. No partial coercion.
 export function prepareEvidence(value:unknown,store:string):EvidenceResponse {
  if(!object(value)||value.store!==store||!validMonitoringEvents(value.events)||!value.events.every(eventDetails)||!optional(value.storeName,string)||typeof value.enabled!=='boolean'||!finite(value.sampledAt)||!count(value.totalStored)||typeof value.truncated!=='boolean'||!optional(value.monitoring,validMonitoring))throw Error('Invalid evidence response.');
- if(!nullable(value.shopifySnapshot,s=>object(s)&&optional(s.timeZone,zone)&&optional(s.currency,currency)&&finite(s.syncedAt)&&date(s.periodStart)&&list(s.orders,order)&&list(s.abandoned,basket))||!optional(value.checkoutPrices,p=>list(p,price))||!nullable(value.orderPatterns,pattern)||!optional(value.overview,overview)||!optional(value.table,table))throw Error('Invalid server evidence.');
+ if(!nullable(value.shopifySnapshot,s=>object(s)&&optional(s.timeZone,zone)&&optional(s.currency,currency)&&finite(s.syncedAt)&&date(s.periodStart)&&list(s.orders,order)&&list(s.abandoned,basket))||!optional(value.checkoutPrices,p=>list(p,price))||!nullable(value.orderPatterns,pattern)||!optional(value.overview,overview)||!optional(value.table,table)||!optional(value.insights,insights))throw Error('Invalid server evidence.');
  if(!nullable(value.abandonedCheckouts,s=>object(s)&&string(s.importedOn)&&count(s.emailSent)&&count(s.emailNotSent)&&list(s.records,r=>object(r)&&string(r.recordHash)&&nullable(r.sessionId,session)&&count(r.subtotalCents)&&r.currency==='USD'&&typeof r.recovered==='boolean'))||!nullable(value.abandonedBasketSummary,s=>object(s)&&range(s)&&finite(s.syncedAt)&&optional(s.currency,currency)&&count(s.count)&&money(s.totalCents)&&money(s.averageCents)&&count(s.unpricedCount)))throw Error('Invalid basket evidence.');
  if(!nullable(value.actionBasketValue,s=>object(s)&&range(s)&&list(s.actions,amount)&&object(s.combined)&&amount({...s.combined,id:'combined'}))||!nullable(value.inventoryItemValue,s=>object(s)&&range(s)&&money(s.totalMinor)&&count(s.priced)&&count(s.missing)&&currency(s.currency)))throw Error('Invalid aggregate evidence.');
  return value as unknown as EvidenceResponse;
@@ -70,9 +83,7 @@ export function prepareEvents(value:unknown):CheckoutEvent[] {
  return value.events as CheckoutEvent[];
 }
 
-import {FIX_MISSIONS,type AppliedFix} from './fixTracking.ts';
 export function prepareFixes(value:unknown):{fixes:AppliedFix[];history:(AppliedFix&{active:boolean;withdrawnAt?:number})[]} {
- const fix=(v:unknown)=>object(v)&&typeof v.missionId==='string'&&FIX_MISSIONS.includes(v.missionId as AppliedFix['missionId'])&&finite(v.appliedAt)&&object(v.baseline)&&count(v.baseline.checkouts)&&count(v.baseline.affected)&&count(v.baseline.completed)&&list(v.affectedIds,session)&&typeof v.partial==='boolean'&&optional(v.retestedAt,finite)&&optional(v.signal,x=>x==='shipping_unavailable');
  if(!object(value)||!list(value.fixes,fix)||!optional(value.history,h=>list(h,r=>fix(r)&&object(r)&&typeof r.active==='boolean'&&optional(r.withdrawnAt,finite))))throw Error('Invalid fix history.');
  const fixes=value.fixes as AppliedFix[];
  return {fixes,history:value.history===undefined?fixes.map(f=>({...f,active:true})):value.history as (AppliedFix&{active:boolean;withdrawnAt?:number})[]};

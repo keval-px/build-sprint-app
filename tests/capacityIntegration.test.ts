@@ -38,7 +38,7 @@ async function harness(){
   return {ok:true,text:async()=>JSON.stringify({data})};
  };
  const modules:Record<string,any>={};
- for(const file of ['capacity','shopify','shopifyEvents','events','checkoutPrices','abandoned','http']){
+ for(const file of ['capacity','shopify','shopifyEvents','events','checkoutPrices','abandoned','fixes','http']){
   const code=(await build({entryPoints:[`convex/${file}.ts`],bundle:true,platform:'node',format:'cjs',packages:'external',write:false,plugins:file==='http'?[{name:'synthetic-session',setup(build:any){build.onLoad({filter:/lib\/shopifyAuth\.ts$/},()=>({contents:"export const REQUIRED_SCOPES=['read_orders','read_customer_events','write_pixels'];export async function verifyMerchant(){return {shop:'build-sprint-demo.myshopify.com'}};export async function verifyLifecycle(){return false};export async function exchangeMerchant(){throw Error('Synthetic auth only')};export async function refreshMerchant(){throw Error('Synthetic auth only')};",loader:'ts'}));}}]:[]})).outputFiles[0].text,module={exports:{}};
   const dates=new Proxy(Date,{get:(target,key)=>key==='now'?()=>clock.now:Reflect.get(target,key)});
   runInNewContext(code,{module,exports:module.exports,require,Date:dates,console,process,URL,TextEncoder,TextDecoder,fetch,AbortSignal,Response,Request,Headers,crypto:globalThis.crypto,Error});modules[file]=module.exports;

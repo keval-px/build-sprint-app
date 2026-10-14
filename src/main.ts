@@ -1,11 +1,11 @@
 /// <reference types="@shopify/polaris-types" />
-import {checkoutTrends,type CheckoutTrend} from '../shared/checkoutTrends';
+import type {CheckoutTrend} from '../shared/checkoutTrends';
+import {insightReport,type InsightReport} from '../shared/insightReport';
 import {checkoutTrendsMarkup} from './checkoutTrends';
 import {appPages,appPageAt,appPageHref,type AppPage} from '../shared/appPages';
 import {isFixMission} from '../shared/fixTracking';
 let trends:CheckoutTrend[]=[];
 let selectedTrend:string|null=null;
-let trendHealthy:boolean|undefined;
 import {bindChartHelp} from './chartHelp';
 import {baselineCopy,storeAccessErrorCopy} from './dashboardCopy';
 import {shopifyRequestInit} from '../shared/shopifyRequest';
@@ -13,17 +13,14 @@ import {simulationRecords} from '../shared/simulationDashboard';
 import {prepareEvidence,prepareEvents,prepareFixes,type EvidenceResponse} from '../shared/evidenceResponse';
 import {monitoringHealth,type MonitoringHealth} from '../shared/monitoringHealth';
 import {type OutcomeFacts} from '../shared/checkoutOutcome';
-import {actionValues} from '../shared/actionValues';
 import "./style.css";
 import {focusedAlerts,issueLabels} from '../shared/dashboardInsights';
 import {checkoutCSV,checkoutEventsCSV} from '../shared/checkoutExport';
 import {historyMarkup,alertsMarkup,type FixHistoryRow} from './dashboardPanels';
 import {abandonedPattern} from '../shared/abandonedPattern';
 import {orderPattern} from "../shared/orderPattern";
-import {buildRecommendations} from "../shared/recommendations";
-import {actionState,type AppliedFix} from "../shared/fixTracking";
+import type {AppliedFix} from "../shared/fixTracking";
 import {recentRange,dateBounds,checkoutCohort} from '../shared/dateRange';
-import {inventoryValue} from '../shared/inventoryValue';
 import {formatMoney} from '../shared/money';
 import {abandonedSummary} from "../shared/abandonedSummary";
 import {renderFunnel} from './checkoutFunnel';
@@ -37,7 +34,7 @@ import {filterJourneyRows,paginateRows,issueChips,blockerSameAsShipping} from ".
 import {browserBackendOrigin,deployment} from '../shared/deployment';
 import { STORE, summarize } from "../shared/evidence";
 import type { CheckoutEvent } from "../shared/evidence";
-import { buildMissions, missionRecommendation, missionSignal, isViewerId } from "../shared/actions";
+import { isViewerId } from "../shared/actions";
 import type { Mission, MissionId } from "../shared/actions";
 
 declare global { interface ImportMeta { readonly env: Record<string, string | undefined> } }
@@ -142,13 +139,18 @@ function togglePanel(button: HTMLElement, panelId: string) {
   button.textContent = panel.hidden ? (panelId === "coverage-details" ? "Data details" : "Show details") : "Hide details";
 }
 
+// A change also returns the evidence for the selected dates, so the cards show the new
+// state without a second read. Returns whether that evidence arrived and was applied.
 async function fixRequest(operation:'read'|'mark'|'undo'|'retest'|'undo-retest',missionId?:MissionId){
   const headers:Record<string,string>={'Content-Type':'application/json'};
   if(embeddedShopify){const bridge=(window as unknown as {shopify:{idToken:()=>Promise<string>}}).shopify;headers.Authorization=`Bearer ${await bridge.idToken()}`;}
-  const response=await fetch(`${backendOrigin}/api/${embeddedShopify?'shopify':'demo'}/fixes`,{method:'POST',headers,body:JSON.stringify({operation,...(embeddedShopify?{}:{viewerId}),...(missionId?{missionId}:{})}),signal:AbortSignal.timeout(15000)});
+  const readRange=selectedRange,dates=operation==='read'?{}:dateBounds(readRange);
+  const response=await fetch(`${backendOrigin}/api/${embeddedShopify?'shopify':'demo'}/fixes`,{method:'POST',headers,body:JSON.stringify({operation,...(embeddedShopify?{}:{viewerId}),...(missionId?{missionId}:{}),...dates}),signal:AbortSignal.timeout(operation==='read'?15000:90000)});
   if(!response.ok)throw Error('Fix request failed.');
-  const data=prepareFixes(await response.json());
+  const body=await response.json(),data=prepareFixes(body);
   appliedFixes=data.fixes;fixHistory=data.history;fixesReady=true;
+  if(operation==='read'||!body?.evidence||readRange!==selectedRange)return false;
+  try{latestEvidence=prepareEvidence(body.evidence,STORE);latestEvidenceRange=readRange;evidenceReadFailed=false;return true;}catch{return false;}
 }
 element('mission-list').addEventListener('click',async event=>{
   const target=(event.target as HTMLElement).closest<HTMLElement>('s-button[data-fix]');
@@ -164,71 +166,47 @@ async function saveFixUpdate(operation:'mark'|'undo'|'retest'|'undo-retest',miss
   fixSaving=true;fixError='';element('action-save-error').hidden=true;text('action-save-status','Saving…');
   (element('apply-date-range') as HTMLElementTagNameMap['s-button']).disabled=true;
   element('mission-list').querySelectorAll<HTMLElementTagNameMap['s-checkbox']|HTMLElementTagNameMap['s-button']>('s-checkbox[data-fix-done],s-button[data-fix]').forEach(control=>{control.disabled=true;});
-  try{await fixRequest(operation,missionId);if(operation==='mark')element(`body-${missionId}`).hidden=true;text('action-save-status',operation==='mark'?'Marked as done.':operation==='undo'?'Action reopened.':'Retest updated.');}
+  let fresh=false;
+  try{fresh=await fixRequest(operation,missionId);if(operation==='mark')element(`body-${missionId}`).hidden=true;text('action-save-status',operation==='mark'?'Marked as done.':operation==='undo'?'Action reopened.':'Retest updated.');}
   catch{fixError='Your change was not saved. Check your connection and try again.';text('action-save-error',fixError);element('action-save-error').hidden=false;text('action-save-status','Change was not saved.');}
   finally{fixSaving=false;(element('apply-date-range') as HTMLElementTagNameMap['s-button']).disabled=loading;if(latestEvidence)render(filteredEvidence(latestEvidence));(document.getElementById(`toggle-${missionId}`)??element('overview-tab')).focus({preventScroll:true});}
+  // Without fresh evidence the cards would show the old state; read it again.
+  if(!fresh&&!fixError)void loadEvidence();
 }
 
 let storeCurrency='USD';
 const money = (minor:number)=>formatMoney(minor,storeCurrency);
-function renderCheckoutTrends(){
- const trendRange=dateBounds(selectedRange),facts=outcomeFacts(latestEvidence),trendNow=Math.min(Date.now(),facts.asOf??Date.now());
- trendHealthy=currentMonitoring().canAssess;
- const simulated=latestEvidence?.events??[];
- const simulationMode=deployment.kind==='local'&&simulated.some(e=>e.simulated);
- if(simulationMode){
-  trendRange.start=Math.max(trendRange.start,trendNow-6*3600000,Math.min(...simulated.filter(e=>e.name==='checkout_started').map(e=>e.timestamp)));
- }
- trends=checkoutTrends(simulationMode?simulated:latestEvidence?.events??[],{...facts,asOf:trendNow},trendRange,simulationMode?!evidenceReadFailed&&!latestEvidence?.truncated&&Date.now()-trendNow<120000:trendHealthy,trendNow);
- return checkoutTrendsMarkup(trends,{start:trendRange.start,end:Math.max(trendRange.start,Math.min(trendRange.end,trendNow-3600000)),simulationMode});
+// Insight cards come from the server for the dates it was asked about. Until the next
+// read arrives for newly chosen dates, work them out from the loaded events instead.
+function currentInsights():InsightReport{
+  const range=dateBounds(selectedRange),report=latestEvidence?.insights;
+  if(report&&report.rangeStart===range.start&&report.rangeEnd===range.end)return report;
+  const all=latestEvidence?.events??[],facts=outcomeFacts(latestEvidence),now=Date.now(),trendNow=Math.min(now,facts.asOf??now);
+  const simulationMode=deployment.kind==='local'&&all.some(e=>e.simulated),aggregate=latestEvidence?.inventoryItemValue;
+  return insightReport({events:all,facts,now,range,fixes:appliedFixes,currency:storeCurrency,
+    values:{abandonedCheckouts:latestEvidence?.abandonedCheckouts??null,abandoned:latestEvidence?.shopifySnapshot?.abandoned??[],prices:latestEvidence?.checkoutPrices??[],orders:latestEvidence?.shopifySnapshot?.orders??[],
+      shared:embeddedShopify?null:latestEvidence?.actionBasketValue,sharedInventory:aggregate&&aggregate.rangeStart===range.start&&aggregate.rangeEnd===range.end?aggregate:null},
+    trends:{healthy:simulationMode?!evidenceReadFailed&&!latestEvidence?.truncated&&Date.now()-trendNow<120000:currentMonitoring().canAssess,simulationMode}});
 }
-function renderMissions(events: CheckoutEvent[]) {
+let otherMissions:InsightReport['otherMissions']=[];
+function renderMissions() {
   const expanded = new Set(Array.from(element("mission-list").querySelectorAll<HTMLElement>("[data-action-body]")).filter(item => !item.hidden).map(item => item.id));
-
-  const facts=outcomeFacts(latestEvidence);
-  const summary = summarize(events,facts);
-  const unfinishedIds = new Set(summary.journeys.filter(session => session.started && !session.completed).map(session => session.id));
-  const unfinishedCount = (mission: Mission) => mission.sessionIds.filter(id => unfinishedIds.has(id)).length;
-  const recommendations=buildRecommendations(events,facts);
-  const trendCards=renderCheckoutTrends();
-  const bounds=dateBounds(selectedRange),sharedValues=latestEvidence?.actionBasketValue;
-  const recorded = !embeddedShopify&&sharedValues?.rangeStart===bounds.start&&sharedValues.rangeEnd===bounds.end
-    ? sharedValues
-    : actionValues(events,latestEvidence?.abandonedCheckouts??null,latestEvidence?.shopifySnapshot?.abandoned??[],latestEvidence?.checkoutPrices??[],storeCurrency,bounds.start,bounds.end,facts.orders);
-  const priority:Record<MissionId,number>={delivery:0,payment:0,inventory:0,discount:1,validation:2,unfinished:3,extension:1};
+  const report=currentInsights();
+  missions=report.cards.map(card=>card.mission);trends=report.trends;otherMissions=report.otherMissions;
   const severityRank = {Critical:0, Warning:1, Info:2};
-  // Each mission's fix, state and signal are computed once rather than per sort comparison.
-  const now=Date.now(),fixes=new Map(appliedFixes.map(f=>[f.missionId,f]));
-  const derived=new Map(recommendations.map(mission=>{const fix=fixes.get(mission.id),boundary=fix?.retestedAt??fix?.appliedAt;return [mission.id,{fix,boundary,status:actionState(fix,latestEvidence?.events??events,now),signal:missionSignal(mission,events,boundary,facts),unfinished:unfinishedCount(mission)}];}));
-  const state=(mission:Mission)=>derived.get(mission.id)!.status;
-  missions = recommendations.sort((a,b)=>{const x=derived.get(a.id)!,y=derived.get(b.id)!;return Number(x.status.done)-Number(y.status.done)||severityRank[x.signal.severity.label]-severityRank[y.signal.severity.label]||priority[a.id]-priority[b.id]||y.unfinished-x.unfinished;});
-  const pendingCount=missions.filter(mission=>!state(mission).done).length;
-  const dates=dateBounds(selectedRange),aggregate=latestEvidence?.inventoryItemValue;
-  const sharedInventory=aggregate&&aggregate.rangeStart===dates.start&&aggregate.rangeEnd===dates.end?aggregate:null;
-  const orderQuotes=sharedInventory?[]:(latestEvidence?.shopifySnapshot?.orders??[]).flatMap(o=>o.sessionId&&o.conversion?[{sessionId:o.sessionId,shop:{minor:o.conversion.shopMinor,currency:storeCurrency},buyer:{minor:o.conversion.buyerMinor,currency:o.conversion.buyerCurrency}}]:[]);
-  const reviewCount=pendingCount+trends.filter(trend=>trend.state==='review').length;
+  const reviewCount=report.cards.filter(card=>!card.status.done).length+trends.filter(trend=>trend.state==='review').length;
   text('recommendation-count',reviewCount?`${reviewCount} item${reviewCount===1?'':'s'} to review`:missions.length?'All marked as done':'');
   element('recommendation-value-note').hidden=missions.length===0;
   const health=currentMonitoring();
-  const ctx:CardContext={embedded:embeddedShopify,busy:fixSaving||loading,retestDisabled:!fixesReady||fixSaving||loading,events:latestEvidence?.events??events,facts,now,health,truncated:!!latestEvidence?.truncated,money,storeHandle:STORE.replace('.myshopify.com','')};
-  const missionCards = missions.map(mission => {
-    const open = expanded.has(`body-${mission.id}`);
-    const {status,fix,signal,boundary}=derived.get(mission.id)!;
-    const severity = signal.severity;
-    const recommendation = missionRecommendation(mission, events, boundary, facts);
-    const affected=new Set(mission.sessionIds);
-    const shippingBlockers = new Set(events.filter(event=>event.shippingBlocker==='no_shipping_available'&&affected.has(event.sessionId)).map(event=>event.sessionId)).size;
-    const estimate = recorded.actions.find(item=>item.id===mission.id);
-    const basketCents = estimate?.totalCents;
-    const inventory=sharedInventory??inventoryValue(events,mission.sessionIds,storeCurrency,orderQuotes);
-    const percent = summary.sessionCount ? Math.round(mission.count / summary.sessionCount * 100) : 0;
-    return {done:status.done,rank:severityRank[severity.label],html:insightCard({mission,open,fix,status,signal,recommendation,shippingBlockers,basketCents,inventoryMinor:inventory.totalMinor,percent,sessionCount:summary.sessionCount,controlsDisabled:!fixesReady||fixSaving||loading||(!embeddedShopify&&!viewerId)},ctx)};
-  });
+  const ctx:CardContext={embedded:embeddedShopify,busy:fixSaving||loading,retestDisabled:!fixesReady||fixSaving||loading,health,truncated:!!latestEvidence?.truncated,money,storeHandle:STORE.replace('.myshopify.com','')};
+  const missionCards = report.cards.map(card => ({done:card.status.done,rank:severityRank[card.signal.severity.label],
+    html:insightCard({...card,open:expanded.has(`body-${card.mission.id}`),sessionCount:report.sessionCount,controlsDisabled:!fixesReady||fixSaving||loading||(!embeddedShopify&&!viewerId)},ctx)}));
+  const trendCards=checkoutTrendsMarkup(trends,report.trendWindow);
   element('mission-list').innerHTML=insightList([...missionCards,...(trendCards?[{done:false,rank:1,html:trendCards}]:[])],health.canAssess);
 }
 function applyMissionFilter() {
   const trend=trends.find(t=>t.id===selectedTrend);
-  const mission = missions.find(item => item.id === selectedMission)??(latestEvidence?buildMissions(filteredEvidence(latestEvidence).events,outcomeFacts(latestEvidence)).find(item=>item.id===selectedMission):undefined);
+  const mission = missions.find(item => item.id === selectedMission)??otherMissions.find(item=>item.id===selectedMission);
   const query = (element('journey-search') as HTMLElementTagNameMap['s-search-field']).value.trim().toLowerCase();
   const status = (element('journey-status-filter') as HTMLElementTagNameMap['s-select']).value;
   const alert = selectedAlertCategory;
@@ -478,7 +456,7 @@ function render(data: EvidenceResponse) {
   // Order labels only match rows by session, so give each journey its own rows.
   journeyTable = currentTable(data);
   journeyRows = journeyTable.rows;
-  renderMissions(data.events);
+  renderMissions();
   applyMissionFilter();
 }
 
@@ -551,7 +529,7 @@ async function loadEvidence() {
   const fixesRead=fixRequest('read').catch(()=>fixRequest('read')).then(()=>true,()=>false);
   try {
     if(embeddedShopify&&!latestEvidence)text('shopify-status','Loading store data…');
-    const response = embeddedShopify ? await shopifyRequest(`evidence?start=${dateBounds(selectedRange).start}&end=${dateBounds(selectedRange).end}`) : await fetch(`${backendOrigin}/api/test-evidence?start=${dateBounds(selectedRange).start}&end=${dateBounds(selectedRange).end}`, { cache: "no-store", signal: AbortSignal.timeout(90000) });
+    const response = embeddedShopify ? await shopifyRequest(`evidence?start=${dateBounds(selectedRange).start}&end=${dateBounds(selectedRange).end}`) : await fetch(`${backendOrigin}/api/test-evidence?start=${dateBounds(selectedRange).start}&end=${dateBounds(selectedRange).end}${viewerId?`&viewer=${viewerId}`:''}`, { cache: "no-store", signal: AbortSignal.timeout(90000) });
     if (!response.ok) {
       const body=await response.json().catch(()=>null);
       throw new Error(body?.error==='Reporting exceeds the safe payload budget. Previous results are retained.'?body.error:'Could not read checkout evidence.');

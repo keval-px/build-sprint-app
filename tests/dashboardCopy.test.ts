@@ -1,6 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {baselineCopy,baselineStateCopy,metricStatusCopy,fixOutcomeCopy,monitoringCopy} from '../src/dashboardCopy.ts';
+import {baselineCopy,baselineStateCopy,metricStatusCopy,fixOutcomeCopy as outcomeCopy,monitoringCopy} from '../src/dashboardCopy.ts';
+import {fixResults,actionState,type AppliedFix as Fix} from '../shared/fixTracking.ts';
+import type {MonitoringHealth as Health} from '../shared/monitoringHealth.ts';
+import type {CheckoutEvent as Event} from '../shared/evidence.ts';
+// Results worked out from events, as the server does before the card copy is chosen.
+const fixOutcomeCopy=(fix:Fix,events:Event[],now:number,health:Health)=>outcomeCopy(fix,fixResults(fix,events,now),actionState(fix,events,now).returned,health);
 import {orderPattern} from '../shared/orderPattern.ts';
 import type {MonitoringHealth} from '../shared/monitoringHealth.ts';
 import type {AppliedFix} from '../shared/fixTracking.ts';

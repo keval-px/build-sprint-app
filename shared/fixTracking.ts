@@ -36,8 +36,11 @@ export function fixResults(fix:AppliedFix,events:CheckoutEvent[],now:number,fact
 // A marker records a user decision. Only observed, timed purchases can show
 // completion after it, and monitoring gaps prevent interpreting silence.
 export function fixAssessment(fix:AppliedFix,events:CheckoutEvent[],now:number,health:{canAssess:boolean},facts:OutcomeFacts={}) {
- const results=fixResults(fix,events,now,facts),state=actionState(fix,events,now);
- return {markedDone:true,teamRetested:fix.retestedAt!==undefined,returned:state.returned,
+ return assessFix(fix,fixResults(fix,events,now,facts),actionState(fix,events,now).returned,health);
+}
+// The same assessment from results already worked out, e.g. by the server.
+export function assessFix(fix:AppliedFix,results:ReturnType<typeof fixResults>,returned:number,health:{canAssess:boolean}) {
+ return {markedDone:true,teamRetested:fix.retestedAt!==undefined,returned,
   completionObserved:health.canAssess&&results.affectedCompleted>0,
   canAssess:health.canAssess&&!fix.partial&&results.after.checkouts>=2,
   issueResolved:false as const};
