@@ -2,6 +2,8 @@ import {assessFix} from '../shared/fixTracking';
 import {ACTION_CHECKS,ACTION_DESTINATIONS} from '../shared/actions';
 import type {MonitoringHealth} from '../shared/monitoringHealth';
 import type {InsightCardData} from '../shared/insightReport';
+import {ORDER_DROP,type OrderDrop} from '../shared/orderDrop';
+import type {OrderPattern} from '../shared/orderPattern';
 import {fixOutcomeCopy} from './dashboardCopy';
 import {time} from './checkoutRows';
 
@@ -87,4 +89,23 @@ export function fixPanel(card:InsightCardData,fix:NonNullable<InsightCardData['f
     </s-grid></s-query-container>
     <s-text color="subdued">${results.after.checkouts||results.affectedCompleted?'Later purchases do not show whether a change worked.':'Previously affected customers may still return and complete checkout.'}${fix.partial||ctx.truncated?' Some activity is missing.':''}</s-text>
     </s-stack></s-stack>`;
+}
+// Orders far below the hourly average for consecutive hours today. Critical, because
+// lost orders are lost revenue, but it only reports order flow and never a cause.
+export function orderDropCard(drop:OrderDrop,pattern:OrderPattern,simulated:boolean){
+  const pad=(hour:number)=>`${String(hour%24).padStart(2,'0')}:00`;
+  const first=drop.hours[0].hour,last=drop.hours.at(-1)!.hour,count=drop.hours.length;
+  return `<s-section data-insight="order-drop"><s-stack gap="base">
+    <s-stack direction="inline" justifyContent="space-between" alignItems="center" gap="small"><s-heading><s-text fontWeight="bold">Orders below normal</s-text></s-heading><s-badge tone="critical">Critical</s-badge></s-stack>
+    <s-query-container><s-grid gridTemplateColumns="@container (inline-size > 700px) 1.5fr 1fr, 1fr" gap="large-100" alignItems="start">
+     <s-stack gap="small">
+      <s-text type="strong" fontWeight="medium">What we detected</s-text><s-paragraph>${simulated?'Simulated orders':'Paid orders'} were at least ${Math.round((1-ORDER_DROP.belowAverage)*100)}% below the hourly average for ${count} hours in a row today, ${pad(first)}–${pad(last+1)} (${escape(pattern.timeZone)}).</s-paragraph>
+      <s-text type="strong" fontWeight="medium">What you should do next</s-text><s-paragraph>Place a test order, and check that your storefront, theme, checkout apps and payment methods work. This alert only watches order flow, so it can’t tell you the cause.</s-paragraph>
+     </s-stack>
+     <s-stack gap="small" accessibilityRole="unordered-list" accessibilityLabel="Hours below normal">
+      ${drop.hours.map(h=>`<s-grid gridTemplateColumns="1fr auto auto" gap="base" accessibilityRole="list-item"><s-text color="subdued">${pad(h.hour)}–${pad(h.hour+1)}</s-text><s-text type="strong">${h.count.toLocaleString()} of ${h.average.toLocaleString(undefined,{maximumFractionDigits:1})} usual</s-text><s-text tone="critical" type="strong">−${Math.abs(h.change)}%</s-text></s-grid>`).join('')}
+     </s-stack>
+    </s-grid></s-query-container>
+    <s-text color="subdued">${simulated?'Test insight · ':''}Each hour is compared with the same hour across ${pattern.baselineDays} full days. Hours that usually have fewer than ${ORDER_DROP.minimumAverage} orders aren’t checked, and the current hour is checked once it ends.</s-text>
+   </s-stack></s-section>`;
 }

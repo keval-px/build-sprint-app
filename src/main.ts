@@ -18,7 +18,7 @@ import {focusedAlerts,issueLabels} from '../shared/dashboardInsights';
 import {checkoutCSV,checkoutEventsCSV} from '../shared/checkoutExport';
 import {historyMarkup,alertsMarkup,type FixHistoryRow} from './dashboardPanels';
 import {abandonedPattern} from '../shared/abandonedPattern';
-import {orderPattern} from "../shared/orderPattern";
+import {orderPattern,type OrderPattern} from "../shared/orderPattern";
 import type {AppliedFix} from "../shared/fixTracking";
 import {recentRange,dateBounds,checkoutCohort} from '../shared/dateRange';
 import {formatMoney} from '../shared/money';
@@ -29,7 +29,8 @@ import {funnelFilters,type FunnelFilter} from '../shared/checkoutFunnel';
 let funnelFilter:FunnelFilter='all';
 import {rowMarkup,timelineHeader,timelineMarkup,categoryLabels} from "./checkoutRows";
 import {checkoutTable,type CheckoutTable,type CheckoutTableRow} from "../shared/checkoutTable";
-import {insightCard,insightList,type CardContext} from "./insightCards";
+import {insightCard,insightList,orderDropCard,type CardContext} from "./insightCards";
+import {orderDrop} from "../shared/orderDrop";
 import {filterJourneyRows,paginateRows,issueChips,blockerSameAsShipping} from "../shared/journeyTable";
 import {browserBackendOrigin,deployment} from '../shared/deployment';
 import { STORE, summarize } from "../shared/evidence";
@@ -194,7 +195,8 @@ function renderMissions() {
   const report=currentInsights();
   missions=report.cards.map(card=>card.mission);trends=report.trends;otherMissions=report.otherMissions;
   const severityRank = {Critical:0, Warning:1, Info:2};
-  const reviewCount=report.cards.filter(card=>!card.status.done).length+trends.filter(trend=>trend.state==='review').length;
+  const drop=todayPattern?orderDrop(todayPattern.pattern):null,dropCard=drop?.state==='drop'?orderDropCard(drop,todayPattern!.pattern,todayPattern!.simulated):'';
+  const reviewCount=report.cards.filter(card=>!card.status.done).length+trends.filter(trend=>trend.state==='review').length+(dropCard?1:0);
   text('recommendation-count',reviewCount?`${reviewCount} item${reviewCount===1?'':'s'} to review`:missions.length?'All marked as done':'');
   element('recommendation-value-note').hidden=missions.length===0;
   const health=currentMonitoring();
@@ -202,7 +204,8 @@ function renderMissions() {
   const missionCards = report.cards.map(card => ({done:card.status.done,rank:severityRank[card.signal.severity.label],
     html:insightCard({...card,open:expanded.has(`body-${card.mission.id}`),sessionCount:report.sessionCount,controlsDisabled:!fixesReady||fixSaving||loading||(!embeddedShopify&&!viewerId)},ctx)}));
   const trendCards=checkoutTrendsMarkup(trends,report.trendWindow);
-  element('mission-list').innerHTML=insightList([...missionCards,...(trendCards?[{done:false,rank:1,html:trendCards}]:[])],health.canAssess);
+  // Lost orders come first: the order-drop card leads the critical cards.
+  element('mission-list').innerHTML=insightList([...(dropCard?[{done:false,rank:0,html:dropCard}]:[]),...missionCards,...(trendCards?[{done:false,rank:1,html:trendCards}]:[])],health.canAssess);
 }
 function applyMissionFilter() {
   const trend=trends.find(t=>t.id===selectedTrend);
@@ -361,11 +364,14 @@ element('focused-alert-list').addEventListener('click',event=>{
  if(button)viewCategory(button.dataset.alertCategory!);
 });
 let chartRenderVersion=0;
+// Today's hourly pattern, shared by the chart and the order-drop alert.
+let todayPattern:{pattern:OrderPattern;simulated:boolean}|null=null;
 function renderOrderPattern(data:EvidenceResponse){
   const version=++chartRenderVersion;
   const snapshot=latestEvidence?.shopifySnapshot??data.shopifySnapshot;
   const sim=data.events.some(e=>e.simulated)?simulationRecords(data.events,data.sampledAt,latestEvidence??data):null;
   const pattern=sim?orderPattern(sim.orders,new Date(sim.start).toISOString(),data.sampledAt,'Asia/Kolkata'):snapshot?orderPattern(snapshot.orders,snapshot.periodStart,snapshot.syncedAt,snapshot.timeZone??'UTC'):data.orderPatterns;
+  todayPattern=pattern?{pattern,simulated:!!sim}:null;
   element('order-chart-content').hidden=!pattern;
   element('order-chart-empty').hidden=!!pattern;
   text('order-chart-empty','Order history is unavailable for these dates.');

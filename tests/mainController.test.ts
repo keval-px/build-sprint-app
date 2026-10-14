@@ -296,3 +296,21 @@ test('a saved change uses the evidence returned with it, and reads again only wh
  before=evidenceReads();await mark();
  assert.equal(evidenceReads(),before+1,'reads again when the change returns no evidence');
 });
+test('orders far below the hourly average for two hours put an order-drop card first',async()=>{
+ const c=await controller(false,true),now=c.clock.now,hour=3600000,today=now-now%86400000;// 08:53 UTC
+ const orders:any[]=[];let n=0;
+ const add=(at:number,count:number)=>{for(let i=0;i<count;i++)orders.push({recordHash:(++n).toString(16).padStart(64,'0'),createdAt:new Date(at+i*1000).toISOString(),subtotalCents:1000,paid:true,cancelled:false,test:false});};
+ for(let day=1;day<=9;day++)for(let h=0;h<24;h++)add(today-day*86400000+h*hour,12);
+ for(let h=0;h<=8;h++)add(today+h*hour,h===5||h===6?3:12);
+ const snapshot={timeZone:'UTC',currency:'USD',syncedAt:now,periodStart:new Date(today-9*86400000).toISOString(),orders,abandoned:[]};
+ c.setCandidate({...c.good(),shopifySnapshot:snapshot});await c.window.__controller.loadEvidence();
+ const list=c.get('mission-list').innerHTML;
+ assert.match(list,/^<s-section data-insight="order-drop">/,'the order-drop card leads the list');
+ assert.match(list,/at least 50% below the hourly average for 2 hours in a row today, 05:00–07:00 \(UTC\)/);
+ assert.match(list,/3 of 12 usual<\/s-text><s-text tone="critical" type="strong">−75%/);
+ assert.match(c.get('recommendation-count').textContent,/^1 item to review$/);
+ // A normal day shows no card.
+ const normal=orders.filter(o=>Date.parse(o.createdAt)<today).concat(Array.from({length:9*12},(_,i)=>({recordHash:'f'+i.toString(16).padStart(63,'0'),createdAt:new Date(today+Math.floor(i/12)*hour+(i%12)*1000).toISOString(),subtotalCents:1000,paid:true,cancelled:false,test:false})));
+ c.setCandidate({...c.good(),shopifySnapshot:{...snapshot,orders:normal}});await c.window.__controller.loadEvidence();
+ assert.doesNotMatch(c.get('mission-list').innerHTML,/order-drop/);
+});
