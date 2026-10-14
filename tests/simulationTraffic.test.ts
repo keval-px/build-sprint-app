@@ -27,7 +27,7 @@ test('varied traffic remains repeatable and preserves problem and recovery signa
  assert.deepEqual(simulate(42,{hours:1}),simulate(42,{hours:1}));
  for(const seed of [42,497748,497749,497750]){
   const run=simulate(seed);
-  for(const [hour,expected] of [[6,['stable','stable','stable']],[9,['review','stable','review']],[15,['stable','review','stable']],[24,['stable','stable','stable']]] as const){
+  for(const [hour,expected] of [[6,['stable','stable']],[9,['stable','review']],[15,['review','stable']],[24,['stable','stable']]] as const){
    assert.deepEqual(snapshot(run,hour).trends.map(t=>t.state),expected,`seed ${seed}, hour ${hour}`);
   }
  }

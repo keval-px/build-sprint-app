@@ -494,7 +494,7 @@ if(embeddedShopify){
   if(appPageAt(location.pathname)==='journeys'){
     const mission=query.get('mission'),trend=query.get('trend'),category=query.get('category');
     selectedMission=isFixMission(mission)?mission:null;
-    selectedTrend=trend&&['completion-drop','device-gap','shipping-drop'].includes(trend)?trend:null;
+    selectedTrend=trend&&['device-gap','shipping-drop'].includes(trend)?trend:null;
     selectedQuickIssue=query.get('issue')==='shipping_blocker'?'shipping_blocker':null;
     selectedAlertCategory=category&&Object.hasOwn(categoryLabels,category)?category:'all';
     (element('journey-search') as HTMLElementTagNameMap['s-search-field']).value=query.get('q')??'';

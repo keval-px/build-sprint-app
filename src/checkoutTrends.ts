@@ -5,8 +5,8 @@ const rate=(group:CheckoutTrend['current'])=>group.total?`${Math.round(group.cou
 function conclusion(trend:CheckoutTrend){
  const gap=trend.current.count/trend.current.total-trend.comparison.count/trend.comparison.total;
  if(trend.id==='device-gap')return `We recorded a lower completion rate on ${gap<0?'mobile':'desktop'}: ${rate(gap<0?trend.current:trend.comparison)}, compared with ${rate(gap<0?trend.comparison:trend.current)} on ${gap<0?'desktop':'mobile'}.`;
- if(trend.id==='shipping-drop')return `Among checkouts that selected shipping, we recorded no payment or completion within an hour of checkout starting in ${rate(trend.current)} of recent checkouts, compared with ${rate(trend.comparison)} earlier.`;
- return `We recorded completion in ${rate(trend.current)} of recent checkouts, down from ${rate(trend.comparison)} in the earlier half.`;
+ // shipping-drop
+ return `Among checkouts that selected shipping, we recorded no payment or completion within an hour of checkout starting in ${rate(trend.current)} of recent checkouts, compared with ${rate(trend.comparison)} earlier.`;
 }
 
 export function checkoutTrendsMarkup(trends:CheckoutTrend[],context:{start:number;end:number;simulationMode:boolean}){

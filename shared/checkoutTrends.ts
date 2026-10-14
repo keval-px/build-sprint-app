@@ -1,6 +1,6 @@
 import {summarize,type CheckoutEvent} from './evidence.ts';
 import {checkoutOutcome,type OutcomeFacts} from './checkoutOutcome.ts';
-export type TrendId='completion-drop'|'device-gap'|'shipping-drop';
+export type TrendId='device-gap'|'shipping-drop';
 export interface CheckoutTrend {id:TrendId;title:string;state:'collecting'|'review'|'stable';waitingFor?:'tracking'|'sample';detail:string;next:string;sessionIds:string[];current:{count:number;total:number};comparison:{count:number;total:number}}
 const HOUR=3600000,MIN=20;
 export function checkoutTrends(events:CheckoutEvent[],facts:OutcomeFacts,range:{start:number;end:number},healthy:boolean,now=Date.now()):CheckoutTrend[]{
@@ -31,7 +31,6 @@ export function checkoutTrends(events:CheckoutEvent[],facts:OutcomeFacts,range:{
   return {id,title,state,...(state==='collecting'?{waitingFor:!healthy?'tracking' as const:'sample' as const}:{}),current:x,comparison:y,detail:`${detail} ${!healthy?'Waiting for current, complete tracking data.':!ready?'At least 20 checkouts in each group are needed.':state==='review'?`${Math.round(gap*100)} percentage points apart; investigate before assuming a cause.`:'No difference of 10 percentage points or more was found in the direction checked.'}`,next,
    sessionIds:state==='review'?affected.filter(j=>shipping?j.stopped:!j.completed).map(j=>j.id):[]};
  };
- return [build('completion-drop','Checkout completion rate',current,previous,false,'Open the checkouts below and look for shared payment or shipping errors. Check whether traffic sources changed before changing your store.'),
-  build('device-gap','Mobile vs desktop',mobile,desktop,false,'Try the same checkout on mobile and desktop. Compare payment options and shipping steps; a difference alone does not prove a device problem.'),
+ return [build('device-gap','Mobile vs desktop',mobile,desktop,false,'Try the same checkout on mobile and desktop. Compare payment options and shipping steps; a difference alone does not prove a device problem.'),
   build('shipping-drop','Activity after shipping',current.filter(j=>j.shipping),previous.filter(j=>j.shipping),true,'Retry one of these baskets with the same destination. Check available shipping methods, prices and delivery estimates. Missing activity alone does not prove a shipping problem.')];
 }

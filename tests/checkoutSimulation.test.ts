@@ -15,10 +15,11 @@ test('repeatable hourly simulation stays within requested volume and balances de
  }
 });
 test('production insight rules detect the controlled problems and clear after recovery',()=>{
- assert.deepEqual(snapshot(run,6).trends.map(t=>t.state),['stable','stable','stable']);
- assert.deepEqual(snapshot(run,9).trends.map(t=>t.state),['review','stable','review']);
- assert.equal(snapshot(run,15).trends[1].state,'review');
- assert.deepEqual(snapshot(run,24).trends.map(t=>t.state),['stable','stable','stable']);
+ // Trends: mobile vs desktop, then activity after shipping.
+ assert.deepEqual(snapshot(run,6).trends.map(t=>t.state),['stable','stable']);
+ assert.deepEqual(snapshot(run,9).trends.map(t=>t.state),['stable','review']);
+ assert.equal(snapshot(run,15).trends[0].state,'review');
+ assert.deepEqual(snapshot(run,24).trends.map(t=>t.state),['stable','stable']);
  assert.ok(snapshot(run,9,false).trends.every(t=>t.state==='collecting'&&t.sessionIds.length===0));
 });
 test('duplicate deliveries do not inflate counts; replay does not leak later sessions',()=>{

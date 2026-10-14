@@ -184,15 +184,15 @@ test('a device warning appears alone while time comparisons lack an earlier samp
  c.setCandidate({...c.good(),events,totalStored:events.length});await c.window.__controller.loadEvidence();
  assert.equal(c.get('recommendation-count').textContent,'1 item to review');
  assert.match(c.get('mission-list').innerHTML,/data-insight="device-gap"/);
- assert.doesNotMatch(c.get('mission-list').innerHTML,/data-insight="completion-drop"|data-insight="shipping-drop"|Collecting data/);
+ assert.doesNotMatch(c.get('mission-list').innerHTML,/data-insight="shipping-drop"|Collecting data/);
 });
 test('flagged comparisons join the review list and filter exact affected sessions',async()=>{
  const c=await controller(false,true),events=comparisonEvents(c.clock.now);
  c.setCandidate({...c.good(),events,totalStored:events.length});await c.window.__controller.loadEvidence();
- assert.equal((c.get('mission-list').innerHTML.match(/data-insight=/g)??[]).length,3);
+ assert.equal((c.get('mission-list').innerHTML.match(/data-insight=/g)??[]).length,2);
  assert.match(c.get('mission-list').innerHTML,/View 12 affected checkouts/);
  assert.doesNotMatch(c.get('mission-list').innerHTML,/No issues flagged|Still gathering evidence/);
- assert.equal(c.get('recommendation-count').textContent,'3 items to review');
+ assert.equal(c.get('recommendation-count').textContent,'2 items to review');
  c.get('mission-list').dispatch('click',{target:{closest:(selector:string)=>selector==='s-button[data-trend]'?{dataset:{trend:'shipping-drop'}}:null}});
  assert.equal(c.get('journeys').hidden,false);assert.equal(c.get('overview').hidden,true);
  assert.equal(c.get('clear-journey-filters').hidden,false);
@@ -211,13 +211,13 @@ test('review count combines alerts and comparisons, with critical alerts first a
  const affectedIds=[119,120].map(id=>id.toString(16).padStart(64,'0'));
  for(const sessionId of affectedIds)events.push({sessionId,eventId:sessionId+'alert',name:'alert_displayed',timestamp:c.clock.now-5*86400000+4000,category:'delivery',shippingBlocker:'no_shipping_available'});
  c.setCandidate({...c.good(),events,totalStored:events.length});await c.window.__controller.loadEvidence();
- assert.equal(c.get('recommendation-count').textContent,'4 items to review');
+ assert.equal(c.get('recommendation-count').textContent,'3 items to review');
  const markup=c.get('mission-list').innerHTML;
  assert.ok(markup.includes('id="mission-delivery"'));
  assert.ok(markup.indexOf('id="mission-delivery"')<markup.indexOf('data-insight='));
  c.setFixCandidate({fixes:[{missionId:'delivery',appliedAt:c.clock.now-10000,baseline:{checkouts:40,affected:2,completed:26},affectedIds,partial:false}],history:[]});
  await c.window.__controller.loadEvidence();
- assert.equal(c.get('recommendation-count').textContent,'3 items to review');
+ assert.equal(c.get('recommendation-count').textContent,'2 items to review');
  assert.ok(c.get('mission-list').innerHTML.lastIndexOf('data-insight=')<c.get('mission-list').innerHTML.indexOf('<s-heading>Marked as done</s-heading>'));
 });
 test('cards link to filtered Checkouts and full activity without an alert summary',async()=>{
@@ -291,7 +291,7 @@ test('a saved change uses the evidence returned with it, and reads again only wh
  c.setFixCandidate({fixes,history:[],evidence:{...c.good(),events,totalStored:events.length}});
  let before=evidenceReads();await mark();
  assert.equal(evidenceReads(),before,'no second read when the change returns evidence');
- assert.equal(c.get('recommendation-count').textContent,'3 items to review');
+ assert.equal(c.get('recommendation-count').textContent,'2 items to review');
  c.setFixCandidate({fixes,history:[]});
  before=evidenceReads();await mark();
  assert.equal(evidenceReads(),before+1,'reads again when the change returns no evidence');

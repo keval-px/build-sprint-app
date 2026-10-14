@@ -14,14 +14,14 @@ function cohort(prefix:number,start:number,n:number,completed:number,device:'mob
  }
  return rows;
 }
-test('completion drops, device gaps and shipping stops create separate actionable insights',()=>{
+test('device gaps and shipping stops create separate actionable insights',()=>{
  const events=[...cohort(1,10*H,20,18,'desktop'),...cohort(100,60*H,20,8,'mobile')];
  const results=checkoutTrends(events,{asOf:now},range,true,now);
- assert.deepEqual(results.map(r=>r.state),['review','review','review']);
- assert.equal(results[0].current.count,8);assert.equal(results[0].comparison.count,18);
- assert.equal(results[2].current.count,12);assert.equal(results[2].comparison.count,2);
- assert.equal(results[1].sessionIds.length,12);
- assert.equal(new Set(results[2].sessionIds).size,12);
+ assert.deepEqual(results.map(r=>r.id),['device-gap','shipping-drop']);
+ assert.deepEqual(results.map(r=>r.state),['review','review']);
+ assert.equal(results[1].current.count,12);assert.equal(results[1].comparison.count,2);
+ assert.equal(results[0].sessionIds.length,12);
+ assert.equal(new Set(results[1].sessionIds).size,12);
  assert.deepEqual(checkoutTrends([...events,...events],{asOf:now},range,true,now),results);
 });
 test('low volume and unhealthy history cannot trigger warnings',()=>{
@@ -36,18 +36,19 @@ test('recent starts and completions outside the one-hour observation window do n
  events.push({...late,name:'checkout_completed',eventId:'late',timestamp:late.timestamp+2*H});
  const results=checkoutTrends(events,{},range,true,now);
  assert.ok(results.every(r=>r.state==='stable'));
- assert.equal(results[0].current.total,20);assert.equal(results[0].current.count,10);
+ // Mobile checkouts: the late completion falls outside the one-hour window.
+ assert.deepEqual(results[0].current,{count:10,total:20});
 });
 test('server completion within the window prevents a false shipping drop-off',()=>{
  const events=[...cohort(1,10*H,20,10,'desktop'),...cohort(100,60*H,20,10,'mobile')];
  const sessionId=(115).toString(16).padStart(64,'0');
  const r=checkoutTrends(events,{orders:[{sessionId,paid:true,createdAt:new Date(60*H+2000).toISOString()}]},range,true,now);
- assert.equal(r[0].current.count,11);assert.equal(r[2].current.count,9);
+ assert.equal(r[0].current.count,11);assert.equal(r[1].current.count,9);
 });
 test('unknown and conflicting devices are excluded and shipping skips are not losses',()=>{
  const events=[...cohort(1,10*H,20,10,'desktop'),...cohort(100,60*H,20,10,'mobile',false)];
  events.push({...events[0],eventId:'conflict',deviceClass:'mobile'});
  const r=checkoutTrends(events,{},range,true,now);
- assert.equal(r[1].comparison.total,19);assert.equal(r[1].state,'collecting');
- assert.equal(r[2].current.total,0);assert.equal(r[2].state,'collecting');
+ assert.equal(r[0].comparison.total,19);assert.equal(r[0].state,'collecting');
+ assert.equal(r[1].current.total,0);assert.equal(r[1].state,'collecting');
 });
