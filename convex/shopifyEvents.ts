@@ -1,3 +1,4 @@
+import {regroup} from './checkoutGroups';
 import {collectionReceipt} from '../shared/monitoringHealth';
 import {promisedDiscount} from '../shared/discountOffer';
 import {appDisplayName,appIdentityHashes} from '../shared/extensionApp';
@@ -21,6 +22,7 @@ export const record=internalMutation({args:pixelFields,handler:async(ctx,args)=>
   const code=promisedDiscount(offer??undefined,event.timestamp,subtotalCents,currency,appliedDiscountCount);
   const {appliedDiscountCount:discard,...safe}=args;
   await ctx.db.insert('shopifyCheckoutEvents',{...safe,...(code?{discountOfferCode:code}:{}),store:STORE,receivedAt:Date.now()});
+  await regroup(ctx,'pixel',[event.sessionId]);
   if(state)await ctx.db.patch(state._id,{eventCount:count+1,...(state.lastCapAt&&!state.resumedAt?{resumedAt:Date.now()}:{}),...collectionReceipt(state,Date.now(),connection.connectedAt)});
   else await ctx.db.insert('pixelCollectionState',{store:STORE,eventCount:count+1,lastReceivedAt:Date.now(),firstReceivedAt:Date.now()});
   return 'recorded';
@@ -31,7 +33,9 @@ export const labelInstalledApp=internalMutation({args:{appId:v.string(),name:v.s
  const name=appDisplayName(args.name),hashes=appIdentityHashes(args.appId);
  if(!name||!hashes.length)return;
  const rows=await ctx.db.query('shopifyCheckoutEvents').withIndex('by_timestamp').order('desc').take(1000);
- for(const row of rows)if(row.name==='ui_extension_errored'&&!row.extensionAppName&&row.extensionAppHash&&hashes.includes(row.extensionAppHash))await ctx.db.patch(row._id,{extensionAppName:name});
+ const changed=new Set<string>();
+ for(const row of rows)if(row.name==='ui_extension_errored'&&!row.extensionAppName&&row.extensionAppHash&&hashes.includes(row.extensionAppHash)){await ctx.db.patch(row._id,{extensionAppName:name});changed.add(row.sessionId);}
+ await regroup(ctx,'pixel',changed);
 }});
 
 export const configured=internalMutation({args:{},handler:async ctx=>{

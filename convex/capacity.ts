@@ -3,7 +3,8 @@ import type {QueryCtx,MutationCtx,ActionCtx} from './_generated/server';
 import type {CheckoutPrice} from "../shared/checkoutPrice";
 import type {EvidenceResponse} from "../shared/evidenceResponse";
 type Snapshot=NonNullable<EvidenceResponse["shopifySnapshot"]>;
-import type {Id,Doc} from './_generated/dataModel';
+import type {Id} from './_generated/dataModel';
+import {eventShape,readGroups,type StoredEvent} from './checkoutGroups';
 import {internal} from './_generated/api';
 import {v} from 'convex/values';
 import {orderRecord,abandonedRecord} from './schema';
@@ -150,11 +151,6 @@ export const earlierStarts=internalQuery({args:{dataset:v.union(v.literal('legac
  const firsts=await Promise.all(args.sessionIds.map(sessionId=>args.dataset==='legacy'?ctx.db.query('testCheckoutEvents').withIndex('by_store_session_name',q=>q.eq('store',STORE).eq('sessionId',sessionId).eq('name','checkout_started')).filter(q=>q.neq(q.field('auditOnly'),true)).first():ctx.db.query('shopifyCheckoutEvents').withIndex('by_store_session_name',q=>q.eq('store',STORE).eq('sessionId',sessionId).eq('name','checkout_started')).first()));
  return firsts.flatMap(first=>first&&first.timestamp<args.start&&first._creationTime<=args.asOf?[eventShape(first)]:[]);
 }});
-type StoredEvent=Doc<'testCheckoutEvents'>|Doc<'shopifyCheckoutEvents'>;
-// The event fields the page reads; storage fields stay on the server.
-function eventShape({eventId,sessionId,name,timestamp,category,...row}:StoredEvent){
- return {eventId,sessionId,name,timestamp,category,...('simulated'in row&&row.simulated?{simulated:true as const}:{}),...(row.deviceClass?{deviceClass:row.deviceClass}:{}),...(row.expressPay?{expressPay:row.expressPay}:{}),...('discountOfferCode'in row&&row.discountOfferCode?{discountOfferCode:row.discountOfferCode}:{}),...(row.extensionAppName?{extensionAppName:row.extensionAppName}:{}),...(row.extensionAppHash?{extensionAppHash:row.extensionAppHash}:{}),...(row.shippingBlocker?{shippingBlocker:row.shippingBlocker}:{}),...('items'in row&&row.items?{items:row.items}:{}),...('subtotalCents'in row&&row.subtotalCents!==undefined?{subtotalCents:row.subtotalCents,currency:'USD' as const}:{})};
-}
 // One checkout's events, read through its index, with the same window rules as the
 // full report: events since the window start plus the checkout's original start.
 export const sessionEvents=internalQuery({args:{sessionId:v.string(),asOf:v.number()},handler:async(ctx,args)=>{
@@ -192,7 +188,15 @@ export async function readWindow(ctx:ActionCtx,asOf=Date.now()){
  }
  // The datasets are independent; read them concurrently against the same watermark and budget.
  const generation=metadata&&'generation'in metadata?metadata.generation:undefined;
- const [legacyRows,pixelRows,prices,orders,abandoned,legacyCollection,pixelCollection]=await Promise.all([all<CheckoutEvent>('legacy'),all<CheckoutEvent>('pixel'),all<CheckoutPrice>('prices'),generation?all<Snapshot['orders'][number]>('orders',generation):null,generation?all<Snapshot['abandoned'][number]>('abandoned',generation):null,ctx.runQuery(internal.capacity.collection,{pixel:false,start}),ctx.runQuery(internal.capacity.collection,{pixel:true,start})]);
+ // Each source reads its grouped checkouts once their build is complete, else the event rows.
+ const grouped=await ctx.runQuery(internal.checkoutGroups.ready,{});
+ const events=async(dataset:'legacy'|'pixel')=>{
+  if(!grouped[dataset])return await withStarts(dataset,await all<CheckoutEvent>(dataset));
+  const rows=await readGroups(ctx,dataset,start,asOf);
+  bytes+=new TextEncoder().encode(JSON.stringify(rows)).length;if(bytes>REPORT_BYTES)throw new ReportLimit();
+  return rows;
+ };
+ const [legacyAll,pixelAll,prices,orders,abandoned,legacyCollection,pixelCollection]=await Promise.all([events('legacy'),events('pixel'),all<CheckoutPrice>('prices'),generation?all<Snapshot['orders'][number]>('orders',generation):null,generation?all<Snapshot['abandoned'][number]>('abandoned',generation):null,ctx.runQuery(internal.capacity.collection,{pixel:false,start}),ctx.runQuery(internal.capacity.collection,{pixel:true,start})]);
  // Each checkout's earliest start, looked up in a few large batches rather than per page.
  async function withStarts(dataset:'legacy'|'pixel',rows:CheckoutEvent[]){
   const ids=[...new Set(rows.map(r=>r.sessionId))],batches=[];
@@ -201,7 +205,6 @@ export async function readWindow(ctx:ActionCtx,asOf=Date.now()){
   bytes+=new TextEncoder().encode(JSON.stringify(starts)).length;if(bytes>REPORT_BYTES)throw new ReportLimit();
   return [...rows,...starts];
  }
- const [legacyAll,pixelAll]=await Promise.all([withStarts('legacy',legacyRows),withStarts('pixel',pixelRows)]);
  const legacy=[...new Map(legacyAll.map(e=>[e.eventId,e])).values()],pixel=[...new Map(pixelAll.map(e=>[e.eventId,e])).values()];
  // Legacy snapshots remain untouched and readable during staged migration.
  const snapshot=metadata&&'generation'in metadata?{...metadata,orders:orders!,abandoned:abandoned!}:metadata;

@@ -14,7 +14,7 @@ const hash=(i:number)=>i.toString(16).padStart(64,'0');
 async function harness(){
  const clock={now:Date.now()},tables=new Map<string,any[]>(),scheduled:any[]=[];let serial=0,failFetch=false,nativeLists:Record<string,any[]>|null=null;const requests:any[]=[];let queryHook:((name:string,args:any)=>Promise<void>)|null=null;
  const rows=(t:string)=>{if(!tables.has(t))tables.set(t,[]);return tables.get(t)!;};
- const indexes:Record<string,string[]>={by_store_status:['store','status','startedAt'],by_install_kind_hash:['store','connectedAt','kind','recordHash'],by_install_kind_created:['store','connectedAt','kind','createdAt'],by_head_updated:['head','sourceUpdatedAt','revision'],by_job_head:['job','head'],by_job_kind:['job','kind'],by_job_kind_hash:['job','kind','recordHash'],by_store_timestamp:['store','timestamp'],by_store_created:['store','createdAt'],by_store_session_name:['store','sessionId','name','timestamp']};
+ const indexes:Record<string,string[]>={by_store_status:['store','status','startedAt'],by_install_kind_hash:['store','connectedAt','kind','recordHash'],by_install_kind_created:['store','connectedAt','kind','createdAt'],by_head_updated:['head','sourceUpdatedAt','revision'],by_job_head:['job','head'],by_job_kind:['job','kind'],by_job_kind_hash:['job','kind','recordHash'],by_store_timestamp:['store','timestamp'],by_store_created:['store','createdAt'],by_store_session_name:['store','sessionId','name','timestamp'],by_session:['store','dataset','sessionId'],by_last:['store','dataset','lastAt'],by_dataset:['store','dataset']};
  const db={
   get:async(id:string)=>{for(const [name,list] of tables)if(id.startsWith(name+'-'))return list.find(r=>r._id===id)??null;for(const list of tables.values()){const row=list.find(r=>r._id===id);if(row)return row;}return null;},
   query:(t:string)=>{
@@ -38,7 +38,7 @@ async function harness(){
   return {ok:true,text:async()=>JSON.stringify({data})};
  };
  const modules:Record<string,any>={};
- for(const file of ['capacity','shopify','shopifyEvents','events','checkoutPrices','abandoned','fixes','http']){
+ for(const file of ['capacity','shopify','shopifyEvents','events','checkoutPrices','abandoned','fixes','checkoutGroups','http']){
   const code=(await build({entryPoints:[`convex/${file}.ts`],bundle:true,platform:'node',format:'cjs',packages:'external',write:false,plugins:file==='http'?[{name:'synthetic-session',setup(build:any){build.onLoad({filter:/lib\/shopifyAuth\.ts$/},()=>({contents:"export const REQUIRED_SCOPES=['read_orders','read_customer_events','write_pixels'];export async function verifyMerchant(){return {shop:'build-sprint-demo.myshopify.com'}};export async function verifyLifecycle(){return false};export async function exchangeMerchant(){throw Error('Synthetic auth only')};export async function refreshMerchant(){throw Error('Synthetic auth only')};",loader:'ts'}));}}]:[]})).outputFiles[0].text,module={exports:{}};
   const dates=new Proxy(Date,{get:(target,key)=>key==='now'?()=>clock.now:Reflect.get(target,key)});
   runInNewContext(code,{module,exports:module.exports,require,Date:dates,console,process,URL,TextEncoder,TextDecoder,fetch,AbortSignal,Response,Request,Headers,crypto:globalThis.crypto,Error});modules[file]=module.exports;
@@ -295,4 +295,37 @@ test('real sync restores exact persisted abandoned links at an unchanged Shopify
  h.clock.now+=60001;await syncNative(h);
  const report=(await h.modules.capacity.readWindow(h.ctx)).snapshot;assert.equal(report.abandoned.length,1);assert.equal(report.abandoned[0].sessionId,link.sessionId);assert.equal(report.abandoned[0].subtotalCents,before.subtotalCents);assert.equal(report.abandoned[0].totalCents,before.totalCents);assert.equal(report.abandoned[0].createdAt,before.createdAt);assert.equal(oldVersion.row.sessionId,undefined,'older pinned publication is immutable');
  h.clock.now+=60001;await syncNative(h);assert.equal(h.rows('shopifyNativeVersions').length,2,'same verified link is not republished repeatedly');
+});
+
+test('grouped checkouts give exactly the events the row read gives, before and after new writes',async()=>{
+ const h=await harness(),asOf=h.clock.now,windowStart=asOf-REPORT_WINDOW_MS;let n=0;
+ const add=(table:string,session:number,name:string,timestamp:number,extra:any={})=>h.rows(table).push({_id:`${table}-x${++n}`,_creationTime:extra.createdAt??asOf-5000+n,store:STORE,receivedAt:asOf,eventId:hash(100000+n),sessionId:hash(session),name,timestamp,category:null,...extra,createdAt:undefined});
+ for(const table of ['testCheckoutEvents','shopifyCheckoutEvents']){
+  for(let s=1;s<=40;s++){add(table,s,'checkout_started',windowStart+s*3600000);add(table,s,'checkout_contact_info_submitted',windowStart+s*3600000+500,{deviceClass:'mobile'});if(s%3===0)add(table,s,'checkout_completed',windowStart+s*3600000+900);}
+  add(table,41,'checkout_started',windowStart-86400000);add(table,41,'alert_displayed',windowStart+5000,{category:'delivery',shippingBlocker:'no_shipping_available'});// original start before the window
+  add(table,42,'checkout_started',windowStart-86400000);add(table,42,'checkout_started',windowStart+7000);// two starts across the boundary
+  add(table,43,'checkout_started',windowStart-2*86400000);// entirely before the window
+  add(table,44,'checkout_started',asOf-2000,{createdAt:asOf+10});// arrived after the read began
+  add(table,45,'checkout_started',asOf+60000);// after the read time
+ }
+ add('testCheckoutEvents',46,'checkout_started',windowStart+9000,{auditOnly:true});add('testCheckoutEvents',5,'alert_displayed',windowStart+5*3600000+700,{category:'validation',auditOnly:true});
+ const read=async()=>{const w=await h.modules.capacity.readWindow(h.ctx,asOf);return {legacy:w.legacy.events,pixel:w.pixel.events};};
+ const rows=await read();
+ assert.ok(rows.legacy.some((e:any)=>e.sessionId===hash(41)&&e.timestamp<windowStart),'boundary start included');
+ assert.equal(rows.legacy.some((e:any)=>e.sessionId===hash(43)||e.sessionId===hash(44)||e.sessionId===hash(45)||e.sessionId===hash(46)),false);
+ await h.modules.checkoutGroups.ensureBuilt._handler(h.ctx,{});
+ for(let i=0;i<20;i++)for(const dataset of ['legacy','pixel'])await h.modules.checkoutGroups.buildStep._handler(h.ctx,{dataset});
+ assert.ok(h.rows('checkoutGroupBuild').every((r:any)=>r.ready));
+ assert.deepEqual(await read(),rows,'grouped read matches the row read');
+ // Writes after the build keep the groups current.
+ h.clock.now=asOf+1;
+ await h.modules.events.recordTestEvent._handler(h.ctx,{eventId:hash(900001),sessionId:hash(7),name:'payment_info_submitted',timestamp:asOf-500,category:null});
+ await h.modules.abandoned.markAuditEvents._handler(h.ctx,{eventIds:[h.rows('testCheckoutEvents').find((r:any)=>r.sessionId===hash(8)&&r.name==='checkout_contact_info_submitted').eventId],protectedIds:[]});
+ await h.modules.shopifyEvents.record._handler(h.ctx,{eventId:hash(900002),sessionId:hash(9),name:'ui_extension_errored',timestamp:asOf-400,category:'extension',extensionAppHash:hash(777)});
+ const later=h.clock.now+1;
+ const grouped=await h.modules.capacity.readWindow(h.ctx,later);
+ for(const r of h.rows('checkoutGroupBuild'))r.ready=false;
+ const direct=await h.modules.capacity.readWindow(h.ctx,later);
+ assert.deepEqual({legacy:grouped.legacy.events,pixel:grouped.pixel.events},{legacy:direct.legacy.events,pixel:direct.pixel.events},'groups follow new events and audit marks');
+ assert.ok(grouped.legacy.events.some((e:any)=>e.eventId===hash(900001)));assert.ok(grouped.pixel.events.some((e:any)=>e.eventId===hash(900002)));
 });

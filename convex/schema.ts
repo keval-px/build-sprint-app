@@ -71,6 +71,13 @@ export default defineSchema({
   testCheckoutEvents: defineTable({ subtotalCents:v.optional(v.number()),currency:v.optional(v.literal("USD")), simulated:v.optional(v.literal(true)), ...eventFields, auditOnly:v.optional(v.boolean()), store: v.literal(deployment.store), receivedAt: v.number() })
     .index("by_store_timestamp", ["store", "timestamp"])
     .index("by_store_event", ["store", "eventId"]).index("by_store_session_name",["store","sessionId","name","timestamp"]),
+  // One record per checkout and event source, rebuilt from the original event rows after
+  // every write. Reports read these instead of every event row; the originals stay the source.
+  checkoutGroups:defineTable({store:v.literal(deployment.store),dataset:v.union(v.literal('legacy'),v.literal('pixel')),sessionId:v.string(),lastAt:v.number(),
+    events:v.array(v.object({...eventFields,simulated:v.optional(v.literal(true)),items:v.optional(capturedItems),subtotalCents:v.optional(v.number()),currency:v.optional(v.literal('USD')),createdAt:v.number()}))})
+    .index('by_session',['store','dataset','sessionId']).index('by_last',['store','dataset','lastAt']),
+  // Progress of the one-time build of checkoutGroups from existing events.
+  checkoutGroupBuild:defineTable({store:v.literal(deployment.store),dataset:v.union(v.literal('legacy'),v.literal('pixel')),cursor:v.union(v.string(),v.null()),ready:v.boolean(),updatedAt:v.number()}).index('by_dataset',['store','dataset']),
   testCollectionState: defineTable({firstReceivedAt:v.optional(v.number()),lastReceivedAt:v.optional(v.number()),lastCapAt:v.optional(v.number()),resumedAt:v.optional(v.number()), store: v.literal(deployment.store), eventCount: v.number() })
     .index("by_store", ["store"]),
 });

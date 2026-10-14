@@ -1,3 +1,4 @@
+import {regroup} from './checkoutGroups';
 import {internalMutation,internalQuery} from './_generated/server';
 import {v} from 'convex/values';
 import {abandonedFields} from './schema';
@@ -17,4 +18,4 @@ export const applyVerifiedLinks=internalMutation({args:{links:abandonedFields.re
   return{added:result.added,matched:result.matched,unmatched:result.unmatched};
 }});
 // Retain audit events for inspection, exclude them from shopper evidence. Never delete.
-export const markAuditEvents=internalMutation({args:{eventIds:v.array(v.string()),protectedIds:v.array(v.string())},handler:async(ctx,{eventIds,protectedIds})=>{const protectedSet=new Set(protectedIds);let marked=0;for(const id of eventIds){if(protectedSet.has(id))throw Error('Original event protected');const row=await ctx.db.query('testCheckoutEvents').withIndex('by_store_event',q=>q.eq('store',STORE).eq('eventId',id)).unique();if(!row||row.name==='checkout_completed'||row.name==='payment_info_submitted')throw Error('Unexpected audit event');await ctx.db.patch(row._id,{auditOnly:true});marked++;}return marked;}});
+export const markAuditEvents=internalMutation({args:{eventIds:v.array(v.string()),protectedIds:v.array(v.string())},handler:async(ctx,{eventIds,protectedIds})=>{const protectedSet=new Set(protectedIds),changed=new Set<string>();let marked=0;for(const id of eventIds){if(protectedSet.has(id))throw Error('Original event protected');const row=await ctx.db.query('testCheckoutEvents').withIndex('by_store_event',q=>q.eq('store',STORE).eq('eventId',id)).unique();if(!row||row.name==='checkout_completed'||row.name==='payment_info_submitted')throw Error('Unexpected audit event');await ctx.db.patch(row._id,{auditOnly:true});changed.add(row.sessionId);marked++;}await regroup(ctx,'legacy',changed);return marked;}});

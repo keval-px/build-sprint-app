@@ -11,6 +11,7 @@
 import type * as abandoned from "../abandoned.js";
 import type * as checkoutPrices from "../checkoutPrices.js";
 import type * as capacity from "../capacity.js";
+import type * as checkoutGroups from "../checkoutGroups.js";
 import type * as crons from "../crons.js";
 import type * as events from "../events.js";
 import type * as fixes from "../fixes.js";
@@ -33,6 +34,7 @@ declare const fullApi: ApiFromModules<{
   abandoned: typeof abandoned;
   checkoutPrices: typeof checkoutPrices;
   capacity: typeof capacity;
+  checkoutGroups: typeof checkoutGroups;
   crons: typeof crons;
   events: typeof events;
   fixes: typeof fixes;
