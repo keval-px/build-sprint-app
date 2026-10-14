@@ -7,22 +7,44 @@
     "dev": "vite --host 0.0.0.0",
     "build": "npm run check:ui && tsc --noEmit && vite build",
     "check": "tsc --noEmit",
-    "deploy": "static-hosting deploy",
+    "deploy": "static-hosting upload --build",
     "check:ui": "node scripts/check-polaris.mjs",
     "shopify": "shopify",
-    "test": "node --experimental-strip-types --test tests/*.test.ts"
+    "test": "node --experimental-strip-types --test tests/*.test.ts",
+    "audit:metrics": "node --experimental-strip-types scripts/audit-live-metrics.mjs",
+    "local:up": "node local/runtime.mjs up",
+    "local:status": "node local/runtime.mjs status",
+    "local:down": "node local/runtime.mjs down",
+    "local:deploy": "node local/runtime.mjs deploy",
+    "local:shopify": "node local/runtime.mjs shopify",
+    "local:shopify:stop": "node local/runtime.mjs shopify-stop",
+    "local:sync:enable": "node local/runtime.mjs enable-sync",
+    "test:local": "node --test local/*.test.mjs local/gateway/*.test.mjs",
+    "local:backup": "node local/recovery.mjs backup",
+    "local:restore": "node local/recovery.mjs restore",
+    "local:connection:enable": "node local/runtime.mjs enable-connection",
+    "local:shopify:refresh": "node local/runtime.mjs refresh-destinations",
+    "local:shopify:publish": "node local/runtime.mjs shopify-publish",
+    "local:verify": "node local/verify.mjs",
+    "local:simulate": "node --experimental-strip-types local/simulation/run.ts",
+    "local:simulate:batch": "node --experimental-strip-types local/simulation/batch.ts"
   },
   "dependencies": {
     "@convex-dev/static-hosting": "0.2.1",
+    "@shopify/polaris-viz": "^16.16.0",
     "@shopify/shopify-api": "^15.0.0",
     "@shopify/web-pixels-extension": "^2.18.0",
     "convex": "^1.46.0",
-    "js-sha256": "^1.0.0"
+    "js-sha256": "^1.0.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
     "@shopify/cli": "^4.8.4",
     "@shopify/polaris-types": "2.0.0-rc.0",
     "@types/node": "^26.6.4",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
     "typescript": "^5.9.0",
     "vite": "^7.0.0"
   }

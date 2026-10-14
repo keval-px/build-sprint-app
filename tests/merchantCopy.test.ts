@@ -1,0 +1,30 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {fixOutcomeCopy} from '../src/dashboardCopy.ts';
+import {historyMarkup} from '../src/dashboardPanels.ts';
+import type {AppliedFix} from '../shared/fixTracking.ts';
+import type {MonitoringHealth} from '../shared/monitoringHealth.ts';
+import type {CheckoutEvent} from '../shared/evidence.ts';
+const health:MonitoringHealth={state:'Healthy',canAssess:true,reasons:[],message:'current'};
+test('alerts after marking done do not claim a recurring issue, recovery or a verified fix',()=>{
+ const now=100000,fix:AppliedFix={missionId:'delivery',appliedAt:10000,baseline:{checkouts:2,affected:0,completed:0},affectedIds:[],partial:false};
+ const events:CheckoutEvent[]=[{sessionId:'a'.repeat(64),eventId:'a',name:'alert_displayed',timestamp:20000,category:'delivery'}];
+ const copy=fixOutcomeCopy(fix,events,now,health);
+ assert.match(copy,/1 checkout had alerts after marking done.*result not verified/);
+ assert.doesNotMatch(copy,/returned|recur|recovered|resolved|marker/i);
+ assert.match(fixOutcomeCopy({...fix,retestedAt:15000},events,now,health),/after the retest/);
+ const markup=historyMarkup([{...fix,active:true}],events,true,{},health);
+ assert.match(markup,/Alerts after marking done/);assert.doesNotMatch(markup,/Alerts returned/);
+});
+test('merchant overview retains exact headings and distinct cohorts without technical descriptions',()=>{
+ const html=readFileSync('index.html','utf8');
+ for(const name of ['Checkout completion','Insights &amp; recommendations'])assert.ok(html.includes(name));
+ const source=readFileSync('src/main.ts','utf8');assert.ok(source.includes("'Daily order pattern'"));
+ assert.ok(html.includes('Abandoned checkouts are imported from your admin. Affected checkouts come from activity recorded by this app.'));
+ assert.doesNotMatch(html,/Shopify abandoned|payload|signed|server-verified|backend|markers/);
+ assert.ok(html.includes('Blank hours are unknown, not zero.'));
+ assert.ok(source.includes('current?.count===0?"No checkouts":"Unavailable"'));
+ assert.ok(source.includes("element('demo-label').hidden=embeddedShopify"));
+ assert.ok(source.includes("element('enable-pixel').hidden=data.enabled"));
+});

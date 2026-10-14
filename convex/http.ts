@@ -1,61 +1,109 @@
+import {shopifyOrigin,frontendStorageUrl} from './lib/deployment';
+import {ReportLimit,reportJSON,coversPeriod} from '../shared/capacity';
+import {readWindow} from './capacity';
+import {monitoringHealth} from '../shared/monitoringHealth';
+import {orderPattern} from '../shared/orderPattern';
+import {actionValues} from '../shared/actionValues';
+import {checkoutPrice} from '../shared/checkoutPrice';
 import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
 import { components, internal } from "./_generated/api";
 import { parseTestEvent } from "../shared/evidence";
+import {inventoryValue} from '../shared/inventoryValue';
+import {checkoutCohort} from '../shared/dateRange';
+import {summarize} from '../shared/evidence';
+import {abandonedSummary} from '../shared/abandonedSummary';
 
-import { isViewerId, isActionStep } from "../shared/actions";
+import { isViewerId } from "../shared/actions";
 
-import {authorizedAccess,syncStore,adminRead} from './shopify';
+import {authorizedAccess,syncStore,adminRead,enableLocalPixel} from './shopify';
+import {deployment} from '../shared/deployment';
 import {verifyMerchant,verifyLifecycle} from './lib/shopifyAuth';
+import {invalidSessionResponse} from '../shared/shopifyRequest';
 import {pixelQuery,pixelCreate} from './lib/shopifyQueries';
-import {canReadShopifyEvidence,mergeCheckoutEvents} from '../shared/checkoutIdentity';
+import {canReadShopifyEvidence,mergeCheckoutEvents,publicCheckoutEvents} from '../shared/checkoutIdentity';
 import {STORE,parseTestEvent as parsePixelBase} from '../shared/evidence';
 
+import {fixBaseline,isFixMission} from '../shared/fixTracking';
 const http = httpRouter();
-const privateReply=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:{'Content-Type':'application/json','Cache-Control':'no-store',...(status===401?{'X-Shopify-Retry-Invalid-Session-Request':'1'}:{})}});
+const privateReply=(body:unknown,status=200,bounded=false)=>new Response(bounded?reportJSON(body):JSON.stringify(body),{status,headers:{'Content-Type':'application/json','Cache-Control':'no-store'}});
 const bearer=(request:Request)=>request.headers.get('Authorization')?.match(/^Bearer ([^\s]+)$/)?.[1]??'';
-http.route({path:'/shopify/app',method:'GET',handler:httpAction(async(ctx,request)=>{
+for(const page of ['', '/checkouts', '/fix-history', '/alerts'])http.route({path:`/shopify/app${page}`,method:'GET',handler:httpAction(async(ctx,request)=>{
   const id=process.env.SHOPIFY_CLIENT_ID;
   if(!id || !process.env.SHOPIFY_CLIENT_SECRET)return new Response(`<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><title>Connect keval-test-app</title><script src="https://cdn.shopify.com/shopifycloud/polaris-2.0-rc.js"></script></head><body><s-page heading="Connect keval-test-app"><s-section heading="Add the app settings in Convex"><s-paragraph>Set SHOPIFY_CLIENT_ID and SHOPIFY_CLIENT_SECRET from keval-test-app's Overview in Convex Settings → Environment Variables. Keep both values private. Then reopen this app from Shopify.</s-paragraph></s-section></s-page></body></html>`,{headers:{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','Content-Security-Policy':`frame-ancestors https://${STORE} https://admin.shopify.com;`}});
   const shop=new URL(request.url).searchParams.get('shop');
-  if(shop && shop!==STORE)return new Response('This test app supports build-sprint-demo only.',{status:403});
+  if(shop && shop!==STORE)return new Response(`This app supports ${STORE} only.`,{status:403});
   const asset=await ctx.runQuery(components.staticHosting.lib.resolveAssetForHttp,{path:'/index.html'});
   if(!asset?.storageUrl)return new Response('App frontend is not deployed.',{status:503});
-  const html=await(await fetch(asset.storageUrl)).text();
+  const html=await(await fetch(frontendStorageUrl(asset.storageUrl))).text();
   const safeId=id.replace(/[&<>"']/g,c=>`&#${c.charCodeAt(0)};`);
   return new Response(html.replace('<head>',`<head><meta name="shopify-api-key" content="${safeId}"><script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>`),{headers:{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','Content-Security-Policy':`frame-ancestors https://${STORE} https://admin.shopify.com;`}});
 })});
+http.route({path:'/shopify/session',method:'GET',handler:httpAction(async(_ctx,request)=>{
+ try{await verifyMerchant(bearer(request));return privateReply({authenticated:true,store:STORE});}catch{return privateReply({error:'Authentication required'},401);}
+})});
+// Store markers require a valid Shopify session; public demo markers are browser-specific.
+http.route({path:'/demo/fixes',method:'OPTIONS',handler:httpAction(async()=>new Response(null,{status:204,headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Methods':'POST, OPTIONS','Access-Control-Allow-Headers':'Content-Type'}}))});
+for(const mode of ['shopify','demo'] as const){
+  http.route({path:`/${mode}/fixes`,method:'POST',handler:httpAction(async(ctx,request)=>{
+    const respond=mode==='shopify'?privateReply:reply;
+    try{
+      if(mode==='shopify'){await verifyMerchant(bearer(request));const connection=await ctx.runQuery(internal.shopify.connection,{});if(!canReadShopifyEvidence(connection))return respond({error:'Shopify installation is disconnected.'},403);}
+      const body=await request.text();if(body.length>500)return respond({error:'Invalid fix request.'},400);
+      const data=JSON.parse(body);
+      if(!data||typeof data!=='object'||Array.isArray(data)||Object.keys(data).some(key=>!['operation','viewerId','missionId'].includes(key))||!['read','mark','undo','retest','undo-retest'].includes(data.operation)||(mode==='demo'&&!isViewerId(data.viewerId)))return respond({error:'Invalid fix request.'},400);
+      const scope=mode==='shopify'?STORE:`demo:${data.viewerId}`;
+      if(data.operation==='retest'||data.operation==='undo-retest'){
+        if(!isFixMission(data.missionId))return respond({error:'Invalid action.'},400);
+        await ctx.runMutation(internal.fixes.retest,{scope,missionId:data.missionId,passed:data.operation==='retest'});
+      }else if(data.operation!=='read'){
+        if(!isFixMission(data.missionId))return respond({error:'Invalid action.'},400);
+        const window=await readWindow(ctx),original=window.legacy,pixel=window.pixel;
+        const events=mode==='shopify'?mergeCheckoutEvents(original.events,pixel.events):publicCheckoutEvents(original.events,pixel.events);
+        const historyUnavailable=window.historyUnavailable;
+        const facts=mode==='shopify'?{orders:window.snapshot?.orders??[],prices:window.prices}:{};
+        const now=Date.now(),sync=mode==='shopify'?await ctx.runQuery(internal.capacity.reportMonitoring,window.syncHeader):undefined;
+        const health=monitoringHealth({evidence:{collection:mode==='shopify'?pixel.collection:original.collection,sync,historyUnavailable},events,sampledAt:window.asOf,now,rangeStart:now-30*86400000,truncated:original.truncated||pixel.truncated});
+        const fix=fixBaseline(events,data.missionId,now,!health.canAssess,data.missionId==='delivery'?'shipping_unavailable':undefined,facts);
+        await ctx.runMutation(internal.fixes.mark,{scope,...fix,active:data.operation==='mark'});
+      }
+      return respond({fixes:await ctx.runQuery(internal.fixes.read,{scope}),history:await ctx.runMutation(internal.fixes.history,{scope})});
+    }catch{return respond({error:'Could not save or load fix tracking.'},400);}
+  })});
+}
 for(const operation of ['status','sync','evidence','pixel/enable']){
   http.route({path:`/shopify/${operation}`,method:operation==='status'||operation==='evidence'?'GET':'POST',handler:httpAction(async(ctx,request)=>{
     const token=bearer(request);
-    try{await verifyMerchant(token);}catch{return privateReply({error:'Shopify session is invalid or expired.'},401);}
+    try{await verifyMerchant(token);}catch{return invalidSessionResponse(operation==='evidence');}
     try{
       if(operation==='sync')return privateReply(await syncStore(ctx,token));
       if(operation==='pixel/enable'){
         const access=await authorizedAccess(ctx,token);
-        const settings=JSON.stringify({endpoint:'https://neighborly-nightingale-843.convex.site/api/shopify/pixel-events'});
+        if(deployment.kind==='local')return privateReply(await enableLocalPixel(ctx,access));
+        const settings=JSON.stringify({endpoint:`${shopifyOrigin()}/api/shopify/pixel-events`});
         let exists=false;
         try{const current=await adminRead<{webPixel:{id:string;settings:unknown}|null}>(access,pixelQuery);exists=!!current.webPixel;}catch{/* Shopify errors when no app pixel exists. Creation below remains bounded. */}
-        if(exists)return privateReply({enabled:true});
+        if(exists){await ctx.runMutation(internal.shopifyEvents.configured,{});return privateReply({enabled:true});}
         const result=await adminRead<{webPixelCreate:{webPixel:{id:string}|null;userErrors:unknown[]}}>(access,pixelCreate,{settings});
         if(result.webPixelCreate.userErrors.length||!result.webPixelCreate.webPixel)throw Error('Pixel could not be enabled. Check the released extension and permissions.');
+        await ctx.runMutation(internal.shopifyEvents.configured,{});
         return privateReply({enabled:true});
       }
       const connection=await ctx.runQuery(internal.shopify.connection,{});
       const snapshot=await ctx.runQuery(internal.shopify.snapshot,{});
       if(operation==='status')return privateReply({store:STORE,connected:!!connection,lastSyncedAt:snapshot?.syncedAt??null});
       if(!canReadShopifyEvidence(connection))return privateReply({error:'Shopify installation is disconnected or permissions were removed.'},403);
-      const original=await ctx.runQuery(internal.events.readTestEvidence,{});
-      const pixel=await ctx.runQuery(internal.shopifyEvents.read,{});
-      const catalogModel=await ctx.runQuery(internal.catalog.read,{});
+      const window=await readWindow(ctx),original=window.legacy,pixel=window.pixel;
       const abandonedCheckouts=await ctx.runQuery(internal.abandoned.read,{});
-      const observedPurchases=await ctx.runQuery(internal.purchases.read,{});
-      return privateReply({...original,events:mergeCheckoutEvents(original.events,pixel.events),truncated:original.truncated||pixel.truncated,totalStored:original.totalStored+pixel.events.length,catalogModel,abandonedCheckouts,observedPurchases,shopifySnapshot:snapshot?{syncedAt:snapshot.syncedAt,periodStart:snapshot.periodStart,orders:snapshot.orders,abandoned:snapshot.abandoned}:null,enabled:true,source:'Demo Shopify browser and server evidence.',sampledAt:Date.now()});
+      const historyUnavailable=window.historyUnavailable,checkoutPrices=window.prices,completeSnapshot=window.snapshot;
+      const sync=await ctx.runQuery(internal.capacity.reportMonitoring,window.syncHeader);
+      const selectedStart=new URL(request.url).searchParams.get('start');const outside=selectedStart!==null&&Number.isFinite(Number(selectedStart))&&Number(selectedStart)<window.start;const serverHistoryMissing=selectedStart!==null&&!!completeSnapshot&&!coversPeriod(completeSnapshot.periodStart,Number(selectedStart));const combined=mergeCheckoutEvents(original.events,pixel.events),started=new Set(combined.filter(e=>e.name==='checkout_started').map(e=>e.sessionId));const orphan=combined.some(e=>!started.has(e.sessionId));
+      return privateReply({...original,monitoring:{collection:pixel.collection,sync,historyUnavailable:historyUnavailable||serverHistoryMissing},events:mergeCheckoutEvents(original.events,pixel.events),truncated:outside||serverHistoryMissing||orphan||original.truncated||pixel.truncated,totalStored:combined.length,abandonedCheckouts,checkoutPrices,storeName:completeSnapshot?.storeName,shopifySnapshot:completeSnapshot&&!serverHistoryMissing?{timeZone:completeSnapshot.timeZone,currency:completeSnapshot.currency??'USD',syncedAt:completeSnapshot.syncedAt,periodStart:completeSnapshot.periodStart,orders:completeSnapshot.orders,abandoned:completeSnapshot.abandoned}:null,enabled:true,source:'Demo Shopify browser and server evidence.',sampledAt:window.asOf},200,true);
     }catch(error){
       const message=error instanceof Error ? error.message : '';
       const reasons=['Shopify authorization failed. Check installation and permissions.','Install the requested Shopify permissions first.','Shopify could not return data. Check permissions and retry; previous results are retained.','Unexpected store or missing Shopify permissions.'];
       const safeBlock=/^Shopify blocked (abandoned checkouts|orders|app settings): (protected customer data approval required|access denied|query rejected)\.$/.test(message);
-      return privateReply({error:reasons.includes(message)||safeBlock?message:'Shopify connection needs attention. Check credentials, installation and permissions; previous results are retained.'},503);
+      return privateReply({error:error instanceof ReportLimit?message:reasons.includes(message)||safeBlock?message:'Shopify connection needs attention. Check credentials, installation and permissions; previous results are retained.'},503);
     }
   })});
 }
@@ -68,22 +116,28 @@ http.route({path:'/shopify/webhooks',method:'POST',handler:httpAction(async(ctx,
     const eventId=request.headers.get('X-Shopify-Event-Id')??request.headers.get('X-Shopify-Webhook-Id');
     if(!eventId||!Number.isFinite(triggeredAt))return privateReply({error:'Missing notification identity.'},400);
     await ctx.runMutation(internal.shopify.revoke,{eventId,triggeredAt});
+  }else if(topic==='checkouts/create'||topic==='checkouts/update'){
+    if(process.env.SHOPIFY_CHECKOUT_PRICES_ENABLED!=='true')return privateReply({error:'Checkout notifications are not activated.'},503);
+    const triggeredAt=Date.parse(request.headers.get('X-Shopify-Triggered-At')??'');
+    let price;try{price=checkoutPrice(JSON.parse(body));}catch{return privateReply({error:'Invalid checkout notification.'},400);}
+    if(!price||!Number.isFinite(triggeredAt))return privateReply({error:'Invalid checkout notification.'},400);
+    await ctx.runMutation(internal.checkoutPrices.save,{price,triggeredAt});
   }return privateReply({received:true});
 })});
 http.route({path:'/shopify/pixel-events',method:'OPTIONS',handler:httpAction(async()=>new Response(null,{status:204,headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Methods':'POST, OPTIONS','Access-Control-Allow-Headers':'Content-Type'}}))});
 http.route({path:'/shopify/pixel-events',method:'POST',handler:httpAction(async(ctx,request)=>{
   const cors={'Access-Control-Allow-Origin':'*','Content-Type':'application/json','Cache-Control':'no-store'};
-  const body=await request.text();if(body.length>1800)return new Response('{}',{status:413,headers:cors});
+  const body=await request.text();if(body.length>12000)return new Response('{}',{status:413,headers:cors});
   try{
-    const input=JSON.parse(body);const {subtotalCents,currency,...base}=input;
+    const input=JSON.parse(body);const {subtotalCents,currency,items,appliedDiscountCount,...base}=input;
     if(!parsePixelBase(base,Date.now())||((subtotalCents!==undefined||currency!==undefined)&&(!Number.isSafeInteger(subtotalCents)||subtotalCents<0||currency!=='USD')))throw Error();
     if(!await ctx.runQuery(internal.shopify.connection,{}))return new Response('{}',{status:503,headers:cors});
-    const result=await ctx.runMutation(internal.shopifyEvents.record,{...base,...(subtotalCents===undefined?{}:{subtotalCents,currency})});
-    return new Response(JSON.stringify({result}),{status:result==='full'?429:result==='invalid'?400:200,headers:cors});
+    const result=await ctx.runMutation(internal.shopifyEvents.record,{...base,...(appliedDiscountCount===undefined?{}:{appliedDiscountCount}),...(items===undefined?{}:{items}),...(subtotalCents===undefined?{}:{subtotalCents,currency})});
+    return new Response(JSON.stringify({result}),{status:result==='invalid'?400:result==='unavailable'?503:200,headers:cors});
   }catch{return new Response('{}',{status:400,headers:cors});}
 })});
 const headers = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET, POST, OPTIONS", "Access-Control-Allow-Headers": "Content-Type", "Cache-Control": "no-store" };
-const reply = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...headers, "Content-Type": "application/json" } });
+const reply = (body: unknown, status = 200,bounded=false) => new Response(bounded?reportJSON(body):JSON.stringify(body), { status, headers: { ...headers, "Content-Type": "application/json" } });
 
 http.route({ path: "/test-events", method: "OPTIONS", handler: httpAction(async () => new Response(null, { status: 204, headers })) });
 http.route({ path: "/test-events", method: "POST", handler: httpAction(async (ctx, request) => {
@@ -95,32 +149,40 @@ http.route({ path: "/test-events", method: "POST", handler: httpAction(async (ct
   const event = parseTestEvent(parsed, Date.now());
   if (!event) return reply({ error: "Invalid anonymous test event." }, 400);
   const result = await ctx.runMutation(internal.events.recordTestEvent, event);
-  return reply({ result }, result === "full" ? 429 : result === "invalid" ? 400 : 200);
+  return reply({ result }, result === "invalid" ? 400 : 200);
 }) });
-http.route({ path: "/test-evidence", method: "GET", handler: httpAction(async (ctx) => {
-  const evidence = await ctx.runQuery(internal.events.readTestEvidence, {});
-  const catalogModel = await ctx.runQuery(internal.catalog.read, {});
+http.route({ path: "/test-evidence", method: "GET", handler: httpAction(async (ctx,request) => {
+  try{
+  const window=await readWindow(ctx),evidence=window.legacy;
+  // Correct categories only on identities already public in the legacy demo feed.
+  // Do not publish additional private sessions, prices, or Shopify records.
+  const pixel=window.pixel;
+  const events=publicCheckoutEvents(evidence.events,pixel.events);
+  const started=new Set(events.filter(e=>e.name==='checkout_started').map(e=>e.sessionId));const orphan=events.some(e=>!started.has(e.sessionId));
   const abandonedCheckouts = await ctx.runQuery(internal.abandoned.read, {});
-  const observedPurchases = await ctx.runQuery(internal.purchases.read, {});
-  return reply({ ...evidence, catalogModel, observedPurchases, abandonedCheckouts, enabled: process.env.SHOPIFY_TEST_COLLECTION_ENABLED === "true", source: "Unverified browser test events. No live merchant data.", sampledAt: Date.now() });
+  const params=new URL(request.url).searchParams,start=Number(params.get('start')),end=Number(params.get('end'));
+  let storeName:string|undefined,serverHistoryMissing=false;
+  let abandonedBasketSummary=null,inventoryItemValue=null,actionBasketValue=null,orderPatterns=null;
+  // Publish only aggregate test-store metrics. Private order/checkout records stay private.
+  if(params.has('start')&&params.has('end')&&Number.isSafeInteger(start)&&Number.isSafeInteger(end)&&start<end&&end-start<=31*86400000){
+    const connection=await ctx.runQuery(internal.shopify.connection,{});
+    const available=canReadShopifyEvidence(connection)?window.snapshot:null;serverHistoryMissing=!!available&&!coversPeriod(available.periodStart,start);const snapshot=serverHistoryMissing?null:available;
+    storeName=snapshot?.storeName;
+    if(snapshot)abandonedBasketSummary={...abandonedSummary(snapshot.abandoned,start,end),syncedAt:snapshot.syncedAt,currency:snapshot.currency??'USD'};
+    if(snapshot){
+      orderPatterns=orderPattern(snapshot.orders,snapshot.periodStart,snapshot.syncedAt,snapshot.timeZone??'UTC');
+      const currency=snapshot.currency??'USD';
+      const prices=window.prices;
+      actionBasketValue=actionValues(events,abandonedCheckouts,snapshot.abandoned,prices,currency,start,end,snapshot.orders);
+      const ids=summarize(checkoutCohort(events,{start,end})).journeys.filter(j=>!j.completed&&j.events.some(e=>e.category==='inventory')).map(j=>j.id);
+      const quotes=snapshot.orders.flatMap(o=>o.sessionId&&o.conversion?[{sessionId:o.sessionId,shop:{minor:o.conversion.shopMinor,currency},buyer:{minor:o.conversion.buyerMinor,currency:o.conversion.buyerCurrency}}]:[]);
+      // Aggregate only the existing public test-session cohort; never publish item identities or buyer amounts.
+      inventoryItemValue={...inventoryValue(pixel.events,ids,currency,quotes),rangeStart:start,rangeEnd:end};
+    }
+  }
+  return reply({ ...evidence,totalStored:events.length,truncated:serverHistoryMissing||orphan||evidence.truncated||(params.has('start')&&start<window.start), monitoring:{collection:evidence.collection,historyUnavailable:window.historyUnavailable||serverHistoryMissing}, storeName, events, abandonedCheckouts, abandonedBasketSummary, inventoryItemValue, actionBasketValue, orderPatterns, enabled: process.env.SHOPIFY_TEST_COLLECTION_ENABLED === "true", source: "Unverified browser test events. No live merchant data.", sampledAt:window.asOf },200,true);
+  }catch(error){return reply({error:error instanceof ReportLimit?error.message:"Evidence could not be read. Previous results are retained."},503);}
 }) });
 
-for (const path of ["/action-progress/read", "/action-progress/update"]) {
-  http.route({ path, method: "OPTIONS", handler: httpAction(async () => new Response(null, { status: 204, headers })) });
-  http.route({ path, method: "POST", handler: httpAction(async (ctx, request) => {
-    const body = await request.text();
-    if (body.length > 500) return reply({error: "Payload too large."}, 413);
-    let input: unknown;
-    try { input = JSON.parse(body); } catch { return reply({error: "Invalid JSON."}, 400); }
-    if (!input || typeof input !== "object" || Array.isArray(input)) return reply({error: "Invalid progress request."}, 400);
-    const data = input as Record<string, unknown>;
-    const allowed = path.endsWith("/read") ? ["viewerId"] : ["viewerId", "stepId", "completed"];
-    if (Object.keys(data).some(key => !allowed.includes(key)) || !isViewerId(data.viewerId)) return reply({error: "Invalid anonymous viewer."}, 400);
-    if (path.endsWith("/read")) return reply(await ctx.runQuery(internal.progress.read, {viewerId: data.viewerId}));
-    if (!isActionStep(data.stepId) || typeof data.completed !== "boolean") return reply({error: "Invalid checklist step."}, 400);
-    const result = await ctx.runMutation(internal.progress.setStep, {viewerId: data.viewerId, stepId: data.stepId, completed: data.completed});
-    return reply(result, result.error ? 429 : 200);
-  }) });
-}
 
 export default http;

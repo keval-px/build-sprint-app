@@ -1,14 +1,17 @@
 import '@shopify/shopify-api/adapters/web-api';
 import {shopifyApi, ApiVersion, RequestedTokenType} from '@shopify/shopify-api';
 import {STORE} from '../../shared/evidence.ts';
+import {deployment} from '../../shared/deployment.ts';
+import {shopifyOrigin} from './deployment.ts';
 
 export const REQUIRED_SCOPES = ['read_orders', 'read_customer_events', 'write_pixels'];
 export function shopifyClient() {
   const apiKey = process.env.SHOPIFY_CLIENT_ID;
   const apiSecretKey = process.env.SHOPIFY_CLIENT_SECRET;
   if (!apiKey || !apiSecretKey) throw new Error('Shopify credentials are not configured in Convex.');
+  if (deployment.kind === 'local' && apiKey !== deployment.clientId) throw new Error('Wrong development app identity.');
   return shopifyApi({apiKey, apiSecretKey, apiVersion: ApiVersion.October26,
-    scopes: REQUIRED_SCOPES, hostName: 'neighborly-nightingale-843.convex.site',
+    scopes: REQUIRED_SCOPES, hostName: new URL(shopifyOrigin()).host,
     isEmbeddedApp: true, logger: {log: () => {}}}); // SDK errors can contain tokens: never log them.
 }
 export async function verifyMerchant(token: string) {
@@ -18,8 +21,9 @@ export async function verifyMerchant(token: string) {
     const dest = new URL(claims.dest), issuer = new URL(claims.iss);
     if (dest.origin !== `https://${STORE}` || dest.pathname !== '/' || dest.search || dest.hash ||
         issuer.origin !== dest.origin || issuer.pathname !== '/admin' || issuer.search || issuer.hash ||
-        !Number.isFinite(claims.exp) || claims.exp * 1000 <= Date.now() ||
-        !Number.isFinite(claims.nbf) || claims.nbf * 1000 > Date.now() || !claims.sub) throw Error();
+        // The SDK verifies exp/nbf with its 10-second clock tolerance. Require
+        // both numeric claims here, without overriding those verified bounds.
+        !Number.isFinite(claims.exp) || !Number.isFinite(claims.nbf) || !claims.sub) throw Error();
     return STORE;
   } catch { throw new Error('Shopify session is invalid or expired.'); }
 }

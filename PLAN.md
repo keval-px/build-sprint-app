@@ -46,10 +46,10 @@ Current app URL: https://neighborly-nightingale-843.convex.site/api/shopify/app.
 
 #### 3. Make every displayed amount explainable
 
-- The summary and action cards use one shared calculation over distinct eligible sessions, with overlapping groups counted once in the summary.
+- The summary uses all unrecovered Shopify abandoned-checkout records in the selected dates. Action exposure uses distinct unfinished tracked sessions with recorded basket values. These are separate cohorts and must not be presented as the same total.
 - Show only observed, explicitly sourced basket values. Unknown stays Unknown when no basket is linked; never replace it with AOV, zero or a price-based guess. AOV remains purchase context.
 - Show linked-session coverage next to each subtotal. Keep the original exported total out of the session summary unless those records form its verified cohort.
-- Keep any recovery percentage explicitly hypothetical. No measured recovery probability, lost-sales claim, monthly savings, confidence interval or critical incident label without supporting evidence.
+- Do not use blanket recovery percentages. Estimated recovery requires a confirmed case, comparable merchant outcomes, an explicit future horizon/volume and post-fix basket values. Demo data displays Not estimated yet. Measured recovery and future sales protected are different quantities.
 - Done when: summary and action amounts reconcile to their listed linked sessions; a merchant can open details and see the source, denominator and calculation. Missing snapshots/links and recovered/completed sessions are checked too.
 
 #### 4. Improve the investigation, not the amount of text
@@ -295,3 +295,225 @@ Verified in Shopify admin: default 30-day values, Last 7 days preset, and custom
 Fixed the oversized date popover with native Polaris inlineSize 340px / maxInlineSize 100%, preserving native calendar styles. The official TypeScript declarations support pixel/percentage sizing; the generated manifest drops these template-literal units, so the local component checker now accepts only those numeric sizing units on sizing attributes. Shopify helper, type checking and build passed.
 
 Desktop inspection also showed that a Shopify-forwarded header action could not anchor the overlay inside the app frame. Moved the date button into the app's top row so it stays visible on phones and the popover opens beside it. Verified the installed Shopify app on desktop and the identical public calendar at a real 390px browser viewport: screenshot reviewed, no horizontal page overflow, custom October 1 selection applied to zero sessions, calendar closed, and Last 30 days restored. Public-preview values remain distinct from authenticated app values. All 31 tests pass. No custom calendar styles, new store records or permission changes.
+
+
+## 2026-10-06: Minimal Shopify abandoned-basket summary
+
+The summary now shows three metrics from all unrecovered Shopify abandoned-checkout records in the selected creation-date range: total product subtotal, checkout count, and total divided by count. It no longer requires a link to pixel sessions and does not use completed-order AOV or an assumed recovery percentage. Missing prices make the complete total and average Unknown rather than counting missing values as zero. Zero checkouts gives $0 total and no average.
+
+The shared demo page receives only aggregate metrics from the existing synced build-sprint-demo snapshot; private orders and individual abandoned-checkout records remain behind Shopify authentication. The public page reads the last sync rather than initiating a privileged sync. Tracked-session action exposure remains separate and overlapping action groups must not be added. PRODUCT.md's baseline/intervention approach remains the intended leakage measurement; the old 1–5% action scenarios are still assumptions, not evidence of email or fix recovery.
+
+Verified the published shared page at desktop and 390px phone width: $19,349.95 / 32 = $604.69 (rounded). Selecting 1 October gives $0, 0, and no average; restoring Last 30 days restores the totals. All 33 tests, TypeScript, and native v2.0 RC component checks passed.
+
+
+## 2026-10-06: Merchant-facing copy pass
+
+Applied concise labels throughout overview and drill-down: Completed checkouts, Unfinished checkouts, View checkouts, Review checkout form errors, Review unfinished checkouts, Recorded basket value, and plain coverage counts. Shortened investigation explanations, replaced repeated test wording with one demo-data footer, and retained price-source limitations in details. Completed timeline details now display Status: Completed rather than a misleading last-progress label from a restarted checkout. No metric, identity, event-order, or recovery calculation was changed. The 1–5% action estimate remains explicitly an assumption. All 33 tests and native v2/build checks pass; published desktop and 390px phone layouts, action details, and completed timeline checked in browser.
+
+
+## 2026-10-06: Scenario-based recovery and actionable checkout investigations
+
+User explicitly expanded the improvement scope: move from a blanket recovery percentage to case-specific intelligence, research the shopper psychology and competitors, and continue without routine approval pauses. See CHECKOUT_RECOVERY_RESEARCH.md for primary sources. Added an eight-case library distinguishing blocked buying, promotion expectations, validation friction, inventory, extension failures, unexpected delivery cost/date, and ordinary unfinished checkouts. Inventory and extension events are explicitly marked not yet collected. Shipping and discount investigations now use their actual stored alert categories, with distinct next actions and saved checklists. Empty error groups are hidden; potential functional issues come first, followed by promotion issues, form errors, and unconfirmed unfinished journeys.
+
+Replaced visible 1–5% guesses with Estimated recovery. The model requires a verified merchant-fixable cause, valid known basket values, explicit comparable future volume/horizon and post-fix basket values, and a comparable store baseline. Functional cases use normal completion at the relevant stage; expectation/friction cases require measured same-case improvement, with conservative proportion bounds. Discounts must use post-change values. Historical unfinished baskets do not prove old buyers return. The demo deliberately displays Not estimated yet because generated test sessions cannot measure real shopper response; live baseline measurement is not wired and this is not a production-readiness claim.
+
+Actual browser testing uncovered that a rejected code was emitted as input validation. Added local-only normalization of safe discount field paths and an exact reproduced error template, discarding raw text, targets and entered values. Released keval-test-app-3 and then -4 with unchanged scopes. Stopped the stale dev preview on build-sprint-demo to restore the released version. Final real retest produced two discount alerts in one existing checkout, and the public UI displayed Investigate repeated discount errors. Public category correction applies only to event identities already public; additional private sessions/prices/Shopify records remain private. No historical categories were manually invented or overwritten.
+
+39 tests and native v2.0/build checks passed. Backend and frontend published to existing Convex development preview. Browser verification of final desktop/phone action and scenario library follows. Real-merchant baseline, verified functional shipping reproduction, actual intervention response and measured recovery remain outstanding.
+
+Final verification: released pixel -4 recognized two discount alerts for one real, deliberately unfinished demo checkout. Published discount investigation and eight-case library checked in browser. Historical generic validation alerts remain unchanged; the app does not claim an exact code, a verified broken promotion, or recovered money. Browser timeouts recovered by using a fresh preview tab. Final build and39tests pass.
+
+Final visual checks completed: public scenario library at390px, affected discount checkout link, promotion checklist opening, and installed Shopify app. Installed app confirms $600 recorded product subtotal for the one discount-test checkout. Recovery remains unavailable because no real-customer baseline/intervention data exists. No arbitrary percentage remains in the visible UI.
+
+## 2026-10-07: Shipping false-alarm correction and inventory investigations
+
+Released pixel versions 5 and 6. Routine shipping-selection changes no longer generate new delivery-error suggestions; older alerts retain an explicit investigation label. A genuine no-rate checkout produced a delivery alert, with an accompanying availability warning that prevents a shipping-only causal claim. Original product assignment restored and normal delivery options retested.
+
+Inventory and merchandise alerts now produce their own “Review unavailable items” card, affected-checkout filter, timeline category and saved checklist. Reproduced an actual Out of stock dialog in the demo; the alert reached Convex and generated one suggestion on both authenticated and public evidence feeds. Restored Liquid to the general profile and verified it was purchasable again. Removed-item value is “Not recorded” because zero current subtotal is not the value of an unavailable item. Forty-two tests and native UI/build checks pass; published all changes. CHECKOUT_SCENARIO_TESTS.md contains detailed proof and limits. Real-customer recovery measurement and item-level availability pricing remain outstanding.
+
+Item-level availability pricing is now implemented and browser-verified: a fresh real test recorded $749.95 before the availability alert, retained that value after removal, and restored the product afterward. Currency comes from Shopify's store settings; native purchases/abandoned totals use shopMoney, while item conversion requires same-checkout paired buyer/store amounts. Missing conversions, mixed ambiguous removals and stale evidence remain excluded. Checked desktop and 390px layouts, published backend/frontend/pixel 8, and passed final tests/build. A foreign-currency purchase remains a live-test gap because all current demo purchases are USD. Detailed accounting rules and evidence are in CHECKOUT_SCENARIO_TESTS.md.
+
+Shipping severity follow-up completed: reproduced a fresh shipping-only price-threshold blocker with an available $749.95 demo item, verified Critical end to end and kept four general alerts distinct in the explanation. Restored all temporary shipping settings and verified Standard/Express rates again. Released collector keval-test-app-11; 59 tests pass. Historical test evidence remains visible; no measured recovery is claimed.
+
+Fix follow-up completed: server-saved Fix applied markers, an undo option, and before/after checkout results. Verified with an actual demo gateway order: one previously affected checkout completed after the marker, and the resumed checkout was not counted as new. Store markers are authenticated; public demo markers are isolated by browser. Reload/undo/390px layout verified. No inferred savings or causal attribution; results refresh on request.
+
+Five-checkout follow-up verified: three gateway test orders and two unfinished browser checkouts. Results now show 3/6 new checkouts completed and 0/6 shipping alerts, including one earlier unfinished post-marker checkout. The existing affected cohort remains 1/5 completed after marker. These controlled demo outcomes validate tracking only; no causal improvement claim is made.
+
+### Basket value correction — 7 October 2026
+
+Confirmed Shopify Admin lists 39 unrecovered checkouts totaling USD23,579.75. The prior overview summed USD23,549.75 in product subtotals, excluding USD30 shipping. Added Shopify total-price fields while retaining subtotals for product-value action calculations. Completed drill-down rows now use exact matched order prices (e.g. Order#1014 USD1,200, #1013 USD1,299.95, #1012 USD774.90).
+
+GraphQL recovery URLs use an encoded recovery identity, which is not the original pixel checkout token. Removed the attempted URL-based join. The fixed development store's existing legacy compatibility reader supplies original checkout-token hashes, joined to GraphQL prices only by exact native checkout ID; all39 records match actual observed sessions. Payment-error price coverage improved from1/11 to11/11, USD6,600 in product subtotals. Neither tokens nor recovery URLs are stored or exposed. This legacy reader is demo-specific and must be replaced with a supported identity path before a new public Shopify app rollout. Unknown values remain for old start-only sessions without server records or observed price.
+
+Verified browser overview and drill-down after Convex deployment; unit tests cover exact-ID joins, ambiguous links, source priority, real zero values, currency filtering, shipping-inclusive totals, and missing values.
+
+## Supported checkout-price receiver — 7 October 2026
+
+Removed the legacy REST checkout reader from normal sync and retired the owner-run compatibility command. GraphQL sync preserves previously verified session hashes by the exact saved GraphQL record hash; it never guesses historical identities from dates, prices or recovery URLs.
+
+Implemented signed `checkouts/create` and `checkouts/update` notifications using Shopify API 2026-10. Requested payload fields are only token, created_at, updated_at, currency, subtotal_price, total_price and completed_at. Raw checkout tokens become the existing pixel session hash before saving. No customer fields or recovery URLs are persisted. Prices are stored per exact session, reject stale updates, retain terminal completion, support currency precision and replace historical per-session prices without double counting. GraphQL remains the source of aggregate abandoned totals and matched order prices.
+
+Activation is pending explicit approval. Automatic approval review rejected enabling the subscriptions because checkout data would be sent from Shopify to Convex. An app refresh had already enabled them before that rejected command; both subscriptions were removed, and the receiver now also requires SHOPIFY_CHECKOUT_PRICES_ENABLED=true. Read-only status confirmed zero active checkout-price topics. Normal sync does not activate subscriptions. Owner-only enableCheckoutPrices and checkoutPriceStatus actions provide activation and verification after approval. User approval must name the checkout-token/date/currency/price/completion data and the app's Convex endpoint.
+
+83 tests pass, including correct/incorrect Shopify signatures, foreign-store rejection, privacy stripping, currency precision, stale/duplicate updates, exact historical joins and completed-checkout totals before order sync. Live browser verification confirms the existing 39 abandoned baskets still total $23,579.75. A real Shopify notification delivery must be tested after approval; synthetic test fixtures were not inserted as shopper evidence.
+
+### Checkout-price activation verified — 7 October 2026
+
+The user explicitly approved sending checkout tokens, dates, currency, prices and completion status to this app's Convex endpoint. Set SHOPIFY_CHECKOUT_PRICES_ENABLED=true and enabled both CHECKOUTS_CREATE and CHECKOUTS_UPDATE with only the seven requested fields. Read-only status confirmed both topics at the intended endpoint.
+
+Created a real development-store checkout for one Liquid snowboard using synthetic contact/address details, without placing an order. Shopify displayed USD $749.95 subtotal plus $30 International Shipping, total $779.95. The signed notification receiver saved one anonymous session-price record with subtotalCents=74995 and totalCents=77995; updates retained a single record. The live drill-down's newest row #a99987d7f9dd… displayed $779.95 and no recorded errors, matching the checkout total. Existing historical matches remained intact. Screenshot: /private/tmp/checkout-price-notifications-live.png.
+
+No further deployment was required for activation; the receiver and frontend were already deployed and tested in the preceding turn. Replacement code has not yet been saved to the public GitHub snapshot.
+
+### Recommendation quality gate — 7 October 2026
+Routine card-entry mistakes, basic Shopify form validation, unqualified discount rejections and missing completion no longer create recommendation cards. Their events remain in Checkout drill-down. Category counts alone do not establish merchant-fixable incidents.
+Current directly observed rule: at least two distinct checkouts with confirmed no-shipping messages and no purchase after their last blocker. The recommendation asks the merchant to confirm intended eligibility; it does not claim a store outage or an abnormal baseline spike. Only qualifying checkout identities contribute its basket value. Other recommendations require verified eligibility/provider cause or a comparable merchant baseline before activation. Existing fix records are preserved; suppressed categories are not displayed as recommendations.
+
+### Alert priorities and order patterns — 7 October 2026
+Prioritise shipping availability, verified payment-provider failures, and eligible advertised discounts that fail. Ordinary declines, invalid codes and basic validation remain session details. Shipping already has a direct repeated-blocker rule; payment and discount recommendations remain disabled until cause/eligibility evidence exists. Do not equate a generic payment message or discount rejection with a merchant fault.
+Added an hourly order comparison: the latest synced day versus the previous 30 complete UTC days. Sync starts at midnight 30 days earlier so a complete baseline can be obtained. Paid, uncancelled Shopify orders only; duplicate identities excluded. Partial history is explicitly labelled and future hours are not zeros. Public preview receives aggregate counts only. The chart is a descriptive view, not an outage detector or a recovery estimate; test purchases do not establish a production baseline.
+
+Chart renderer now uses Shopify's official Polaris Viz LineChart, Light theme, solid current-day line and dotted comparison line on a shared axis. Custom SVG renderer removed at user request. Surrounding UI remains App Home v2.0 RC; official chart React dependencies load separately. Data/window rules are unchanged.
+
+
+### Store-local chart refinement — 7 October 2026
+Order sync now reads Shopify Shop.ianaTimezone and starts at the store's local midnight 30 calendar days earlier. Hourly counts, day labels and previous complete-day averages use that zone. Partial source coverage is excluded; spring-forward missing hours do not count as zero observations, and repeated fall-back hours collect both occurrences. Old snapshots retain UTC until refreshed.
+Reviewed Shopify's official Polaris data-visualization guidance and Polaris Viz analytics-experience guidance: retain compact native chart spacing, clearly labelled numeric/time axes, a simple comparison legend and relevant operational metrics. Axis uses whole order counts; accessible table and tooltip retain fractional averages. Time zone and current-hour “In progress” appear in the tooltip rather than adding page copy. Existing 2:1 desktop layout and stacked phone layout retained.
+Read-only installed-app refresh confirmed America/New_York from Shopify. Browser accessible table shows today's one order at02:00 and four at05:00, matching the previous06:00/09:00 UTC observations. Average values remain0.1,0.03,0.07,0.37 rather than rounding to zero. Public and embedded pages agree. Desktop and390px phone screenshots inspected; phone client/scroll widths both390, no public browser errors. Tooltip formatting is configured but direct tooltip interaction was not re-tested in this turn.93 tests and build/TypeScript/v2.0 manifest checks pass. Backend and frontend published; final static release cbe475f7-6241-48b5-85b9-3354aacdf4b6. Screenshots /private/tmp/checkout-store-time-desktop.png and /private/tmp/checkout-store-time-phone.png.
+Sources: https://polaris-site-prod-kit.shopify.prod.shopifyapps.com/design/data-visualizations (search-index excerpt; full page returned502); https://github.com/Shopify/polaris-viz/blob/main/ANALYTICS_EXPERIENCES.md ; https://shopify.dev/docs/api/admin-graphql/2026-10/objects/Shop . Demo orders remain a test dataset, not a production sales baseline.
+
+## Compact recommendation rows — 7 October 2026
+
+Converted the existing recommendations to compact expandable rows inspired by the reviewed Health Dashboard design. Collapsed rows show the original title, severity, first factual summary sentence and affected-checkout percentage. Detailed basket values, fix goals, alert dates, Mark as done, fix results and checklists stay inside the expanded panels. Preserved the current recommendation eligibility rules and data calculations.
+
+Verified desktop and 390px mobile layouts, keyboard expansion, live show/hide behavior and no horizontal mobile overflow. Tested Mark as done and reopening using the local demo viewer, then restored its original unmarked state. All 93 existing tests pass; TypeScript, the installed Polaris v2 manifest check and production build pass. Shopify's separate layout helper validated the common components against its available v1.1 schema; the installed manifest validates the actual v2 components. Fixed the container-grid alignment revealed by the first visual pass and confirmed the final responsive layout in the second pass.
+
+Deployed with npm run deploy: 74aba25f-cde0-430a-a791-f2a25b2978a1. Live screenshot: /private/tmp/compact-recommendation-rows-live.png. This UI update has not yet been saved to the public GitHub snapshot.
+
+
+### Matching-weekday comparison — 7 October 2026
+Replaced the all-day hourly baseline with complete matching weekdays within the preceding30 store-local calendar days. A Wednesday compares with previous Wednesdays, including covered zero-order days; other weekdays do not contribute. Today, uncovered partial days, cancelled/unpaid orders and duplicates remain excluded. No matching history yields no average rather than a fabricated zero. DST and half-hour time-zone tests cover matching weekdays. The legend shows weekday and observed-day count (currently Wed average ·4 days). Added native App Home v2.0 RC Box paddingBlockStart=base above the official chart.93 tests and TypeScript/build/v2 manifest pass. Shopify skill helpers cannot validate v2 (search supports only v1; validator lacks its TypeScript dependency); current official v2 Box docs and the project's v2 manifest check were used instead.
+
+Published release cfa60811-230e-4597-8de5-7e801a3a7955. Desktop and390px phone screenshots inspected:16px extra top space,2:1 cards on desktop, stacked on phone, no horizontal overflow or browser errors. Current four covered Wednesdays have no paid orders, so their average is factually zero; no synthetic comparison orders inserted. Screenshots /private/tmp/checkout-weekday-desktop.png and /private/tmp/checkout-weekday-phone.png.
+
+### Expanded metrics simplified — 7 October 2026
+
+Removed the Fix goal/Estimated recovery metric column and the basket-coverage subtitle from expanded recommendations. The affected-checkout value now reads `2 / 78 checkouts` using live counts, replacing the expanded percentage and its duplicate count line. The collapsed summary percentage stays unchanged. Expanded metrics use a native responsive two-column grid and stack on narrow screens. No replacement third metric was invented, and no 99% coverage claim was added.
+
+Build, TypeScript and installed Polaris v2 manifest checks pass. Verified the exact two values in local preview and the deployed page; the live 390px viewport has no horizontal overflow. Deployed with npm run deploy: f342dd82-1b9d-4214-b4a8-5e64f26c9497. Screenshot: /private/tmp/expanded-metrics-simplified-live.png.
+
+
+### Fresh order chart check — 7 October 2026
+Placed one actual browser checkout in build-sprint-demo using synthetic contact/address data and Shopify Test Payment Gateway (approved transaction value1). One Hydrogen snowboard, quantity1, subtotal/total$600, Standard shipping free. Shopify confirmation MVMQ8AJTT. No real payment charged and no synthetic order was inserted directly into Convex.
+Before: today's paid orders5,09:00 America/New_York count0; completed checkouts22 of78. Opened installed keval-test-app to perform its existing read-only purchase sync after checkout. Both embedded and shared page show today's orders6,09:00 count1 and23 completed of79. Existing02:00 count1 and05:00 count4 unchanged; matching-Wednesday baseline remains0 across4 prior Wednesdays. Abandoned aggregates remain40/$24,179.75/$604.49.
+Fresh session #0b8a02f6e8e7… has6 recorded events including checkout start/contact/address/shipping/payment/completion,0 alerts, and Completed status. Event arrival shows payment submission timestamp after completion; no change was made to source timestamps or fabricated ordering. Public session basket prices are Unknown in this view; this check verifies hourly orders and completion, not price-link coverage. Saved confirmation /private/tmp/chart-test-order-confirmed.png and inspected chart screenshot /private/tmp/chart-fresh-order-verified.png. No code changes or deployment required.
+
+
+### Automatic purchase sync — 7 October 2026
+Added Convex cron every minute using the saved offline installation and existing read-only queries. Expiring tokens refresh server-side through the official SDK; missing/disconnected/expired-refresh installations do not reconnect themselves. No new scopes/subscriptions/customer fields. Sync failure preserves prior snapshot and emits a generic safe error. Snapshot writes reject work after disconnect or a newer installation, including an uninstall between access lookup and save. Added safe owner-only diagnostic returning timestamps and counts, no credentials. Open overview quietly reads evidence every minute when visible; it does not call Shopify sync again. Existing manual initial sync remains.
+End-to-end: started with6 paid orders today/09:00 New York count1 and23 completions. Placed actual demo browser test order C501RFKFN, one$600 Hydrogen snowboard, free Standard shipping, synthetic customer/address, Test Payment Gateway approved value1. Never opened the installed Shopify app or manually ran sync. Backend scheduled sync reached24 orders; untouched visible public page automatically showed today's7 orders,09:00 count2 and24 completed of80. Weekday average stayed0; abandoned aggregate stayed40/$24,179.75/$604.49. Poll phases can produce about2minutes delay, not instant push.
+100 tests pass, including disconnect/reinstall race guard; build/TypeScript/v2 manifest pass. A shared-file UI edit introduced an unsupported group role and placed alert setup inside retry-progress; corrected to region and moved setup outside that handler before final build. Initial automatic-update screenshot /private/tmp/automatic-purchase-sync-verified.png. Final static release572cdac1-cde7-4c65-97f2-8a7063fbd576.
+
+## Remaining dashboard inspiration implemented — 7 October 2026
+
+The user asked to implement the remaining inspiration list and confirmed Jimmy’s Bakery is a dashboard-name change. The connected Shopify store is still build-sprint-demo and is identified alongside the successful data-update time.
+
+Implemented priority issues (up to three qualifying, unfinished investigations), counted quick filters, last observed steps, recorded step intervals, grouped error diagnostics with distinct checkout counts/first and last observations/later completion, comparable-period completion and alert rates, filtered checkout and event CSV exports, retained fix history including retests and undo, and focused in-app alerts. Existing recommendation eligibility remains evidence-based; priority summaries do not invent extra issues to fill three slots. Missing transitions and insufficient or truncated history remain unknown. Payment timing stays unknown if payment activity was not observed.
+
+Fix history uses a scoped archive that retains the saved baseline, application time, retest and undo time. Old inactive markers without a known undo time show that limitation rather than counting later activity. Team history stays behind the existing Shopify session checks; public demo history is viewer-specific. Tested mark, retest and undo using the local demo viewer and restored its original current status; the test archive intentionally remains.
+
+Alerts check once a minute while the app is open and visible, with browser-local preferences and dismissals. Shipping signals need distinct unresolved checkouts; error-rate increases require a measured recent baseline and minimum activity, and are suppressed with truncated history. No external messaging destination was connected. Automatic refreshes pause while a date picker or checkout dialog is open.
+
+Verification: 100 tests pass; TypeScript, the expanded installed-Polaris v2 manifest checker, and the production build pass. Checked desktop and 390px mobile behavior, priority-to-table navigation, counted filters, timelines, history and alert preferences in the browser. Actual CSV downloads contained 14 filtered payment-alert checkouts and 256 corresponding events. A real one-day comparison showed 7/18 completions against 6/10 in the prior day, with the current-period warning. Authenticated Shopify views, order prices, history and timing labels were verified live. The browser DOM inspection included hidden modal and error-message content; screenshots confirmed no visible error banner.
+
+Final deployment: 34cb73bb-2831-4d8e-b7ad-5dd12ed4331a. Saved public source commit: 8783ef9. The public snapshot preserves other existing project edits, including the order chart, background sync and subsequent recommendation simplification. Public-source scan checked 94 files with zero secret-pattern matches and zero .env files. npm verification also reported existing moderate notices in the development-only Shopify CLI dependency chain; no forced CLI downgrade was applied as part of the dashboard work.
+
+GitHub verification completed successfully for 8783ef9a3a378a9b99289a77af7c2bae181c86da: https://github.com/keval-px/build-sprint-app/actions/runs/37636187936. Final source and live assets match index-C3Hc_ArP.js. The public dashboard and mobile header were confirmed after deployment. Shopify requested a fresh account sign-in on the final authenticated-page reload; its prior authenticated history, filters, prices and timing checks had already passed.
+
+### Previous-period section removed — 7 October 2026
+
+Removed the requested Overview section, its render call and its unused UI helper. Build/type/component checks pass. Deployed with npm run deploy (5abcc0e1-797d-4acd-88cc-350b43b73c76) and verified the live dashboard contains no heading matching Compared with the previous period. Screenshot: /private/tmp/jimmys-bakery-comparison-removed.png. Saved to public source commit 4576809 after a 94-file scan with zero secret-pattern matches or .env files.
+
+### Manual Refresh button removed — 7 October 2026
+
+Removed the Overview Refresh button, its click listener and its loading-state references. Automatic background data refresh and focused-alert checks remain in place. Deployed using npm run deploy (3f7de293-0df2-44bd-85dc-1bfbe933be69). Build/type/component checks pass; live browser verification found zero buttons named Refresh. Screenshot: /private/tmp/jimmys-bakery-refresh-removed.png. Saved public source commit 239da5c after a clean 94-file secret-pattern scan with no .env files.
+
+## Evidence-specific recorded findings — 7 Oct 2026
+- Replaced category-only error summary with groups by recorded alert and strictly earlier checkout step. Shows distinct checkout count, total alerts, checkouts with repeated alerts, later completion count and last seen.
+- Each evidence button filters the exact group's checkout identities; tested live address-step form finding: 46 checkouts, 87 alerts, repeats in 37, later completion in 17. Category and step are context, not field identity or cause. Existing messages were discarded; no synthetic quotes, extension crashes or field-level diagnoses added.
+- 102 tests passed; typecheck, Polaris manifest and production build passed. Deployed via npm run deploy: 48d44c8a-a6b2-44c9-95da-f2f82d73cd32. Public source commits c6965ac and 4abf4a1; 94 tracked/staged files scanned with zero secret matches and zero env files.
+
+## Overall code and numeric audit — 8 October 2026
+- Requirements and verification recorded in AUDIT.md. Removed obsolete model/checklist/recovery/comparison/importer code and unused font, while retaining historical database records.
+- Corrected full basket-total accounting, signed-completion exposure exclusions, signal-specific shipping fix baselines and recurrence, simultaneous step grouping, public correction projection, stored pixel counts, stale exact filters and post-save focus. Shared refresh, tested table filtering/pagination and cached currency precision replace redundant work.
+- 96 retained feature/regression tests pass. Build checks now also reject unused code and missing static UI targets. Authenticated Shopify, public preview, desktop and 390px phone checks completed; all table pages, combined filters/search, popup timelines, marker/retest/undo, dates, alert preferences/checks and both CSV exports verified.
+- Public and private source reconciliation: 80 journeys, 24 completed, 56 unfinished, 779 events; 40 native abandoned baskets total $24,179.75 / average $604.49; shipping recommendation 2 unresolved identities / $1,499.90. Real exports: 80 rows and 779 events; independently verified all 80 prices, 70 recorded / 10 unknown, with zero preserved. Isolated local demo markers undone; merchant markers unchanged.
+- Final deployment f6d92f40-57d5-44cf-98d7-9c02ae00075a, main JS index-BEjlbgdY.js, chart orderChart-CqvZ2q6Q.js. Main JS about 21% smaller; unused font removed. Public staged/tracked scan: 86 files, zero secret matches or env files.
+- Remaining pilot limits and four moderate development-tool advisories documented in AUDIT.md. No production-scale/Slack/AI claims, synthetic field diagnoses or 99% basket coverage promise added.
+- Public commit c35c68d74e6fccfe47e07d90864a93a18e2435b7 pushed; GitHub checks run 37671783894 completed successfully. Final authenticated and public reloads retained reconciled totals and no visible request error. Screenshots: /private/tmp/checkout-audit-live.png and /private/tmp/checkout-audit-mobile.png. Temporary browser viewport reset, previews closed; authenticated app left open.
+
+## Pending to-do list — saved 8 October 2026
+User asked to remember these follow-ups; this records the backlog without starting work.
+
+- [ ] **Next:** remove the latest-1,000-events reporting limit using server-side summaries; verify totals and journeys with higher-volume test data.
+- [ ] Replace the 10,000-record collection cap with a retention plan that preserves reliable reporting.
+- [ ] Add safe, specific error details for future findings; keep buyer-entered values out of collected data and avoid inventing details for old events.
+- [ ] Investigate the 10 journeys with unknown basket prices; keep Unknown until an exact source match exists.
+- [ ] Resolve the four moderate Shopify development-tool dependency advisories when a compatible fix is available; avoid a forced major downgrade.
+
+Slack delivery and AI diagnosis remain future product milestones in PRODUCT.md, outside this immediate cleanup backlog.
+
+## Table control refinement — 8 October 2026
+- Removed the duplicate alert-type dropdown. Category filtering remains in the counted quick-filter buttons, with selected category kept in application state rather than a hidden dropdown.
+- Moved checkout/event exports alongside the Checkout sessions heading above the table card. Search, status and sort remain inside the card.
+- 96 tests/build passed; live quick filters verified: payment 14, shipping unavailable 3, All 80 with 24 per page. DOM check confirms export buttons sit outside s-section. Source scan: 86 files, zero secrets/env files. Deployment 3840e8fc-80ce-4d87-bbc3-184265e1fd13; screenshot /private/tmp/checkout-table-controls.png.
+
+## Plain export buttons — 8 October 2026
+Both export actions now use Shopify's tertiary button variant with the official export icon. Live background verified transparent; component check/typecheck/build passed. Source scan: 86 files, zero secret-pattern matches or env files. Deployment 62ee06b0-55bf-47d3-a0bb-3f9c50b91d10; screenshot /private/tmp/plain-export-buttons.png. Export handlers unchanged.
+
+## Table date picker and combined export menu — 8 October 2026
+- Added a tertiary calendar action labeled Last 30 days beside the table's Export action. It opens the existing shared date picker and both view labels stay synchronized.
+- Combined exports in Shopify s-menu; both checkout and event choices retain their working download handlers. Export trigger and items are disabled during loading/empty results. The open menu joins the existing overlay guard for automatic refresh.
+- Component validation/typecheck/build passed; verified both actual download choices, changing to Last 7 days and restoring Last 30 days, and 390px layout without horizontal overflow. Public source scanned: 86 files, no secrets/env files. Commit b43afee; deployment eff46c30-a6c4-47ca-8263-91cefe247041. Screenshot /private/tmp/table-date-export-menu.png.
+
+## Main-only export icon — 8 October 2026
+Removed icons from both export menu options. Shopify's menu activator suppresses the ordinary button icon, so the main button now uses a supported s-icon within its label, hidden from assistive technology via aria-hidden. Live check confirms one main export icon and text-only menu items; component check/typecheck/build pass. Secret scan: 86 files, no matches/env files. Deployment f4a65007-3ee3-4412-8d71-dd16629ea221.
+
+## Basket sync freshness — 8 October 2026
+Added Last Shopify sync timestamps beneath abandoned basket totals and above the checkout table. Both read only the successful Shopify snapshot sync time, with the public aggregate sync time as fallback; sampledAt/page-refresh time is never substituted. No successful sync has an explicit empty state. Verified both labels show 8 Oct, 11:14:03 in the authenticated app and order prices remain present. Preserved concurrent removal of top-level store metadata and fixed dashboard name across views. Current source schedules Shopify sync every minute; corrected the earlier five-minute statement. Component check/typecheck/build pass; scan 86 files, no secrets/env files. Deployment ede3a012-ba11-4b7d-b183-1a577881ced1.
+
+## Remove merchant-facing sync labels — 8 October 2026
+User decided sync timestamps are not merchant-friendly. Removed both labels and their rendering code; backend sync and values remain active. Verified zero sync-label elements and $600.00 recorded order price in authenticated drill-down. Component check/typecheck/build passed; staged scan 86 files, no secret matches/env files. Deployment 72c81c8f-4187-4867-8d63-bc3db9c58543; screenshot /private/tmp/basket-sync-labels-removed.png. Preserve this preference in future UI changes.
+
+## Chart data check — 8 October 2026
+User reported lost chart data. Verified live chart and stored Shopify snapshot: all 24 paid orders remain (5 Oct: 11, 6 Oct: 6, 7 Oct: 7). Chart now displays 8 October in America/New_York, with zero paid orders that day. Current graph intentionally selects store-local today plus the same-weekday hourly average; the selected dashboard date range does not change its day. The apparent disappearance is the store-local day rollover. Five order-pattern tests pass; no stored data or chart algorithm changed. Date-scope clarity / chart date selection is a possible product follow-up, pending user direction.
+
+## Chart follows the date picker — 8 October 2026
+- Selected ranges plot daily paid-order counts; selecting one calendar date plots that date's hourly orders. The chart shows its selected dates and recorded-order total rather than always switching to store-local today. Range dates use the store's timezone, as did the prior hourly chart.
+- Prior same-weekday comparison remains, using only earlier fully covered dates. Future/uncovered dates and missing baselines stay null; observed partial-day orders remain in the recorded total with partial-history notice. No synthetic zero history or new retained order data.
+- Public preview requests date-aware aggregates with the selected calendar range; the authenticated app derives the same chart from its full synced snapshot. Legacy API requests without a range retain the old hourly response. Async chart rendering ignores outdated results when dates change.
+- Verified current stored 24 paid orders: 5 Oct 11, 6 Oct 6, 7 Oct 7; the selected 30-day chart contains all 24 despite 8 Oct having zero. Browser checks verified default range, selecting 7 Oct (hourly 7 orders), public preview parity and 390px layout without overflow. Short readable date captions and single-day picker label added.
+- 105 tests pass in both workspace and public export, including date rollover, range validation, partial coverage, duplicate/cancelled/unpaid exclusions, daily averages and prior DST cases. Build/component/type checks pass. Copied compatible concurrent store-branding/pixel-session/extension updates rather than overwriting them; no new Shopify permissions or order capture were introduced by the chart change.
+- Source scan: 88 files, zero secret-pattern matches or env files. Deployment bdaebf4e-796e-4bc6-b1ce-6291970e2294; main index-yf88Iae0.js, chart orderChart-7MEAGU-t.js. Screenshot /private/tmp/selected-date-order-chart.png. Existing reporting-limit backlog remains queued.
+
+## New test order verified end to end — 8 October 2026
+User requested placing a new order to check the app. Used the demo storefront's Buy it now flow for one Hydrogen snowboard and the visibly confirmed Test payment gateway (approved test card 1, future expiry, fictional QA buyer with reserved example.com email). Standard shipping free; test order #1025 confirmed at $600.00. No real card or payment was used and no payment/shipping settings were changed.
+
+Read-only backend checks: stored paid orders and selected-range chart rose from 24 to 25; order #1025 has test=true, paid=true, totalCents=60000, exact session link, captured checkout_completed, seven events and a signed checkout price of 60000 with recovered=true. Store-local today has one order. Authenticated UI confirms Order #1025, $600.00, Completed after an error, and chronological details showing seven events/two form alerts followed by completion, elapsed 03:22. Chart caption shows 25 recorded orders; checkout completion 25/83 at verification. Retained the test order; no cancellation or fulfillment action was taken.
+
+Proof: /private/tmp/test-order-1025-confirmed.png and /private/tmp/test-order-1025-dashboard.png. No code change or deployment was needed. Test credentials verified against Shopify's current help page: https://help.shopify.com/en/manual/checkout-settings/test-orders/payments-test-mode .
+
+## Verified discount-offer investigation — 8 October 2026
+
+Implemented a bounded demo offer registry and discount-code identity capture. Only registered terms with a valid time, store currency, known spend and an empty observed competing-discount snapshot can mark a rejection as a promised-offer candidate. Two different unfinished checkouts rejecting the same offer produce a Warning; unknown codes, retries alone and later purchases do not. Card dates track the verified code, so unrelated invalid attempts cannot refresh it. The merchant sees the code, current recorded basket value, affected sessions and steps to compare current rules with the offer. No recovery percentage or claimed loss is invented.
+
+Real browser control, deliberate deactivation, two failures, unrelated-code exclusion, reactivation and successful same-basket retest completed. See CHECKOUT_SCENARIO_TESTS.md. The demo monitor window is closed after testing. Live campaign enrollment/configuration sync remains future work; this does not silently certify arbitrary code eligibility.
+
+## Fixed hourly order patterns — 8 October 2026
+User clarified the chart must remain hourly and fixed: today at each clock hour versus the average at that hour over the previous 30 complete store-local days. This supersedes the date-aware daily chart decision.
+- Removed the daily/single-selected-date chart branch and its unused types. Date selection still filters the other dashboard/table data; this chart's scope stays explicitly Today vs last 30 days.
+- Baseline includes every previous complete day, including zero-order days and different weekdays; current day is excluded. Missing source history is labeled with the actual available-day count. Future today hours remain null; existing daylight-saving denominator handling is retained.
+- Today's single per-hour observation is the count for that hour; legend reads Today’s hourly orders. Comparison reads 30-day hourly average when all 30 days are covered.
+- Six focused chart tests and all 109 current tests pass in workspace/public export; production builds match. Independent live check verified every hourly value: 30 baseline days / 24 previous orders, one today; historical nonzero averages include hour 2: 4/30, hour 5: 4/30, hour 7: 1/30, hour 9: 4/30, hour 10: 11/30.
+- Verified authenticated chart has hour labels and both series; selecting Last 7 days leaves chart scope unchanged, then restored Last 30 days. Updated stale general audit predicate to include existing extension-error events; live metrics audit passes.
+- Public source scan 92 files, zero secret-pattern matches or env files. Deployment 932c0bb8-997b-4ba5-876d-ae85b4013755; index-CxpOyn_6.js and orderChart-CePVEWnO.js. Compatible concurrent source changes preserved.

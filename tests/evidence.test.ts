@@ -47,3 +47,10 @@ test("recovery requires an error before completion and ignores later progress", 
   assert.equal(describeJourney([completion, {...alert, timestamp: now + 4000}]).outcome, "Completion observed");
   assert.equal(describeJourney([alert]).lastProgress, "Progress not observed");
 });
+
+test('shipping blocker labels are accepted only on delivery alerts',()=>{
+ assert.ok(parseTestEvent({...event({name:'alert_displayed',category:'delivery'}),shippingBlocker:'no_shipping_available'},now));
+ assert.equal(parseTestEvent({...event(),shippingBlocker:'no_shipping_available'},now),null);
+ assert.equal(parseTestEvent({...event({name:'alert_displayed',category:'payment'}),shippingBlocker:'no_shipping_available'},now),null);
+ assert.equal(parseTestEvent({...event({name:'alert_displayed',category:'delivery'}),shippingBlocker:'raw address'},now),null);
+});

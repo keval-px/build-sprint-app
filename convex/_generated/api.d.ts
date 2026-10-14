@@ -9,15 +9,17 @@
  */
 
 import type * as abandoned from "../abandoned.js";
-import type * as catalog from "../catalog.js";
-import type * as checkoutMatching from "../checkoutMatching.js";
+import type * as checkoutPrices from "../checkoutPrices.js";
+import type * as capacity from "../capacity.js";
+import type * as crons from "../crons.js";
 import type * as events from "../events.js";
+import type * as fixes from "../fixes.js";
+import type * as freshDiagnostics from "../freshDiagnostics.js";
 import type * as http from "../http.js";
 import type * as lib_checkoutMatching from "../lib/checkoutMatching.js";
 import type * as lib_shopifyAuth from "../lib/shopifyAuth.js";
 import type * as lib_shopifyQueries from "../lib/shopifyQueries.js";
-import type * as progress from "../progress.js";
-import type * as purchases from "../purchases.js";
+import type * as promisedOffers from "../promisedOffers.js";
 import type * as shopify from "../shopify.js";
 import type * as shopifyEvents from "../shopifyEvents.js";
 
@@ -29,15 +31,17 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   abandoned: typeof abandoned;
-  catalog: typeof catalog;
-  checkoutMatching: typeof checkoutMatching;
+  checkoutPrices: typeof checkoutPrices;
+  capacity: typeof capacity;
+  crons: typeof crons;
   events: typeof events;
+  fixes: typeof fixes;
+  freshDiagnostics: typeof freshDiagnostics;
   http: typeof http;
   "lib/checkoutMatching": typeof lib_checkoutMatching;
   "lib/shopifyAuth": typeof lib_shopifyAuth;
   "lib/shopifyQueries": typeof lib_shopifyQueries;
-  progress: typeof progress;
-  purchases: typeof purchases;
+  promisedOffers: typeof promisedOffers;
   shopify: typeof shopify;
   shopifyEvents: typeof shopifyEvents;
 }>;

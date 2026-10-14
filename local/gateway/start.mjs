@@ -1,0 +1,11 @@
+import {readFileSync} from 'node:fs';
+import {resolve} from 'node:path';
+import {state} from '../settings.mjs';
+import {createSandboxGateway} from './proxy.mjs';
+import {createAuthentication} from './auth.mjs';
+import {loadPrivateConfiguration} from './private-config.mjs';
+const {assets}=JSON.parse(readFileSync(resolve(state,'build.json'),'utf8'));
+const server=createSandboxGateway({assets,authentication:createAuthentication(loadPrivateConfiguration().clientSecret)});
+server.requestTimeout=100000;server.headersTimeout=10000;server.maxHeadersCount=60;
+server.listen(6311,'127.0.0.1',()=>console.log('Shopify development gateway ready on http://127.0.0.1:6311/api/shopify/app'));
+for(const signal of ['SIGINT','SIGTERM'])process.on(signal,()=>server.close(()=>process.exit(0)));

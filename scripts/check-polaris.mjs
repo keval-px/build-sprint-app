@@ -4,7 +4,7 @@ import ts from 'typescript';
 // Validate against Shopify's published v2.0 manifest, not the v1-only skill helper.
 const manifest = JSON.parse(fs.readFileSync('node_modules/@shopify/polaris-types/dist/custom-elements.json', 'utf8'));
 const components = new Map(manifest.modules.flatMap(module => module.declarations ?? []).filter(item => item.tagName).map(item => [item.tagName, item]));
-const sources = ['index.html', 'src/main.ts'];
+const sources = ['index.html', ...fs.readdirSync('src', {recursive:true}).filter(name=>name.endsWith('.ts')).map(name=>`src/${name}`)];
 let checked = 0;
 const failures = [];
 // The generated manifest drops template-literal pixel/percentage units from
@@ -37,9 +37,20 @@ for (const file of sources) {
   }
 }
 const html = fs.readFileSync('index.html','utf8');
+// Catch handlers and calculations still targeting deleted UI elements.
+const availableIds=new Set([...html.matchAll(/id="([^"]+)"/g)].map(match=>match[1]));
+for(const file of sources.filter(name=>name.endsWith('.ts'))){
+ const code=fs.readFileSync(file,'utf8');
+ for(const match of code.matchAll(/id="([^"]+)"/g))availableIds.add(match[1]);
+}
+for(const file of sources.filter(name=>name.endsWith('.ts'))){
+ const code=fs.readFileSync(file,'utf8');
+ for(const match of code.matchAll(/(?:element|text)\(["']([^"']+)["']/g))if(!availableIds.has(match[1]))failures.push(`${file}: UI target ${match[1]} is missing`);
+}
 if (!html.includes('polaris-2.0-rc.js')) failures.push('Runtime must be pinned to Polaris v2.0 RC');
 if (/<(?:button|input|select|details|summary|div|section|h[1-6]|p|span|svg)\b/.test(html)) failures.push('Use Polaris components for visible HTML UI');
-const source = ts.createSourceFile('src/main.ts', fs.readFileSync('src/main.ts','utf8'), ts.ScriptTarget.Latest, true);
+for(const file of sources.filter(name=>name.endsWith('.ts'))){
+const source = ts.createSourceFile(file, fs.readFileSync(file,'utf8'), ts.ScriptTarget.Latest, true);
 function visit(node) {
   if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node) || ts.isTemplateExpression(node)) {
     if (/<(?:button|input|select|details|summary|div|section|h[1-6]|p|span|svg)\b/.test(node.getText(source))) failures.push('Use Polaris components for generated visible UI');
@@ -47,6 +58,7 @@ function visit(node) {
   ts.forEachChild(node,visit);
 }
 visit(source);
+}
 if (failures.length) { console.error([...new Set(failures)].join('\n')); process.exit(1); }
 if (process.argv[2]) {
   const rendered = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));

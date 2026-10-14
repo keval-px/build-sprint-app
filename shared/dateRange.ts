@@ -12,8 +12,8 @@ export function dateBounds(value:string){
   end.setDate(end.getDate()+1);
   return {start:start.getTime(),end:end.getTime()};
 }
-export function checkoutCohort(events:CheckoutEvent[],range:string){
-  const {start,end}=dateBounds(range);
+export function checkoutCohort(events:CheckoutEvent[],range:string|{start:number;end:number}){
+  const {start,end}=typeof range==='string'?dateBounds(range):range;
   const starts=new Map<string,number>();
   for(const event of events)if(event.name==='checkout_started')starts.set(event.sessionId,Math.min(starts.get(event.sessionId)??Infinity,event.timestamp));
   return events.filter(event=>{const at=starts.get(event.sessionId);return at!==undefined&&at>=start&&at<end;});

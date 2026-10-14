@@ -1,3 +1,4 @@
+import {deployment} from './deployment.ts';
 // Only anonymous USD product subtotals cross the server-data boundary.
 export function usdCents(money: unknown): number | null {
   if (!money || typeof money !== 'object') return null;
@@ -8,6 +9,6 @@ export function usdCents(money: unknown): number | null {
   return Number.isSafeInteger(cents) && cents >= 0 ? cents : null;
 }
 export async function recordDigest(kind: string, id: string) {
-  const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`build-sprint-demo.myshopify.com:${kind}:${id}`));
+  const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${deployment.store}:${kind}:${id}`));
   return [...new Uint8Array(bytes)].map(n => n.toString(16).padStart(2, '0')).join('');
 }

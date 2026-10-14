@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>EnvironmentVariables</key>
+	<dict>
+		<key>TZ</key>
+		<string>Asia/Kolkata</string>
+	</dict>
+	<key>Label</key>
+	<string>com.keval.checkout-simulation</string>
+	<key>ProcessType</key>
+	<string>Background</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/usr/local/bin/node</string>
+		<string>--experimental-strip-types</string>
+		<string>/Users/keval/Documents/build-sprint-app/local/simulation/batch.ts</string>
+	</array>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>StandardErrorPath</key>
+	<string>/Users/keval/Documents/build-sprint-app/.local/convex/simulation/schedule-error.log</string>
+	<key>StandardOutPath</key>
+	<string>/Users/keval/Documents/build-sprint-app/.local/convex/simulation/schedule.log</string>
+	<key>StartCalendarInterval</key>
+	<dict>
+		<key>Minute</key>
+		<integer>0</integer>
+	</dict>
+	<key>WorkingDirectory</key>
+	<string>/Users/keval/Documents/build-sprint-app</string>
+</dict>
+</plist>
