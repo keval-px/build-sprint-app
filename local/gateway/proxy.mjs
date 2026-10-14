@@ -6,6 +6,7 @@ const business = new Map([
   ['/api/shopify/status','GET'], ['/api/shopify/evidence','GET'],
   ['/api/shopify/session','GET'], ['/api/shopify/sync','POST'],
   ['/api/shopify/fixes','POST'], ['/api/shopify/pixel/enable','POST'],
+  ['/api/shopify/checkout','GET'], ['/api/shopify/checkout-events','GET'],
 ]);
 const signed = '/api/shopify/webhooks';
 // Build output names carry a content hash, so a cached copy can never be stale.

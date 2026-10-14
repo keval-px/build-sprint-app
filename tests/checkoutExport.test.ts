@@ -1,5 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {checkoutCSV,checkoutEventsCSV,csvCell} from '../shared/checkoutExport.ts';
+import {checkoutCSV as tableCSV,checkoutEventsCSV,csvCell,exportRow,type ExportJourney} from '../shared/checkoutExport.ts';
+const checkoutCSV=(rows:ExportJourney[],currency:string)=>tableCSV(rows.map(exportRow),currency);
 test('CSV quotes fields, blocks spreadsheet formulas and keeps unknown prices empty',()=>{
  assert.equal(csvCell('=HYPERLINK("x")'),'"\'=HYPERLINK(""x"")"');assert.equal(csvCell('  @formula'),'"\'  @formula"');assert.equal(csvCell('a,b'),'"a,b"');
  const row={id:'anonymous-id',label:'#123',startedAt:1000,completed:false,events:[]};

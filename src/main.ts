@@ -10,7 +10,7 @@ import {bindChartHelp} from './chartHelp';
 import {baselineCopy,storeAccessErrorCopy} from './dashboardCopy';
 import {shopifyRequestInit} from '../shared/shopifyRequest';
 import {simulationRecords} from '../shared/simulationDashboard';
-import {prepareEvidence,prepareFixes,type EvidenceResponse} from '../shared/evidenceResponse';
+import {prepareEvidence,prepareEvents,prepareFixes,type EvidenceResponse} from '../shared/evidenceResponse';
 import {monitoringHealth,type MonitoringHealth} from '../shared/monitoringHealth';
 import {type OutcomeFacts} from '../shared/checkoutOutcome';
 import {actionValues} from '../shared/actionValues';
@@ -30,10 +30,10 @@ import {renderFunnel} from './checkoutFunnel';
 import {overviewSummary,type OverviewSummary} from '../shared/overviewSummary';
 import {funnelFilters,type FunnelFilter} from '../shared/checkoutFunnel';
 let funnelFilter:FunnelFilter='all';
-import {checkoutRow,categoryLabels,type CheckoutRow} from "./checkoutRows";
+import {rowMarkup,timelineHeader,timelineMarkup,categoryLabels} from "./checkoutRows";
+import {checkoutTable,type CheckoutTable,type CheckoutTableRow} from "../shared/checkoutTable";
 import {insightCard,insightList,type CardContext} from "./insightCards";
 import {filterJourneyRows,paginateRows,issueChips,blockerSameAsShipping} from "../shared/journeyTable";
-import {basketPricer} from "../shared/basketValue";
 import {browserBackendOrigin,deployment} from '../shared/deployment';
 import { STORE, summarize } from "../shared/evidence";
 import type { CheckoutEvent } from "../shared/evidence";
@@ -99,7 +99,8 @@ let filteredJourneyRows: typeof journeyRows = [];
 let selectedQuickIssue:string|null=null;
 let selectedAlertCategory='all';
 let fixHistory:FixHistoryRow[]=[];
-let journeyRows: CheckoutRow[] = [];
+let journeyRows: CheckoutTableRow[] = [];
+let journeyTable: CheckoutTable | null = null;
 let viewerId: string | null = null;
 try {
   const stored = localStorage.getItem("checkout-demo-viewer");
@@ -238,9 +239,9 @@ function applyMissionFilter() {
     missionIds:selectedTrend?(trend?.sessionIds??[]):mission?.sessionIds??(selectedMission?[]:undefined)});
   filteredJourneyRows=filtered;
   renderQuickFilters();
-  for(const id of ['export-button','export-checkouts','export-events'])(element(id) as HTMLElementTagNameMap['s-button']).disabled=!filtered.length||loading;
+  for(const id of ['export-button','export-checkouts','export-events'])(element(id) as HTMLElementTagNameMap['s-button']).disabled=!filtered.length||loading||exporting;
   const page=paginateRows(filtered,journeyPage,JOURNEYS_PER_PAGE);journeyPage=page.page;
-  element("journey-list").innerHTML=page.rows.map(row=>row.row).join('');
+  element("journey-list").innerHTML=page.rows.map(row=>rowMarkup(row,money)).join('');
   const table = element('journey-table') as HTMLElementTagNameMap['s-table'];
   (element('journey-previous') as HTMLElementTagNameMap['s-button']).disabled = journeyPage === 0;
   (element('journey-next') as HTMLElementTagNameMap['s-button']).disabled = journeyPage >= page.pages - 1;
@@ -283,16 +284,36 @@ element('quick-issue-filters').addEventListener('click',event=>{
 });
 function openMission(id:MissionId){resetJourneyFilters();selectedMission=id;applyMissionFilter();showView('journeys',true);}
 element('fix-history-content').addEventListener('click',event=>{const button=(event.target as HTMLElement).closest<HTMLElement>('[data-history-mission]');if(button)openMission(button.dataset.historyMission as MissionId);});
-function exportFiltered(events:boolean){
- if(!filteredJourneyRows.length)return;
- const content=events?checkoutEventsCSV(filteredJourneyRows):checkoutCSV(filteredJourneyRows,storeCurrency);
+// Checkout events are read only for details and the events export, not with the page.
+async function readActivity(path:string):Promise<CheckoutEvent[]>{
+ const response=embeddedShopify?await shopifyRequest(path):await fetch(`${backendOrigin}/api/test-${path}`,{cache:'no-store',signal:AbortSignal.timeout(90000)});
+ if(!response.ok)throw Error('Checkout activity could not be read.');
+ return prepareEvents(await response.json());
+}
+// Each checkout's events as the table saw them: deduplicated, oldest first, up to the read time.
+function eventsBySession(events:CheckoutEvent[],asOf:number){
+ return new Map(summarize(events,{asOf}).journeys.map(j=>[j.id,j.events]));
+}
+let exporting=false;
+async function exportFiltered(events:boolean){
+ if(!filteredJourneyRows.length||!journeyTable||exporting)return;
+ const rows=filteredJourneyRows,table=journeyTable;
+ let content:string;
+ if(events){
+  exporting=true;setLoadingControls(loading);text('export-status','Preparing the export…');
+  try{
+   const activity=eventsBySession(await readActivity(`checkout-events?start=${table.rangeStart}&end=${table.rangeEnd}`),table.asOf);
+   content=checkoutEventsCSV(rows.map(row=>({id:row.id,label:row.label,events:activity.get(row.id)??[]})));
+  }catch{text('export-status','The export couldn’t be prepared. Try again.');return;}
+  finally{exporting=false;setLoadingControls(loading);}
+ }else content=checkoutCSV(rows,storeCurrency);
  const url=URL.createObjectURL(new Blob([content],{type:'text/csv;charset=utf-8'})),link=document.createElement('a');
  link.href=url;link.download=`checkout-data-${events?'events':'checkouts'}-${selectedRange}.csv`;link.click();
  window.setTimeout(()=>URL.revokeObjectURL(url),1000);
- text('export-status',`Exported ${filteredJourneyRows.length} filtered checkout${filteredJourneyRows.length===1?'':'s'}${events?' with their recorded activity':''}.`);
+ text('export-status',`Exported ${rows.length} filtered checkout${rows.length===1?'':'s'}${events?' with their recorded activity':''}.`);
 }
-element('export-checkouts').addEventListener('click',()=>exportFiltered(false));
-element('export-events').addEventListener('click',()=>exportFiltered(true));
+element('export-checkouts').addEventListener('click',()=>void exportFiltered(false));
+element('export-events').addEventListener('click',()=>void exportFiltered(true));
 // Cards count unfinished checkouts. When every affected checkout is unfinished, show the
 // Abandoned status so the chip counts match the card instead of including completed checkouts.
 function matchMissionStatus(){
@@ -386,10 +407,15 @@ function renderOrderPattern(data:EvidenceResponse){
 // Start downloading the chart bundle with the page instead of after the first render.
 const orderChartModule=import('./orderChart');
 orderChartModule.catch(()=>{/* Reported when the chart renders. */});
-function bySession<T extends {sessionId?:string}>(rows:T[]){
-  const groups=new Map<string,T[]>();
-  for(const row of rows)if(row.sessionId!==undefined){const group=groups.get(row.sessionId);if(group)group.push(row);else groups.set(row.sessionId,[row]);}
-  return groups;
+// Table rows come from the server for the dates it was asked about. Until the next
+// read arrives for newly chosen dates, build them from the loaded events instead.
+function currentTable(data:EvidenceResponse):CheckoutTable{
+  const range=dateBounds(selectedRange),table=latestEvidence?.table;
+  if(table&&table.rangeStart===range.start&&table.rangeEnd===range.end)return table;
+  // Match each checkout against the full synced records, even when its order date
+  // falls outside the selected dates.
+  const snapshot=latestEvidence?.shopifySnapshot??data.shopifySnapshot;
+  return checkoutTable(data.events,{...outcomeFacts(latestEvidence??data),asOf:Date.now()},range,{currency:storeCurrency,orders:snapshot?.orders,abandoned:snapshot?.abandoned,prices:latestEvidence?.checkoutPrices??data.checkoutPrices,legacy:data.abandonedCheckouts?.records});
 }
 function render(data: EvidenceResponse) {
   const facts=outcomeFacts(latestEvidence??data);
@@ -404,9 +430,6 @@ function render(data: EvidenceResponse) {
   renderOrderPattern(data);
   element('fix-history-content').innerHTML=historyMarkup(fixHistory,latestEvidence?.events??data.events,fixesReady,facts,currentMonitoring());
   renderFocusedAlerts(latestEvidence??data);
-  // Match the selected journey against the full synced records, even when its
-  // order/contact date falls outside the journey start-date filter.
-  const nativeSnapshot=latestEvidence?.shopifySnapshot??data.shopifySnapshot;
   storeCurrency=data.shopifySnapshot?.currency??data.abandonedBasketSummary?.currency??'USD';
   text('report-currency',data.events.some(e=>e.simulated)?'Test view · all recorded sessions are included. Generated basket values and Shopify basket values are shown in USD.':`Values are shown in ${storeCurrency}.`);
   {
@@ -453,9 +476,8 @@ function render(data: EvidenceResponse) {
   element("completion-progress").setAttribute("value",String(summary.completed));
   element("completion-progress").setAttribute("accessibilityLabel",`${summary.completed} of ${summary.sessionCount} checkouts have completion evidence`);
   // Order labels only match rows by session, so give each journey its own rows.
-  const orders=bySession(nativeSnapshot?.orders??[]);
-  const basketPrice=basketPricer({currency:storeCurrency,orders:nativeSnapshot?.orders,abandoned:nativeSnapshot?.abandoned,prices:latestEvidence?.checkoutPrices??data.checkoutPrices,legacy:data.abandonedCheckouts?.records});
-  journeyRows = summarize(data.events,facts).journeys.reverse().map(session => checkoutRow(session, orders.get(session.id)??[], basketPrice(session), money));
+  journeyTable = currentTable(data);
+  journeyRows = journeyTable.rows;
   renderMissions(data.events);
   applyMissionFilter();
 }
@@ -557,20 +579,27 @@ async function loadEvidence() {
   }
 }
 function setLoadingControls(busy:boolean){
-  for(const id of ['export-button','export-checkouts','export-events'])(element(id) as HTMLElementTagNameMap['s-button']).disabled=busy||!filteredJourneyRows.length;
+  for(const id of ['export-button','export-checkouts','export-events'])(element(id) as HTMLElementTagNameMap['s-button']).disabled=busy||exporting||!filteredJourneyRows.length;
   (element('apply-date-range') as HTMLElementTagNameMap['s-button']).disabled=busy||fixSaving;
   element('mission-list').querySelectorAll<HTMLElementTagNameMap['s-button']>('s-button[data-fix]').forEach(button=>{button.disabled=busy||fixSaving||!fixesReady;});
   element('mission-list').querySelectorAll<HTMLElementTagNameMap['s-checkbox']>('s-checkbox[data-fix-done]').forEach(input=>{input.disabled=busy||fixSaving||!fixesReady||(!embeddedShopify&&!viewerId);});
 }
-element("journey-list").addEventListener("click", event => {
+let openJourney:string|null=null;
+element("journey-list").addEventListener("click", async event => {
   const button = (event.target as HTMLElement).closest<HTMLElement>("s-button[data-journey]");
-  const journey = journeyRows.find(row => row.id === button?.dataset.journey);
-  if (!journey) return;
+  const journey = journeyRows.find(row => row.id === button?.dataset.journey),asOf=journeyTable?.asOf;
+  if (!journey||asOf===undefined) return;
   const modal = element('journey-modal') as HTMLElementTagNameMap['s-modal'];
   modal.heading = journey.label.startsWith('Order ') ? 'Order details' : 'Checkout reference';
   modal.setAttribute('accessibilityLabel',`${modal.heading}: ${journey.label}`);
-  element('journey-modal-content').innerHTML = journey.timeline();
+  // Show what the row already knows, then add the timeline once its events arrive.
+  openJourney=journey.id;
+  element('journey-modal-content').innerHTML = timelineHeader(journey)+'<s-paragraph color="subdued">Loading recorded activity…</s-paragraph>';
   modal.showOverlay();
+  let content:string;
+  try{content=timelineMarkup(journey,eventsBySession(await readActivity(`checkout?id=${journey.id}&asOf=${asOf}`),asOf).get(journey.id)??[]);}
+  catch{content=timelineHeader(journey)+'<s-paragraph color="subdued">Recorded activity couldn’t be loaded. Close and try again.</s-paragraph>';}
+  if(openJourney===journey.id)element('journey-modal-content').innerHTML=content;
 });
 element('journey-next').addEventListener('click', () => {
   journeyPage++; applyMissionFilter();

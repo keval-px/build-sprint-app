@@ -26,6 +26,8 @@ test('business reads and writes require verified sessions without forwarding fai
   assert.equal((await send('/api/shopify/evidence')).status,401);
   assert.equal((await send('/api/shopify/evidence')).headers['x-shopify-retry-invalid-session-request'],'1');
   assert.equal((await send('/api/shopify/sync','POST')).headers['x-shopify-retry-invalid-session-request'],undefined);
+  for(const path of ['/api/shopify/checkout?id='+'a'.repeat(64)+'&asOf=1','/api/shopify/checkout-events?start=1&end=2'])assert.equal((await send(path)).status,401,path);
+  assert.equal((await send('/api/shopify/checkout','POST')).status,405);
   assert.equal((await send('/api/shopify/evidence','GET',{Authorization:'Bearer wrong'})).status,401);
   assert.equal((await send('/api/shopify/evidence?token=wrong')).status,400);
   assert.equal((await send('/api/shopify/evidence','GET',{Authorization:'Bearer synthetic.session.token'})).status,200);

@@ -3,7 +3,7 @@ import type {QueryCtx,MutationCtx,ActionCtx} from './_generated/server';
 import type {CheckoutPrice} from "../shared/checkoutPrice";
 import type {EvidenceResponse} from "../shared/evidenceResponse";
 type Snapshot=NonNullable<EvidenceResponse["shopifySnapshot"]>;
-import type {Id} from './_generated/dataModel';
+import type {Id,Doc} from './_generated/dataModel';
 import {internal} from './_generated/api';
 import {v} from 'convex/values';
 import {orderRecord,abandonedRecord} from './schema';
@@ -145,7 +145,25 @@ export const page=internalQuery({args:{dataset:v.union(v.literal('legacy'),v.lit
  const sessionIds=[...new Set(result.page.map(r=>r.sessionId))];
  const firsts=await Promise.all(sessionIds.map(sessionId=>args.dataset==='legacy'?ctx.db.query('testCheckoutEvents').withIndex('by_store_session_name',q=>q.eq('store',STORE).eq('sessionId',sessionId).eq('name','checkout_started')).filter(q=>q.neq(q.field('auditOnly'),true)).first():ctx.db.query('shopifyCheckoutEvents').withIndex('by_store_session_name',q=>q.eq('store',STORE).eq('sessionId',sessionId).eq('name','checkout_started')).first()));
  for(const first of firsts)if(first&&first.timestamp<args.start&&first._creationTime<=args.asOf)eventRows.push(first);
- return {...result,changed:false,page:eventRows.map(({eventId,sessionId,name,timestamp,category,...row})=>({eventId,sessionId,name,timestamp,category,...('simulated'in row&&row.simulated?{simulated:true as const}:{}),...(row.deviceClass?{deviceClass:row.deviceClass}:{}),...(row.expressPay?{expressPay:row.expressPay}:{}),...('discountOfferCode'in row&&row.discountOfferCode?{discountOfferCode:row.discountOfferCode}:{}),...(row.extensionAppName?{extensionAppName:row.extensionAppName}:{}),...(row.extensionAppHash?{extensionAppHash:row.extensionAppHash}:{}),...(row.shippingBlocker?{shippingBlocker:row.shippingBlocker}:{}),...('items'in row&&row.items?{items:row.items}:{}),...('subtotalCents'in row&&row.subtotalCents!==undefined?{subtotalCents:row.subtotalCents,currency:'USD' as const}:{})}))};
+ return {...result,changed:false,page:eventRows.map(eventShape)};
+}});
+type StoredEvent=Doc<'testCheckoutEvents'>|Doc<'shopifyCheckoutEvents'>;
+// The event fields the page reads; storage fields stay on the server.
+function eventShape({eventId,sessionId,name,timestamp,category,...row}:StoredEvent){
+ return {eventId,sessionId,name,timestamp,category,...('simulated'in row&&row.simulated?{simulated:true as const}:{}),...(row.deviceClass?{deviceClass:row.deviceClass}:{}),...(row.expressPay?{expressPay:row.expressPay}:{}),...('discountOfferCode'in row&&row.discountOfferCode?{discountOfferCode:row.discountOfferCode}:{}),...(row.extensionAppName?{extensionAppName:row.extensionAppName}:{}),...(row.extensionAppHash?{extensionAppHash:row.extensionAppHash}:{}),...(row.shippingBlocker?{shippingBlocker:row.shippingBlocker}:{}),...('items'in row&&row.items?{items:row.items}:{}),...('subtotalCents'in row&&row.subtotalCents!==undefined?{subtotalCents:row.subtotalCents,currency:'USD' as const}:{})};
+}
+// One checkout's events, read through its index, with the same window rules as the
+// full report: events since the window start plus the checkout's original start.
+export const sessionEvents=internalQuery({args:{sessionId:v.string(),asOf:v.number()},handler:async(ctx,args)=>{
+ const start=args.asOf-REPORT_WINDOW_MS;
+ const inWindow=(rows:StoredEvent[])=>{
+  const visible=rows.filter(r=>r._creationTime<=args.asOf&&r.timestamp<=args.asOf);
+  const first=visible.filter(r=>r.name==='checkout_started').sort((a,b)=>a.timestamp-b.timestamp)[0];
+  return visible.filter(r=>r.timestamp>=start||r===first).map(eventShape);
+ };
+ const legacy=await ctx.db.query('testCheckoutEvents').withIndex('by_store_session_name',q=>q.eq('store',STORE).eq('sessionId',args.sessionId)).filter(q=>q.neq(q.field('auditOnly'),true)).take(500);
+ const pixel=await ctx.db.query('shopifyCheckoutEvents').withIndex('by_store_session_name',q=>q.eq('store',STORE).eq('sessionId',args.sessionId)).take(500);
+ return {legacy:inWindow(legacy),pixel:inWindow(pixel)};
 }});
 export const collection=internalQuery({args:{pixel:v.boolean(),start:v.number()},handler:async(ctx,args)=>{
  const state=await ctx.db.query(args.pixel?'pixelCollectionState':'testCollectionState').withIndex('by_store',q=>q.eq('store',STORE)).unique();
@@ -182,6 +200,11 @@ export async function readWindow(ctx:ActionCtx,asOf=Date.now()){
 // One evidence read for every route. Merchants see merged private and pixel events
 // with their server completion facts; the public demo sees only already-public
 // identities and no facts. `orphan` flags events whose start lies outside the window.
+// One checkout's events for its details, with the same audience rules as readEvidence.
+export async function readCheckout(ctx:ActionCtx,audience:'merchant'|'public',sessionId:string,asOf:number){
+ const {legacy,pixel}=await ctx.runQuery(internal.capacity.sessionEvents,{sessionId,asOf});
+ return audience==='merchant'?mergeCheckoutEvents(legacy,pixel):publicCheckoutEvents(legacy,pixel);
+}
 export async function readEvidence(ctx:ActionCtx,audience:'merchant'|'public'){
  const window=await readWindow(ctx);
  const events=audience==='merchant'?mergeCheckoutEvents(window.legacy.events,window.pixel.events):publicCheckoutEvents(window.legacy.events,window.pixel.events);

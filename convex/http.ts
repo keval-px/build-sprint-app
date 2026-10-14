@@ -1,6 +1,6 @@
 import {shopifyOrigin,frontendStorageUrl,isLocal} from './lib/deployment';
 import {ReportLimit,reportJSON,coversPeriod} from '../shared/capacity';
-import {readEvidence} from './capacity';
+import {readEvidence,readCheckout} from './capacity';
 import {monitoringHealth} from '../shared/monitoringHealth';
 import {orderPattern} from '../shared/orderPattern';
 import {actionValues} from '../shared/actionValues';
@@ -14,6 +14,7 @@ import {checkoutCohort} from '../shared/dateRange';
 import {summarize} from '../shared/evidence';
 import {abandonedSummary} from '../shared/abandonedSummary';
 import {overviewSummary} from '../shared/overviewSummary';
+import {checkoutTable} from '../shared/checkoutTable';
 
 import { isViewerId } from "../shared/actions";
 
@@ -31,6 +32,11 @@ const http = httpRouter();
 function requestedRange(url:string){
  const params=new URL(url).searchParams,start=Number(params.get('start')),end=Number(params.get('end'));
  return params.has('start')&&params.has('end')&&Number.isSafeInteger(start)&&Number.isSafeInteger(end)&&start<end?{start,end}:null;
+}
+// A checkout the page is showing, read as of the same moment as its table row.
+function requestedCheckout(url:string){
+ const params=new URL(url).searchParams,id=params.get('id')??'',asOf=Number(params.get('asOf'));
+ return /^[a-f0-9]{64}$/.test(id)&&Number.isSafeInteger(asOf)&&asOf>0&&asOf<=Date.now()?{id,asOf}:null;
 }
 const privateReply=(body:unknown,status=200,bounded=false)=>new Response(bounded?reportJSON(body):JSON.stringify(body),{status,headers:{'Content-Type':'application/json','Cache-Control':'no-store'}});
 const bearer=(request:Request)=>request.headers.get('Authorization')?.match(/^Bearer ([^\s]+)$/)?.[1]??'';
@@ -104,8 +110,10 @@ for(const operation of ['status','sync','evidence','pixel/enable']){
       const selectedStart=new URL(request.url).searchParams.get('start');const outside=selectedStart!==null&&Number.isFinite(Number(selectedStart))&&Number(selectedStart)<window.start;const serverHistoryMissing=selectedStart!==null&&!!completeSnapshot&&!coversPeriod(completeSnapshot.periodStart,Number(selectedStart));
       const shopifySnapshot=completeSnapshot&&!serverHistoryMissing?{timeZone:completeSnapshot.timeZone,currency:completeSnapshot.currency??'USD',syncedAt:completeSnapshot.syncedAt,periodStart:completeSnapshot.periodStart,orders:completeSnapshot.orders,abandoned:completeSnapshot.abandoned}:null;
       // Same completion facts the page uses: the orders it receives and the checkout prices.
-      const range=requestedRange(request.url),overview=range?overviewSummary(combined,{orders:shopifySnapshot?.orders??[],prices:checkoutPrices??[],asOf:window.asOf},range):undefined;
-      return privateReply({...original,overview,monitoring:{collection:pixel.collection,sync,historyUnavailable:historyUnavailable||serverHistoryMissing},events:combined,truncated:outside||serverHistoryMissing||orphan||original.truncated||pixel.truncated,totalStored:combined.length,abandonedCheckouts,checkoutPrices,storeName:completeSnapshot?.storeName,shopifySnapshot,enabled:true,source:'Demo Shopify browser and server evidence.',sampledAt:window.asOf},200,true);
+      const range=requestedRange(request.url),facts={orders:shopifySnapshot?.orders??[],prices:checkoutPrices??[],asOf:window.asOf};
+      const overview=range?overviewSummary(combined,facts,range):undefined;
+      const table=range?checkoutTable(combined,facts,range,{currency:shopifySnapshot?.currency??'USD',orders:shopifySnapshot?.orders,abandoned:shopifySnapshot?.abandoned,prices:checkoutPrices,legacy:abandonedCheckouts?.records}):undefined;
+      return privateReply({...original,overview,table,monitoring:{collection:pixel.collection,sync,historyUnavailable:historyUnavailable||serverHistoryMissing},events:combined,truncated:outside||serverHistoryMissing||orphan||original.truncated||pixel.truncated,totalStored:combined.length,abandonedCheckouts,checkoutPrices,storeName:completeSnapshot?.storeName,shopifySnapshot,enabled:true,source:'Demo Shopify browser and server evidence.',sampledAt:window.asOf},200,true);
     }catch(error){
       const message=error instanceof Error ? error.message : '';
       const reasons=['Shopify authorization failed. Check installation and permissions.','Install the requested Shopify permissions first.','Shopify could not return data. Check permissions and retry; previous results are retained.','Unexpected store or missing Shopify permissions.'];
@@ -187,9 +195,38 @@ http.route({ path: "/test-evidence", method: "GET", handler: httpAction(async (c
   }
   // The public page receives no Shopify orders or prices, so it counts browser evidence only.
   const range=requestedRange(request.url),overview=range?overviewSummary(events,{asOf:window.asOf},range):undefined;
-  return reply({ ...evidence,overview,totalStored:events.length,truncated:serverHistoryMissing||orphan||evidence.truncated||(params.has('start')&&start<window.start), monitoring:{collection:evidence.collection,historyUnavailable:window.historyUnavailable||serverHistoryMissing}, storeName, events, abandonedCheckouts, abandonedBasketSummary, inventoryItemValue, actionBasketValue, orderPatterns, enabled: process.env.SHOPIFY_TEST_COLLECTION_ENABLED === "true", source: "Unverified browser test events. No live merchant data.", sampledAt:window.asOf },200,true);
+  const table=range?checkoutTable(events,{asOf:window.asOf},range,{currency:abandonedBasketSummary?.currency??'USD',legacy:abandonedCheckouts?.records}):undefined;
+  return reply({ ...evidence,overview,table,totalStored:events.length,truncated:serverHistoryMissing||orphan||evidence.truncated||(params.has('start')&&start<window.start), monitoring:{collection:evidence.collection,historyUnavailable:window.historyUnavailable||serverHistoryMissing}, storeName, events, abandonedCheckouts, abandonedBasketSummary, inventoryItemValue, actionBasketValue, orderPatterns, enabled: process.env.SHOPIFY_TEST_COLLECTION_ENABLED === "true", source: "Unverified browser test events. No live merchant data.", sampledAt:window.asOf },200,true);
   }catch(error){return reply({error:error instanceof ReportLimit?error.message:"Evidence could not be read. Previous results are retained."},503);}
 }) });
 
+// Details and the events export read events only when a merchant asks for them.
+http.route({path:'/shopify/checkout',method:'GET',handler:httpAction(async(ctx,request)=>{
+  try{await verifyMerchant(bearer(request));}catch{return invalidSessionResponse();}
+  const checkout=requestedCheckout(request.url);if(!checkout)return privateReply({error:'Invalid checkout.'},400);
+  try{
+    if(!canReadShopifyEvidence(await ctx.runQuery(internal.shopify.connection,{})))return privateReply({error:'Shopify installation is disconnected or permissions were removed.'},403);
+    return privateReply({events:await readCheckout(ctx,'merchant',checkout.id,checkout.asOf)});
+  }catch{return privateReply({error:'Checkout details could not be read.'},503);}
+})});
+http.route({path:'/shopify/checkout-events',method:'GET',handler:httpAction(async(ctx,request)=>{
+  try{await verifyMerchant(bearer(request));}catch{return invalidSessionResponse();}
+  const range=requestedRange(request.url);if(!range)return privateReply({error:'Choose a start and end date.'},400);
+  try{
+    if(!canReadShopifyEvidence(await ctx.runQuery(internal.shopify.connection,{})))return privateReply({error:'Shopify installation is disconnected or permissions were removed.'},403);
+    const {events}=await readEvidence(ctx,'merchant');
+    return privateReply({events:checkoutCohort(events,range)},200,true);
+  }catch(error){return privateReply({error:error instanceof ReportLimit?error.message:'Checkout activity could not be read.'},503);}
+})});
+http.route({path:'/test-checkout',method:'GET',handler:httpAction(async(ctx,request)=>{
+  const checkout=requestedCheckout(request.url);if(!checkout)return reply({error:'Invalid checkout.'},400);
+  try{return reply({events:await readCheckout(ctx,'public',checkout.id,checkout.asOf)});}
+  catch{return reply({error:'Checkout details could not be read.'},503);}
+})});
+http.route({path:'/test-checkout-events',method:'GET',handler:httpAction(async(ctx,request)=>{
+  const range=requestedRange(request.url);if(!range)return reply({error:'Choose a start and end date.'},400);
+  try{const {events}=await readEvidence(ctx,'public');return reply({events:checkoutCohort(events,range)},200,true);}
+  catch(error){return reply({error:error instanceof ReportLimit?error.message:'Checkout activity could not be read.'},503);}
+})});
 
 export default http;

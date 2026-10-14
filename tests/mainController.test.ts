@@ -249,6 +249,9 @@ test('cards link to filtered Checkouts and full activity without an alert summar
  c.get('clear-journey-filters').dispatch('click');
  assert.equal((c.get('journey-list').innerHTML.match(/data-session=/g)??[]).length,3);
  c.get('journey-list').dispatch('click',{target:{closest:()=>({dataset:{journey:ids[2]}})}});
+ assert.match(c.get('journey-modal-content').innerHTML,/Loading recorded activity/,'details open at once and fetch the timeline');
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.ok(c.requestLog.some(r=>new RegExp(`/api/shopify/checkout\\?id=${ids[2]}&asOf=\\d+$`).test(r.url)));
  assert.match(c.get('journey-modal-content').innerHTML,/Checkout alert displayed/);assert.match(c.get('journey-modal-content').innerHTML,/Checkout completed/);
 });
 
