@@ -1,13 +1,14 @@
-// Read-only reconciliation against the already-public demo feed. No credentials
+// Read-only reconciliation against the local sandbox's public demo feed. No credentials
 // or per-checkout evidence are written to the report or printed.
 import assert from 'node:assert/strict';
+import {identity} from '../local/settings.mjs';
 import {recentRange,dateBounds,checkoutCohort} from '../shared/dateRange.ts';
 import {summarize} from '../shared/evidence.ts';
 import {recordedFindings} from '../shared/dashboardInsights.ts';
 import {buildRecommendations} from '../shared/recommendations.ts';
 import {paginateRows} from '../shared/journeyTable.ts';
 const range=recentRange(30),bounds=dateBounds(range);
-const response=await fetch(`https://neighborly-nightingale-843.convex.site/api/test-evidence?start=${bounds.start}&end=${bounds.end}`);
+const response=await fetch(`${identity.site}/api/test-evidence?start=${bounds.start}&end=${bounds.end}`);
 assert.equal(response.status,200);
 const data=await response.json(),events=checkoutCohort(data.events,range),unique=[...new Map(events.map(e=>[e.eventId,e])).values()];
 const ids=new Set(unique.map(e=>e.sessionId));

@@ -1,5 +1,6 @@
 import {createServer} from 'node:http';
 import {embeddedPage, embeddedClient} from './embedded.mjs';
+import {identity} from './dev-identity.mjs';
 
 export const routes = Object.freeze({
   '/api/shopify/app': 'GET',
@@ -35,7 +36,7 @@ export function createGateway({verifySession, verifyWebhook, embeddedOrigin} = {
     if (req.method !== routes[path]) return send(405, 'Method not allowed');
     // Browsers may only call from the exact approved gateway origin. No CORS
     // permission is granted; Shopify framing is controlled separately by CSP.
-    if (req.headers.origin && req.headers.origin !== (embedded?.origin ?? 'http://127.0.0.1:6311')) return send(403, 'Origin not permitted');
+    if (req.headers.origin && req.headers.origin !== (embedded?.origin ?? identity.gateway)) return send(403, 'Origin not permitted');
     const securityHeaders = new Set(['authorization','x-shopify-hmac-sha256','x-shopify-shop-domain','x-shopify-topic','x-shopify-webhook-id','x-shopify-api-version']);
     const seen = new Set();
     for (let i=0; i<req.rawHeaders.length; i+=2) {

@@ -1,11 +1,12 @@
 import {summarize,type CheckoutEvent} from './evidence.ts';
-import {journeyPrice} from './journeyPrice.ts';
+import {basketPricer} from './basketValue.ts';
 import type {EvidenceResponse} from './evidenceResponse.ts';
 export function simulationRecords(events:CheckoutEvent[],asOf:number,data?:EvidenceResponse){
  const journeys=summarize(events,{asOf,orders:data?.shopifySnapshot?.orders,prices:data?.checkoutPrices}).journeys.filter(j=>j.started);
+ const basketPrice=basketPricer({currency:'USD',orders:data?.shopifySnapshot?.orders,abandoned:data?.shopifySnapshot?.abandoned,prices:data?.checkoutPrices,legacy:data?.abandonedCheckouts?.records});
  const rows=journeys.map(j=>{
   const start=Math.min(...j.events.filter(e=>e.name==='checkout_started').map(e=>e.timestamp));
-  const price=journeyPrice(j.id,j.completed,j.events,'USD',data?.shopifySnapshot?.orders??[],data?.shopifySnapshot?.abandoned??[],(data?.abandonedCheckouts?.records??[]).flatMap(r=>r.sessionId?[{...r,sessionId:r.sessionId}]:[]),data?.checkoutPrices??[])??null;
+  const price=basketPrice(j)??null;
   return {recordHash:j.id,sessionId:j.id,createdAt:new Date(start).toISOString(),subtotalCents:price,totalCents:price,recovered:j.completed};
  });
  // For chart aggregation only: these are recorded completions, never server facts.

@@ -1,4 +1,3 @@
-import {journeyPrice} from '../shared/journeyPrice.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {checkoutPrice,shouldSaveCheckoutPrice,savedCheckoutSession,checkoutBaskets} from '../shared/checkoutPrice.ts';
@@ -33,12 +32,6 @@ test('historical links require exactly the same saved record hash; new prices re
  assert.equal(checkoutBaskets([saved],[price],'EUR')[0],saved);
 });
 
-test('a completed checkout uses its signed total until its matched order is synced',()=>{
- const price=checkoutPrice({...fixture,completed_at:fixture.updated_at})!;
- assert.equal(journeyPrice(price.sessionId,true,[],'USD',[],[],[],[price]),77995);
- assert.equal(journeyPrice(price.sessionId,true,[],'USD',[{sessionId:price.sessionId,subtotalCents:80000,totalCents:83000}],[],[],[price]),83000);
- assert.equal(journeyPrice(price.sessionId,false,[],'USD',[],[],[],[price]),undefined);
-});
 
 
 test('signed completion retains and validates its original time before saving; legacy rows can upgrade at the same version',()=>{

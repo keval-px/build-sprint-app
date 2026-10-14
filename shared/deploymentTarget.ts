@@ -1,5 +1,6 @@
 // The local build generates its own adapter in an ignored staging directory.
-// This source adapter preserves the existing cloud deployment.
+// This source adapter is the hosted (non-local) path the tests run against. Its Convex
+// cloud deployment was retired on 14 October 2026; nothing deploys with these values.
 export const deploymentTarget = Object.freeze({
   kind: 'cloud' as 'cloud' | 'local',
   store: 'build-sprint-demo.myshopify.com',

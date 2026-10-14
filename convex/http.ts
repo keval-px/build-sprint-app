@@ -1,6 +1,6 @@
 import {shopifyOrigin,frontendStorageUrl} from './lib/deployment';
 import {ReportLimit,reportJSON,coversPeriod} from '../shared/capacity';
-import {readWindow} from './capacity';
+import {readEvidence} from './capacity';
 import {monitoringHealth} from '../shared/monitoringHealth';
 import {orderPattern} from '../shared/orderPattern';
 import {actionValues} from '../shared/actionValues';
@@ -21,7 +21,7 @@ import {deployment} from '../shared/deployment';
 import {verifyMerchant,verifyLifecycle} from './lib/shopifyAuth';
 import {invalidSessionResponse} from '../shared/shopifyRequest';
 import {pixelQuery,pixelCreate} from './lib/shopifyQueries';
-import {canReadShopifyEvidence,mergeCheckoutEvents,publicCheckoutEvents} from '../shared/checkoutIdentity';
+import {canReadShopifyEvidence} from '../shared/checkoutIdentity';
 import {STORE,parseTestEvent as parsePixelBase} from '../shared/evidence';
 
 import {fixBaseline,isFixMission} from '../shared/fixTracking';
@@ -58,10 +58,8 @@ for(const mode of ['shopify','demo'] as const){
         await ctx.runMutation(internal.fixes.retest,{scope,missionId:data.missionId,passed:data.operation==='retest'});
       }else if(data.operation!=='read'){
         if(!isFixMission(data.missionId))return respond({error:'Invalid action.'},400);
-        const window=await readWindow(ctx),original=window.legacy,pixel=window.pixel;
-        const events=mode==='shopify'?mergeCheckoutEvents(original.events,pixel.events):publicCheckoutEvents(original.events,pixel.events);
+        const {window,events,facts}=await readEvidence(ctx,mode==='shopify'?'merchant':'public'),original=window.legacy,pixel=window.pixel;
         const historyUnavailable=window.historyUnavailable;
-        const facts=mode==='shopify'?{orders:window.snapshot?.orders??[],prices:window.prices}:{};
         const now=Date.now(),sync=mode==='shopify'?await ctx.runQuery(internal.capacity.reportMonitoring,window.syncHeader):undefined;
         const health=monitoringHealth({evidence:{collection:mode==='shopify'?pixel.collection:original.collection,sync,historyUnavailable},events,sampledAt:window.asOf,now,rangeStart:now-30*86400000,truncated:original.truncated||pixel.truncated});
         const fix=fixBaseline(events,data.missionId,now,!health.canAssess,data.missionId==='delivery'?'shipping_unavailable':undefined,facts);
@@ -93,12 +91,12 @@ for(const operation of ['status','sync','evidence','pixel/enable']){
       const snapshot=await ctx.runQuery(internal.shopify.snapshot,{});
       if(operation==='status')return privateReply({store:STORE,connected:!!connection,lastSyncedAt:snapshot?.syncedAt??null});
       if(!canReadShopifyEvidence(connection))return privateReply({error:'Shopify installation is disconnected or permissions were removed.'},403);
-      const window=await readWindow(ctx),original=window.legacy,pixel=window.pixel;
+      const {window,events:combined,orphan}=await readEvidence(ctx,'merchant'),original=window.legacy,pixel=window.pixel;
       const abandonedCheckouts=await ctx.runQuery(internal.abandoned.read,{});
       const historyUnavailable=window.historyUnavailable,checkoutPrices=window.prices,completeSnapshot=window.snapshot;
       const sync=await ctx.runQuery(internal.capacity.reportMonitoring,window.syncHeader);
-      const selectedStart=new URL(request.url).searchParams.get('start');const outside=selectedStart!==null&&Number.isFinite(Number(selectedStart))&&Number(selectedStart)<window.start;const serverHistoryMissing=selectedStart!==null&&!!completeSnapshot&&!coversPeriod(completeSnapshot.periodStart,Number(selectedStart));const combined=mergeCheckoutEvents(original.events,pixel.events),started=new Set(combined.filter(e=>e.name==='checkout_started').map(e=>e.sessionId));const orphan=combined.some(e=>!started.has(e.sessionId));
-      return privateReply({...original,monitoring:{collection:pixel.collection,sync,historyUnavailable:historyUnavailable||serverHistoryMissing},events:mergeCheckoutEvents(original.events,pixel.events),truncated:outside||serverHistoryMissing||orphan||original.truncated||pixel.truncated,totalStored:combined.length,abandonedCheckouts,checkoutPrices,storeName:completeSnapshot?.storeName,shopifySnapshot:completeSnapshot&&!serverHistoryMissing?{timeZone:completeSnapshot.timeZone,currency:completeSnapshot.currency??'USD',syncedAt:completeSnapshot.syncedAt,periodStart:completeSnapshot.periodStart,orders:completeSnapshot.orders,abandoned:completeSnapshot.abandoned}:null,enabled:true,source:'Demo Shopify browser and server evidence.',sampledAt:window.asOf},200,true);
+      const selectedStart=new URL(request.url).searchParams.get('start');const outside=selectedStart!==null&&Number.isFinite(Number(selectedStart))&&Number(selectedStart)<window.start;const serverHistoryMissing=selectedStart!==null&&!!completeSnapshot&&!coversPeriod(completeSnapshot.periodStart,Number(selectedStart));
+      return privateReply({...original,monitoring:{collection:pixel.collection,sync,historyUnavailable:historyUnavailable||serverHistoryMissing},events:combined,truncated:outside||serverHistoryMissing||orphan||original.truncated||pixel.truncated,totalStored:combined.length,abandonedCheckouts,checkoutPrices,storeName:completeSnapshot?.storeName,shopifySnapshot:completeSnapshot&&!serverHistoryMissing?{timeZone:completeSnapshot.timeZone,currency:completeSnapshot.currency??'USD',syncedAt:completeSnapshot.syncedAt,periodStart:completeSnapshot.periodStart,orders:completeSnapshot.orders,abandoned:completeSnapshot.abandoned}:null,enabled:true,source:'Demo Shopify browser and server evidence.',sampledAt:window.asOf},200,true);
     }catch(error){
       const message=error instanceof Error ? error.message : '';
       const reasons=['Shopify authorization failed. Check installation and permissions.','Install the requested Shopify permissions first.','Shopify could not return data. Check permissions and retry; previous results are retained.','Unexpected store or missing Shopify permissions.'];
@@ -153,12 +151,9 @@ http.route({ path: "/test-events", method: "POST", handler: httpAction(async (ct
 }) });
 http.route({ path: "/test-evidence", method: "GET", handler: httpAction(async (ctx,request) => {
   try{
-  const window=await readWindow(ctx),evidence=window.legacy;
   // Correct categories only on identities already public in the legacy demo feed.
   // Do not publish additional private sessions, prices, or Shopify records.
-  const pixel=window.pixel;
-  const events=publicCheckoutEvents(evidence.events,pixel.events);
-  const started=new Set(events.filter(e=>e.name==='checkout_started').map(e=>e.sessionId));const orphan=events.some(e=>!started.has(e.sessionId));
+  const {window,events,orphan}=await readEvidence(ctx,'public'),evidence=window.legacy,pixel=window.pixel;
   const abandonedCheckouts = await ctx.runQuery(internal.abandoned.read, {});
   const params=new URL(request.url).searchParams,start=Number(params.get('start')),end=Number(params.get('end'));
   let storeName:string|undefined,serverHistoryMissing=false;
@@ -174,7 +169,8 @@ http.route({ path: "/test-evidence", method: "GET", handler: httpAction(async (c
       const currency=snapshot.currency??'USD';
       const prices=window.prices;
       actionBasketValue=actionValues(events,abandonedCheckouts,snapshot.abandoned,prices,currency,start,end,snapshot.orders);
-      const ids=summarize(checkoutCohort(events,{start,end})).journeys.filter(j=>!j.completed&&j.events.some(e=>e.category==='inventory')).map(j=>j.id);
+      // Same completion facts as the recommendations, so a paid order is never counted as unfinished.
+      const ids=summarize(checkoutCohort(events,{start,end}),{orders:snapshot.orders,prices}).journeys.filter(j=>!j.completed&&j.events.some(e=>e.category==='inventory')).map(j=>j.id);
       const quotes=snapshot.orders.flatMap(o=>o.sessionId&&o.conversion?[{sessionId:o.sessionId,shop:{minor:o.conversion.shopMinor,currency},buyer:{minor:o.conversion.buyerMinor,currency:o.conversion.buyerCurrency}}]:[]);
       // Aggregate only the existing public test-session cohort; never publish item identities or buyer amounts.
       inventoryItemValue={...inventoryValue(pixel.events,ids,currency,quotes),rangeStart:start,rangeEnd:end};

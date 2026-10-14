@@ -8,8 +8,7 @@ dist/
 
 shopify.app.toml
 shopify.app.*.toml
-!shopify.app.example.toml
 .shopify/
 
 # Private local runtime, credentials, generated builds and backups.
-.local/convex/
+.local/

@@ -7,7 +7,6 @@
     "dev": "vite --host 0.0.0.0",
     "build": "npm run check:ui && tsc --noEmit && vite build",
     "check": "tsc --noEmit",
-    "deploy": "static-hosting upload --build",
     "check:ui": "node scripts/check-polaris.mjs",
     "shopify": "shopify",
     "test": "node --experimental-strip-types --test tests/*.test.ts",

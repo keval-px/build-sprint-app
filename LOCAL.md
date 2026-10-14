@@ -1,6 +1,6 @@
 # Local Convex and Shopify
 
-The maintained project is `/Users/keval/Documents/build-sprint-app`. This setup keeps the cloud deployment and the historical replica separate from new Shopify test data. `npm run deploy` still deploys the original cloud app. Use the `local:*` commands below for this Mac.
+The maintained project is `/Users/keval/Documents/build-sprint-app`. This local setup is the only runtime. The Convex cloud deployment (`neighborly-nightingale-843`, store build-sprint-demo) was retired on 14 October 2026: its deploy script, root Shopify app configuration and legacy custom pixel were removed, and the ignored cloud `.env.local`, `shopify.app.toml` and `.shopify/` were moved to `.local/convex/retired-cloud-2026-10-14/`. The historical replica keeps the cloud data exported on October 12, separate from new Shopify test data. Use the `local:*` commands below for this Mac.
 
 ## Start and stop
 
@@ -35,7 +35,7 @@ The gateway listens at `http://127.0.0.1:6311`. Every published container port b
 - Development store: **Checkout Gain Local Dev Sandbox**, `checkout-gain-local-dev-sandbox.myshopify.com`.
 - Permissions: `read_orders`, `read_customer_events`, `write_pixels`.
 - Development extension: `checkout-gain-local-evidence`. Its generated identity is kept across local rebuilds.
-- Local configuration: `.local/convex/app/shopify.app.local.toml`. The root cloud configuration is never passed to local commands.
+- Local configuration: `.local/convex/app/shopify.app.local.toml`. There is no root Shopify app configuration.
 
 Open the app from the development store's Shopify admin. Under **Data details**, **Verify Shopify session** checks a real Shopify session, and **Connect test store** exchanges it and imports test data. App credentials remain inside sandbox Convex. After connection, enable synchronization with the command above. The standalone local page shows the app's public report; private store details and changes use the authenticated Shopify page.
 
@@ -45,7 +45,7 @@ The approved development access is configured and real checkout notifications we
 
 ## Design boundary
 
-`local/runtime.mjs` owns starting, checking, building, publishing and stopping this setup. `local/settings.mjs` owns its local identity and addresses. The application uses the public `shared/deployment.ts` interface; `shared/deploymentTarget.ts` remains the original cloud adapter in maintained source. A separate generated local adapter is used only in `.local/convex/app`. No secret belongs in either public adapter. Local builds reject cloud hostnames or the live store in their assets.
+`local/runtime.mjs` owns starting, checking, building, publishing and stopping this setup. `local/settings.mjs` owns its local identity and addresses. The application uses the public `shared/deployment.ts` interface; `shared/deploymentTarget.ts` keeps the hosted (non-local) adapter that the tests run against; it no longer points at a running deployment and will be replaced when the public app gets hosting. A separate generated local adapter is used only in `.local/convex/app`. No secret belongs in either public adapter. Local builds reject cloud hostnames or the live store in their assets.
 
 The gateway forwards only listed app assets and Shopify routes to sandbox port 6211. It checks official Shopify session tokens before report reads and writes, and validates notification signatures against unchanged raw bytes. Opening-page `id_token` parameters are discarded, never used to authorize data. Only evidence reads may request Shopify's expired-session retry. Browser checkout events remain untrusted evidence; signed notifications and order synchronization provide separate evidence.
 
@@ -60,7 +60,7 @@ Container images are pinned by digest in `local/compose.yaml` and `local/replica
 - **Operation already running:** let the existing command finish. The lock contains its process ID; runtime commands remove a stale lock only when that process no longer exists.
 - **Private diagnostics:** `.local/convex/last-error.log`, `gateway.log`, `tunnel.log`. Do not paste private logs or credential files into public issues.
 
-Backups live in the ignored, owner-only `.local/convex/backups/<timestamp>/` directory. They contain `volume.tar.gz` (database, deployed code, files and backend configuration), `snapshot.zip` (logical table/file export), `source.tar.gz` (generated local app source/config), `maintained-source.tar.gz` (main project code with its original cloud adapter), `runtime.tar.gz` (maintained runtime and this runbook), credentials needed to recover this local instance, hashes and record/file digests. Treat the entire backup as a secret. A backup directory is not an off-machine backup.
+Backups live in the ignored, owner-only `.local/convex/backups/<timestamp>/` directory. They contain `volume.tar.gz` (database, deployed code, files and backend configuration), `snapshot.zip` (logical table/file export), `source.tar.gz` (generated local app source/config), `maintained-source.tar.gz` (main project code with its hosted test adapter), `runtime.tar.gz` (maintained runtime and this runbook), credentials needed to recover this local instance, hashes and record/file digests. Treat the entire backup as a secret. A backup directory is not an off-machine backup.
 
 `local:restore` verifies hashes before extracting into a new volume named `checkout-gain-restore-*`. The recovery container has **no network and no public or private published ports**. It is queried through Docker's private execution channel and stopped after comparison. The receipt `.local/convex/restore-receipt.json` names the retained volume. To recover for actual use, stop the current sandbox and deliberately point a recovery Compose copy at that named volume with the backed-up key/config; preserve the original volume. The rehearsal command intentionally does not switch active data automatically.
 
@@ -137,9 +137,13 @@ average appears only after complete prior days exist. Cloud behaviour is unchang
 
 Update: the local test dashboard now treats generated and browser-recorded sessions equally.
 Both feed completion counts, funnel stages, hourly activity, abandoned values and test insights.
-The generated marker remains in storage for traceability, but rows use the same display labels.
 Native prices are used for browser sessions; missing prices remain unavailable rather than
 being invented. No generated completion is represented as a real paid Shopify order.
+
+Update, 14 October 2026: simulated rows carry a **Simulated** badge in Checkouts and in the
+checkout details, and the exported status ends with "· Simulated". The order chart is unchanged
+by user decision: in the test view, "Today's orders" counts recorded completions (simulated and
+browser sessions) in India time, and real Shopify paid orders are not added to that line.
 
 Future batches now target roughly 70% abandonment in normal/recovery periods, with
 lower completion during shipping and mobile problem periods. Approximately 30% of

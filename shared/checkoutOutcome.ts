@@ -9,15 +9,28 @@ export type CompletionSource='browser'|'paid_order'|'signed_checkout';
 export interface CheckoutOutcome {completed:boolean;serverCompleted:boolean;sources:CompletionSource[];completedAt?:number;asOf:number;completionTimes:number[];legacySignedCompletion:boolean;conflicting:boolean}
 
 export function checkoutOutcome(sessionId:string,events:CheckoutEvent[],facts:OutcomeFacts={}):CheckoutOutcome {
- const asOf=facts.asOf??Date.now();
+ return outcomeResolver(facts)(sessionId,events);
+}
+
+// Index the server facts once, then resolve any number of sessions against them.
+export function outcomeResolver(facts:OutcomeFacts={}){
+ const asOf=facts.asOf??Date.now(),orders=bySession(facts.orders??[]),prices=bySession(facts.prices??[]);
+ return (sessionId:string,events:CheckoutEvent[])=>resolve(sessionId,events,orders.get(sessionId)??[],prices.get(sessionId)??[],asOf);
+}
+function bySession<T extends {sessionId?:string}>(rows:T[]){
+ const groups=new Map<string,T[]>();
+ for(const row of rows)if(row.sessionId!==undefined){const group=groups.get(row.sessionId);if(group)group.push(row);else groups.set(row.sessionId,[row]);}
+ return groups;
+}
+function resolve(sessionId:string,events:CheckoutEvent[],sessionOrders:OutcomeOrder[],sessionPrices:OutcomePrice[],asOf:number):CheckoutOutcome {
  const rows=events.filter(e=>e.sessionId===sessionId&&e.timestamp<=asOf);
  const browser=rows.filter(e=>e.name==='checkout_completed');
  const sources:CompletionSource[]=browser.length?['browser']:[];
  const start=Math.min(...rows.filter(e=>e.name==='checkout_started').map(e=>e.timestamp));
  const lower=Number.isFinite(start)?start:-Infinity;
  const exact=/^[a-f0-9]{64}$/.test(sessionId);
- const orders=exact?(facts.orders??[]).filter(o=>o.sessionId===sessionId):[];
- const prices=exact?(facts.prices??[]).filter(p=>p.sessionId===sessionId):[];
+ const orders=exact?sessionOrders:[];
+ const prices=exact?sessionPrices:[];
  const order=orders.length===1?orders[0]:undefined;
  const price=prices.length===1?prices[0]:undefined;
  const orderAt=order?Date.parse(order.createdAt):NaN;

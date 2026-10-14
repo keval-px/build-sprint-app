@@ -69,5 +69,5 @@ Fixture tests cover counts, percentages, empty periods, duplicate events, date b
 
 - `npm test` — retained feature and regression tests.
 - `npm run build` — unused-code checks, static UI-target checks, official Shopify component validation, TypeScript and production bundle.
-- `npm run audit:metrics` — read-only reconciliation of the live public demo numbers; requires network access and available Shopify aggregate data.
-- `npm run deploy` — explicit Convex static-hosting deployment, independent of GitHub push.
+- `npm run audit:metrics` — read-only reconciliation of the public demo numbers served by the local sandbox (`npm run local:up` first); requires available Shopify aggregate data.
+- `npm run local:deploy` — uploads the app to the local sandbox Convex. The cloud deployment and `npm run deploy` were retired on 14 October 2026; the numbers above were verified against the cloud before that.

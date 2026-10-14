@@ -7,7 +7,7 @@ import type {abandonedSummary} from './abandonedSummary.ts';
 import type {CheckoutPrice} from './checkoutPrice.ts';
 import type {AbandonedSnapshot} from './abandoned.ts';
 import type {OrderPattern} from './orderPattern.ts';
-import type {SavedBasket} from './journeyPrice.ts';
+import type {SavedBasket} from './basketValue.ts';
 export interface EvidenceResponse {
   monitoring?:MonitoringEvidence; storeName?:string; store: string; events: CheckoutEvent[]; totalStored: number; truncated: boolean;
   abandonedCheckouts?:AbandonedSnapshot|null; enabled: boolean; sampledAt: number; 

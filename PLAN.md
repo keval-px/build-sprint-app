@@ -6,6 +6,10 @@ Source: PRODUCT.md, section 7. Build milestone 1 only.
 
 I can use one store’s real checkout data to find one real checkout problem the merchant didn’t already know about.
 
+### Runtime: local only — 14 October 2026
+
+The Convex cloud free credit is used up, so the cloud deployment (neighborly-nightingale-843 on build-sprint-demo) is retired. The cloud URLs and `npm run deploy` steps in the dated notes below are history. All work runs on the self-hosted local setup in LOCAL.md. Hosting and the Shopify connection for a public app are deferred until the app is close to production ready.
+
 ### Active improvement plan — 6 October 2026
 
 This section is the current execution plan; dated notes below are history. Build only the foundations needed for milestone1. The demo can prove the collection and investigation flow, but cannot prove an unknown live-merchant problem.

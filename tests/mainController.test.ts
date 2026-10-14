@@ -32,14 +32,15 @@ async function controller(initialBad=false,embedded=false,initialRead:Promise<an
  await new Promise(resolve=>setImmediate(resolve));
  return {clock,get,window,navigation,intervals,timeouts,requestLog,deferEvidence,setSyncResponse:(fn:()=>Promise<any>)=>{syncResponse=fn;},listeners,assessment,unavailable,document,good,rejectReport:(v:boolean)=>{rejected=v;},setCandidate:(v:any)=>{candidate=v;},requests:()=>requests,setFixCandidate:(v:any)=>{fixCandidate=v;}};
 }
-test('real controller expires health/assessments while an open modal pauses refresh without replacing modal or focus',async()=>{
+test('data loads only on open or date change: no timers, and an open modal is never replaced',async()=>{
  const c=await controller();assert.equal(c.window.__controller.health().state,'Healthy');
+ assert.equal(c.intervals.size,0,'no background refresh or freshness timer is registered');
  const modal=c.get('journey-modal'),content=c.get('journey-modal-content');content.innerHTML='unchanged recorded timeline';modal.showOverlay();modal.focus();
- const before=c.requests();c.clock.now+=120001;
- await c.intervals.get(60000)!();assert.equal(c.requests(),before,'overlay still prevents network refresh');
- c.intervals.get(10000)!();assert.equal(c.window.__controller.health().state,'Needs attention');assert.equal(c.assessment.hidden,true);assert.equal(c.unavailable.hidden,false);
+ const before=c.requests();c.clock.now+=120001;await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(c.requests(),before,'time passing never reads again');
+ assert.equal(c.assessment.hidden,false,'what is on screen stays as loaded until the merchant reloads');
  assert.equal(content.innerHTML,'unchanged recorded timeline');assert.equal(c.document.activeElement,modal);
- modal.hideOverlay();c.setCandidate(c.good());await c.window.__controller.loadEvidence();assert.equal(c.window.__controller.health().state,'Healthy');
+ const html=readFileSync('index.html','utf8');assert.doesNotMatch(html,/id="check-alerts"|id="alerts-error"|once a minute/);
 });
 test('real controller rejects malformed nested replacements, retains prior evidence, clears loading and retries',async()=>{
  const c=await controller(),previous=c.window.__controller.latest();
@@ -83,22 +84,20 @@ test('embedded page URLs open the matching page and preserve checkout filters on
 });
 test('merchant retry, open-window reads and date navigation never request Shopify sync',async()=>{
  const c=await controller(false,true);c.rejectReport(true);await c.window.__controller.loadEvidence();
- c.rejectReport(false);await c.window.__controller.loadEvidence();c.intervals.get(60000)!();await new Promise(resolve=>setImmediate(resolve));
+ c.rejectReport(false);await c.window.__controller.loadEvidence();
  assert.equal(c.get('session-count').textContent,'2');assert.equal(c.requestLog.some(r=>r.url.endsWith('/sync')),false);
  assert.ok(c.requestLog.filter(r=>r.url.includes('/shopify/evidence')).every(r=>r.method==='GET'));
  const html=readFileSync('index.html','utf8');assert.doesNotMatch(html,/data-refresh-metrics|retry-monitoring|abandoned-chart-state/);
  assert.ok(html.indexOf('id="abandoned-baskets"')<html.indexOf('id="recommendations-heading"'));
  assert.ok(html.indexOf('id="abandoned-value-note"')>html.indexOf('id="coverage-details"'));
 });
-test('Escape followed by focus-out on hovered chart help resumes background saved-data reads',async()=>{
+test('chart help opens on hover/focus, Escape then focus-out closes it, and it never triggers reads',async()=>{
  const c=await controller(false,true),trigger=c.get('order-chart-help'),tooltip=c.get('order-chart-tooltip');
  for(let i=0;i<3;i++){
+  const before=c.requests();
   trigger.dispatch('pointerenter');trigger.dispatch('focusin');assert.equal(tooltip.hidden,false);
-  const before=c.requests();c.intervals.get(60000)!();await new Promise(resolve=>setImmediate(resolve));
-  assert.equal(c.requests(),before,'visible help pauses background reads');
   c.listeners.get('keydown')!({key:'Escape'});trigger.dispatch('focusout');assert.equal(tooltip.hidden,true);
-  c.intervals.get(60000)!();await new Promise(resolve=>setImmediate(resolve));
-  assert.ok(c.requests()>before,'dismissed help stays closed and background reads resume');
+  await new Promise(resolve=>setImmediate(resolve));assert.equal(c.requests(),before);
  }
  assert.equal(c.requestLog.some(r=>r.url.endsWith('/sync')),false);
  assert.ok(c.requestLog.filter(r=>r.url.includes('/shopify/evidence')).every(r=>r.method==='GET'));
@@ -111,8 +110,8 @@ test('loading labels appear only before the first read, never over visible saved
  assert.equal(c.get('request-status').textContent,'Loading checkouts…');
  resolve({ok:true,json:async()=>c.good()});await new Promise(yes=>setImmediate(yes));
  assert.equal(c.get('request-status').hidden,true);assert.equal(c.get('session-count').textContent,'2');
- for(const background of [false,true]){
-  const gate=c.deferEvidence(),pending=c.window.__controller.loadEvidence(background);
+ for(let i=0;i<2;i++){
+  const gate=c.deferEvidence(),pending=c.window.__controller.loadEvidence();
   assert.equal(c.get('request-status').hidden,true);assert.doesNotMatch(c.get('shopify-status').textContent,/Loading/);
   assert.equal(c.get('session-count').textContent,'2');
   gate.resolve({ok:true,json:async()=>c.good()});await pending;
@@ -130,9 +129,9 @@ test('failed and aborted reads keep saved results and clear loading so retry wor
  }
  await c.window.__controller.loadEvidence();
 });
-test('date change during polling discards the old response and queues the latest range without a loading label',async()=>{
+test('date change during a load discards the old response and queues the latest range without a loading label',async()=>{
  const c=await controller(false,true),previous=c.window.__controller.latest(),gate=c.deferEvidence();
- const pending=c.window.__controller.loadEvidence(true),requestCount=c.requestLog.length;
+ const pending=c.window.__controller.loadEvidence(),requestCount=c.requestLog.length;
  c.get('last-7-days').dispatch('click');c.get('apply-date-range').dispatch('click',{preventDefault(){},stopImmediatePropagation(){}});
  for(const fn of c.timeouts.splice(0))fn();
  assert.equal(c.get('date-range-button').textContent,'Last 7 days');assert.equal(c.get('request-status').hidden,true);
@@ -200,7 +199,7 @@ test('flagged comparisons join the review list and filter exact affected session
  assert.match(c.get('journey-list').innerHTML,/Shipping/);
  assert.equal((c.get('journey-list').innerHTML.match(/data-session=/g)??[]).length,12);
  c.get('clear-journey-filters').dispatch('click');assert.equal(c.get('clear-journey-filters').hidden,true);
- c.clock.now+=120001;c.intervals.get(10000)!();
+ c.clock.now+=120001;await c.window.__controller.loadEvidence();
  assert.doesNotMatch(c.get('mission-list').innerHTML,/data-insight=|Collecting data/);
  assert.equal(c.get('recommendation-count').textContent,'');
  assert.match(c.get('mission-list').innerHTML,/Some checks need more current data/);

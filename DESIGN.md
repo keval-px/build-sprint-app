@@ -143,12 +143,12 @@ Basket values now prefer unique exact Shopify record matches: completed journeys
 
 Checkout prices now have a supported signed-notification source keyed by the original checkout token hash. It updates per-session totals independently from GraphQL abandoned counts. Historical verified identities remain readable without additional REST calls. Activation is deliberately separate from data refresh and requires explicit approval of the data sent to the Convex endpoint; the receiver is disabled by default.
 
-Jimmy’s Bakery is the user-approved dashboard name; connected-store metadata and the demo-data label retain the actual source identity. Overview adds qualifying priority issues, comparable-period metrics and error diagnostics. Checkout drill-down adds counted quick filters, a last-observed-step column, recorded step intervals and filtered CSV exports. Separate native views hold fix history and focused in-app alerts. Comparisons show an explicit waiting state until sufficient history exists. Step intervals describe first recorded submissions, never field-entry time; missing payment activity stays unknown. Fix archives preserve undo and retest records without making recovered-revenue claims. Alert settings and dismissals are browser-local; checks run while the app is visible and pause during overlays. All new UI uses the installed Shopify components.
+Jimmy’s Bakery is the user-approved dashboard name; connected-store metadata and the demo-data label retain the actual source identity. Overview adds qualifying priority issues, comparable-period metrics and error diagnostics. Checkout drill-down adds counted quick filters, a last-observed-step column, recorded step intervals and filtered CSV exports. Separate native views hold fix history and focused in-app alerts. Comparisons show an explicit waiting state until sufficient history exists. Step intervals describe first recorded submissions, never field-entry time; missing payment activity stays unknown. Fix archives preserve undo and retest records without making recovered-revenue claims. Alert settings and dismissals are browser-local; alerts are computed from the data loaded with the page. All new UI uses the installed Shopify components.
 
 The user requested removal of the Overview section titled Compared with the previous period. Its markup and rendering helper are removed; the order-pattern chart and fix-history comparisons remain separate features.
 
 ## Audit cleanup — 8 October 2026
-The obsolete modeled basket and recovery library surfaces and checklist are removed. Native abandoned-basket metrics use recorded Shopify totals; recommendations use the same exact full-price precedence as the journey table. Findings retain simultaneous-step context instead of choosing an arrival order. Automatic updates serve all views and pause for overlays and fix changes. The official component system and decorative timeline remain; the unused local font asset is removed.
+The obsolete modeled basket and recovery library surfaces and checklist are removed. Native abandoned-basket metrics use recorded Shopify totals; recommendations use the same exact full-price precedence as the journey table. Findings retain simultaneous-step context instead of choosing an arrival order. Data loads when the page opens and when dates change; there is no background refresh, refresh button or freshness message (14 October 2026: merchants reload the browser for newer data). The official component system and decorative timeline remain; the unused local font asset is removed.
 
 
 ### Checkout-stage chart — 13 October 2026
@@ -156,6 +156,15 @@ The obsolete modeled basket and recovery library surfaces and checklist are remo
 The approved reference adds five horizontal stage bars below the completed-checkout cards. Shopify components own the section, responsive rows, labels, counts and four segment buttons. Chart marks on `s-box[data-funnel-bar]` are a second scoped CSS exception: grayscale stages, green completion, proportional widths and rounded ends. This does not authorize styling unrelated controls or surfaces.
 
 Counts use recorded stages for checkouts started in the selected date range. Missing or skipped stages must not become claimed abandonment. Mobile and Desktop exclude unknown or conflicting device labels and tablets. Express pay includes positive wallet evidence only and states that payment details may arrive only at completion. Historical device labels are not inferred.
+
+### Chart styling exceptions — recorded 14 October 2026
+
+These existing rules in `src/style.css` and the chart code are the only other permitted custom visual values. They were already shipped; this records them so the component-only rule stays accurate. Do not extend them to other surfaces.
+
+- `s-text[data-funnel-drop="high"]` uses red `#c52233` for stage drops above 50%. The embedded theme renders `tone="critical"` text near-black, so the tone alone does not distinguish a high drop. The element keeps `tone="critical"` for semantics.
+- `#order-chart-summary` uses a dotted underline to mark the chart title as a help term, matching Shopify's help-term affordance.
+- `#order-chart-help-anchor` / `#order-chart-tooltip` position the help overlay below its trigger (300px wide, 8px offset, above the chart) so opening it never changes card geometry.
+- `ABANDONED_LINE_COLOR` (`#D86B76`, `shared/abandonedPattern.ts`) colours the abandoned-checkout series in the Polaris Viz order chart, which has no semantic series tone.
 
 ### Card wording — 13 October 2026
 

@@ -14,7 +14,6 @@ import {prepareEvidence,prepareFixes,type EvidenceResponse} from '../shared/evid
 import {monitoringHealth,type MonitoringHealth} from '../shared/monitoringHealth';
 import {outcomeLabel,type OutcomeFacts,type CheckoutOutcome} from '../shared/checkoutOutcome';
 import {actionValues} from '../shared/actionValues';
-import {checkoutBaskets} from '../shared/checkoutPrice';
 import "./style.css";
 import {lastObservedStep,stepTimings,durationText,focusedAlerts,issueLabels} from '../shared/dashboardInsights';
 import {checkoutCSV,checkoutEventsCSV} from '../shared/checkoutExport';
@@ -33,7 +32,7 @@ let funnelFilter:FunnelFilter='all';
 import {journeyLabel,journeyOrderHref} from "../shared/journeyLabel";
 import {filterJourneyRows,paginateRows} from "../shared/journeyTable";
 import {journeyDate} from "../shared/journeyDate";
-import {journeyPrice} from "../shared/journeyPrice";
+import {basketPricer} from "../shared/basketValue";
 import {journeyDuration} from "../shared/journeyDuration";
 import {browserBackendOrigin,deployment} from '../shared/deployment';
 import { STORE, summarize, describeJourney } from "../shared/evidence";
@@ -57,11 +56,6 @@ const eventLabels: Record<CheckoutEvent["name"], string> = {
 };
 const backendOrigin = browserBackendOrigin(location);
 let selectedRange=recentRange(30);
-const openOverlays=new Set<string>();
-for(const id of ['date-range-popover','journey-modal','export-menu','insight-method']){
- element(id).addEventListener('show',()=>openOverlays.add(id));
- element(id).addEventListener('hide',()=>openOverlays.delete(id));
-}
 let latestEvidence:EvidenceResponse|null=null;
 let latestEvidenceRange:string|null=null;
 let evidenceReadFailed=false;
@@ -75,18 +69,11 @@ function renderMonitoring(){
  const pattern=snapshot?orderPattern(snapshot.orders,snapshot.periodStart,snapshot.syncedAt,snapshot.timeZone??'UTC'):latestEvidence?.orderPatterns;
  const abandoned=pattern?abandonedPattern(snapshot?.abandoned??null,pattern):null;
  text('chart-data-detail',latestEvidence?.events.some(e=>e.simulated)?'Recorded completions and abandoned checkouts, grouped by hour in India time.':abandoned?.observed?'Abandoned checkout counts may be incomplete.':'No abandoned checkout data is available for this day.');
- text('data-availability',latestEvidence&&latestEvidenceRange!==selectedRange?'Results for these dates are not current yet.':health.canAssess?'Showing saved checkout activity.':health.state==='Needs attention'?'Data may be out of date. Results are not verified.':health.state==='Partial'?'Some data is missing. Results are not verified.':'Waiting for enough checkout activity to assess results.');
+ text('data-availability',latestEvidence&&latestEvidenceRange!==selectedRange?'Results for these dates are not current yet.':health.canAssess?'':health.state==='Needs attention'?'Data may be out of date. Results are not verified.':health.state==='Partial'?'Some data is missing. Results are not verified.':'Waiting for enough checkout activity to assess results.');
  return health;
 }
-const chartHelp=bindChartHelp(element('order-chart-help'),element('order-chart-tooltip'),document,open=>{if(open)openOverlays.add('chart-help');else openOverlays.delete('chart-help');});
-function tickMonitoring(){
- const health=renderMonitoring();
- if(latestEvidence&&trendHealthy!==health.canAssess)renderMissions(filteredEvidence(latestEvidence).events);
- document.querySelectorAll<HTMLElement>('[data-fix-outcome]').forEach(node=>{const fix=appliedFixes.find(f=>f.missionId===node.dataset.fixOutcome);if(fix)node.textContent=fixOutcomeCopy(fix,latestEvidence?.events??[],Date.now(),health,outcomeFacts(latestEvidence));});
- document.querySelectorAll<HTMLElement>('[data-current-assessment]').forEach(node=>{node.hidden=!health.canAssess;});
- document.querySelectorAll<HTMLElement>('[data-assessment-unavailable]').forEach(node=>{node.hidden=health.canAssess;});
- text('alerts-checked-at',health.canAssess?'Checked using saved checkout activity.':'Not enough current data to assess alerts.');
-}
+const chartHelp=bindChartHelp(element('order-chart-help'),element('order-chart-tooltip'),document);
+// Data loads when the page opens and when dates change; merchants reload for newer data.
 function filteredEvidence(data:EvidenceResponse):EvidenceResponse{
   const {start,end}=dateBounds(selectedRange);
   const within=(value:string)=>{const at=Date.parse(value);return at>=start&&at<end;};
@@ -219,7 +206,6 @@ async function saveFixUpdate(operation:'mark'|'undo'|'retest'|'undo-retest',miss
   finally{fixSaving=false;(element('apply-date-range') as HTMLElementTagNameMap['s-button']).disabled=loading;if(latestEvidence)render(filteredEvidence(latestEvidence));(document.getElementById(`toggle-${missionId}`)??element('overview-tab')).focus({preventScroll:true});}
 }
 
-function signalBoundary(id:MissionId){const fix=appliedFixes.find(f=>f.missionId===id);return fix?.retestedAt??fix?.appliedAt;}
 let storeCurrency='USD';
 const money = (minor:number)=>formatMoney(minor,storeCurrency);
 function renderCheckoutTrends(){
@@ -248,26 +234,30 @@ function renderMissions(events: CheckoutEvent[]) {
     : actionValues(events,latestEvidence?.abandonedCheckouts??null,latestEvidence?.shopifySnapshot?.abandoned??[],latestEvidence?.checkoutPrices??[],storeCurrency,bounds.start,bounds.end,facts.orders);
   const priority:Record<MissionId,number>={delivery:0,payment:0,inventory:0,discount:1,validation:2,unfinished:3,extension:1};
   const severityRank = {Critical:0, Warning:1, Info:2};
-  const state=(mission:Mission)=>actionState(appliedFixes.find(f=>f.missionId===mission.id),latestEvidence?.events??events,Date.now());
-  missions = recommendations.sort((a,b)=>Number(state(a).done)-Number(state(b).done)||severityRank[missionSignal(a,events,signalBoundary(a.id)).severity.label]-severityRank[missionSignal(b,events,signalBoundary(b.id)).severity.label]||priority[a.id]-priority[b.id]||unfinishedCount(b)-unfinishedCount(a));
+  // Each mission's fix, state and signal are computed once rather than per sort comparison.
+  const now=Date.now(),fixes=new Map(appliedFixes.map(f=>[f.missionId,f]));
+  const derived=new Map(recommendations.map(mission=>{const fix=fixes.get(mission.id),boundary=fix?.retestedAt??fix?.appliedAt;return [mission.id,{fix,boundary,status:actionState(fix,latestEvidence?.events??events,now),signal:missionSignal(mission,events,boundary),unfinished:unfinishedCount(mission)}];}));
+  const state=(mission:Mission)=>derived.get(mission.id)!.status;
+  missions = recommendations.sort((a,b)=>{const x=derived.get(a.id)!,y=derived.get(b.id)!;return Number(x.status.done)-Number(y.status.done)||severityRank[x.signal.severity.label]-severityRank[y.signal.severity.label]||priority[a.id]-priority[b.id]||y.unfinished-x.unfinished;});
   const pendingCount=missions.filter(mission=>!state(mission).done).length;
+  const dates=dateBounds(selectedRange),aggregate=latestEvidence?.inventoryItemValue;
+  const sharedInventory=aggregate&&aggregate.rangeStart===dates.start&&aggregate.rangeEnd===dates.end?aggregate:null;
+  const orderQuotes=sharedInventory?[]:(latestEvidence?.shopifySnapshot?.orders??[]).flatMap(o=>o.sessionId&&o.conversion?[{sessionId:o.sessionId,shop:{minor:o.conversion.shopMinor,currency:storeCurrency},buyer:{minor:o.conversion.buyerMinor,currency:o.conversion.buyerCurrency}}]:[]);
   const reviewCount=pendingCount+trends.filter(trend=>trend.state==='review').length;
   text('recommendation-count',reviewCount?`${reviewCount} item${reviewCount===1?'':'s'} to review`:missions.length?'All marked as done':'');
   element('recommendation-value-note').hidden=missions.length===0;
   const missionCards = missions.map(mission => {
     const open = expanded.has(`body-${mission.id}`);
     const destination = ACTION_DESTINATIONS[mission.id];
-    const status=state(mission);
-    const fix=appliedFixes.find(f=>f.missionId===mission.id);
-    const signal = missionSignal(mission, events, signalBoundary(mission.id));
+    const {status,fix,signal,boundary}=derived.get(mission.id)!;
     const severity = signal.severity;
-    const recommendation = missionRecommendation(mission, events, signalBoundary(mission.id));
-    const shippingBlockers = new Set(events.filter(event=>mission.sessionIds.includes(event.sessionId)&&event.shippingBlocker==='no_shipping_available').map(event=>event.sessionId)).size;
+    const recommendation = missionRecommendation(mission, events, boundary);
+    const affected=new Set(mission.sessionIds);
+    const shippingBlockers = new Set(events.filter(event=>event.shippingBlocker==='no_shipping_available'&&affected.has(event.sessionId)).map(event=>event.sessionId)).size;
     const estimate = recorded.actions.find(item=>item.id===mission.id);
     const basketCents = estimate?.totalCents;
     const hasAmount = basketCents !== null && basketCents !== undefined;
-    const dates=dateBounds(selectedRange),aggregate=latestEvidence?.inventoryItemValue;
-    const inventory=aggregate&&aggregate.rangeStart===dates.start&&aggregate.rangeEnd===dates.end?aggregate:inventoryValue(events,mission.sessionIds,storeCurrency,(latestEvidence?.shopifySnapshot?.orders??[]).flatMap(o=>o.sessionId&&o.conversion?[{sessionId:o.sessionId,shop:{minor:o.conversion.shopMinor,currency:storeCurrency},buyer:{minor:o.conversion.buyerMinor,currency:o.conversion.buyerCurrency}}]:[]));
+    const inventory=sharedInventory??inventoryValue(events,mission.sessionIds,storeCurrency,orderQuotes);
     const percent = summary.sessionCount ? Math.round(mission.count / summary.sessionCount * 100) : 0;
     const brief = `${mission.count} of ${summary.sessionCount} checkouts affected`;
     return {done:status.done,rank:severityRank[severity.label],html:`<s-section id="mission-${mission.id}">
@@ -404,7 +394,7 @@ element("mission-list").addEventListener("click", event => {
   applyMissionFilter(); showView("journeys", true);
   element("journeys").scrollIntoView({ behavior: "instant", block: "start" });
 });
-let alertSource:EvidenceResponse|null=null,checkingAlerts=false;
+let alertSource:EvidenceResponse|null=null;
 let alertPreferences={shipping:true,spikes:true},dismissedAlertKeys:string[]=[],alertStorageAvailable=true;
 try{
  const saved=JSON.parse(localStorage.getItem('checkout-alert-preferences')??'{}');
@@ -414,35 +404,26 @@ try{
 }catch{alertStorageAvailable=false;}
 (element('shipping-alerts-enabled') as HTMLElementTagNameMap['s-checkbox']).checked=alertPreferences.shipping;
 (element('spike-alerts-enabled') as HTMLElementTagNameMap['s-checkbox']).checked=alertPreferences.spikes;
-(element('check-alerts') as HTMLElementTagNameMap['s-button']).disabled=!alertPreferences.shipping&&!alertPreferences.spikes;
 function renderFocusedAlerts(data:EvidenceResponse){
  alertSource=data;
  const boundaries=Object.fromEntries(appliedFixes.map(f=>[f.missionId,f.retestedAt??f.appliedAt]));
  const list=focusedAlerts(data.events,Date.now(),data.truncated,boundaries,outcomeFacts(data)).filter(a=>!dismissedAlertKeys.includes(a.key)&&(a.category==='shipping_blocker'?alertPreferences.shipping:alertPreferences.spikes));
  element('focused-alert-list').innerHTML=!alertPreferences.shipping&&!alertPreferences.spikes?'<s-paragraph>Alerts are paused. Enable an alert type to resume checks.</s-paragraph>':alertsMarkup(list,currentMonitoring());
  text('alerts-tab',list.length?`Alerts (${list.length})`:'Alerts');
- text('alerts-checked-at',currentMonitoring().canAssess?'Checked using saved checkout activity.':'Not enough current data to assess alerts.');
+ text('alerts-checked-at',currentMonitoring().canAssess?'':'Not enough current data to assess alerts.');
  if(!alertStorageAvailable)text('alert-preference-note','These choices will last until you close this page.');
-}
-async function checkFocusedAlerts(){
- if(checkingAlerts||loading||fixSaving||openOverlays.size>0||!alertPreferences.shipping&&!alertPreferences.spikes)return;
- checkingAlerts=true;(element('check-alerts') as HTMLElementTagNameMap['s-button']).loading=true;
- try{await loadEvidence(true);}
- finally{checkingAlerts=false;(element('check-alerts') as HTMLElementTagNameMap['s-button']).loading=false;}
 }
 for(const id of ['shipping-alerts-enabled','spike-alerts-enabled'])element(id).addEventListener('change',()=>{
  alertPreferences={shipping:(element('shipping-alerts-enabled') as HTMLElementTagNameMap['s-checkbox']).checked,spikes:(element('spike-alerts-enabled') as HTMLElementTagNameMap['s-checkbox']).checked};
  try{localStorage.setItem('checkout-alert-preferences',JSON.stringify(alertPreferences));}catch{alertStorageAvailable=false;}
  if(alertSource)renderFocusedAlerts(alertSource);
- (element('check-alerts') as HTMLElementTagNameMap['s-button']).disabled=!alertPreferences.shipping&&!alertPreferences.spikes;
 });
-element('focused-alert-list').addEventListener('click',async event=>{
+element('focused-alert-list').addEventListener('click',event=>{
  const dismiss=(event.target as HTMLElement).closest<HTMLElement>('[data-dismiss-alert]');
  if(dismiss){dismissedAlertKeys=[...new Set([...dismissedAlertKeys,dismiss.dataset.dismissAlert!])].slice(-48);try{localStorage.setItem('checkout-dismissed-alerts',JSON.stringify(dismissedAlertKeys));}catch{alertStorageAvailable=false;}if(alertSource)renderFocusedAlerts(alertSource);return;}
  const button=(event.target as HTMLElement).closest<HTMLElement>('[data-alert-category]');
- if(button){await loadEvidence(true);viewCategory(button.dataset.alertCategory!);}
+ if(button)viewCategory(button.dataset.alertCategory!);
 });
-element('check-alerts').addEventListener('click',()=>void checkFocusedAlerts());
 let chartRenderVersion=0;
 function renderOrderPattern(data:EvidenceResponse){
   const version=++chartRenderVersion;
@@ -465,8 +446,14 @@ function renderOrderPattern(data:EvidenceResponse){
     text('order-chart-error','The chart could not load. Reload the page to try again.');element('order-chart-error').hidden=false;
   });
 }
+function bySession<T extends {sessionId?:string}>(rows:T[]){
+  const groups=new Map<string,T[]>();
+  for(const row of rows)if(row.sessionId!==undefined){const group=groups.get(row.sessionId);if(group)group.push(row);else groups.set(row.sessionId,[row]);}
+  return groups;
+}
 function render(data: EvidenceResponse) {
-  renderFunnel(element('checkout-funnel'),data.events,outcomeFacts(latestEvidence??data),funnelFilter);
+  const facts=outcomeFacts(latestEvidence??data);
+  renderFunnel(element('checkout-funnel'),data.events,facts,funnelFilter);
   renderMonitoring();
   const storeName=data.storeName?.trim()||'Checkout Health';
   element('demo-label').hidden=embeddedShopify;
@@ -474,15 +461,14 @@ function render(data: EvidenceResponse) {
   element('enable-pixel').hidden=data.enabled;
   document.title=storeName==='Checkout Health'?storeName:`${storeName} · Checkout Health`;
   renderOrderPattern(data);
-  element('fix-history-content').innerHTML=historyMarkup(fixHistory,latestEvidence?.events??data.events,fixesReady,outcomeFacts(latestEvidence??data),currentMonitoring());
+  element('fix-history-content').innerHTML=historyMarkup(fixHistory,latestEvidence?.events??data.events,fixesReady,facts,currentMonitoring());
   renderFocusedAlerts(latestEvidence??data);
   // Match the selected journey against the full synced records, even when its
   // order/contact date falls outside the journey start-date filter.
   const nativeSnapshot=latestEvidence?.shopifySnapshot??data.shopifySnapshot;
   storeCurrency=data.shopifySnapshot?.currency??data.abandonedBasketSummary?.currency??'USD';
   text('report-currency',data.events.some(e=>e.simulated)?'Test view · all recorded sessions are included. Generated basket values and Shopify basket values are shown in USD.':`Values are shown in ${storeCurrency}.`);
-  const baskets=checkoutBaskets(nativeSnapshot?.abandoned??[],latestEvidence?.checkoutPrices??data.checkoutPrices??[],storeCurrency);
-  const summary = summarize(data.events,outcomeFacts(latestEvidence??data));
+  const summary = summarize(data.events,facts);
   {
     const {start,end}=dateBounds(selectedRange);
     const sim=data.events.some(e=>e.simulated)?simulationRecords(data.events,data.sampledAt,latestEvidence??data):null;
@@ -531,20 +517,25 @@ function render(data: EvidenceResponse) {
   element("completion-progress").setAttribute("max",String(Math.max(1,summary.sessionCount)));
   element("completion-progress").setAttribute("value",String(summary.completed));
   element("completion-progress").setAttribute("accessibilityLabel",`${summary.completed} of ${summary.sessionCount} checkouts have completion evidence`);
+  // Order labels only match rows by session, so give each journey its own rows.
+  const orders=bySession(nativeSnapshot?.orders??[]);
+  const basketPrice=basketPricer({currency:storeCurrency,orders:nativeSnapshot?.orders,abandoned:nativeSnapshot?.abandoned,prices:latestEvidence?.checkoutPrices??data.checkoutPrices,legacy:data.abandonedCheckouts?.records});
   journeyRows = summary.journeys.reverse().map(session => {
     const alerts = session.events.filter(event => event.category !== null);
     const detail = describeJourney(session.events);
     const status = session.completed ? 'Completed' : 'Abandoned';
-    const basketCents = journeyPrice(session.id,session.completed,session.events,storeCurrency,nativeSnapshot?.orders??[],baskets,(data.abandonedCheckouts?.records??[]).filter(row=>row.currency===storeCurrency&&row.sessionId).map(row=>({...row,sessionId:row.sessionId!})),(latestEvidence?.checkoutPrices??data.checkoutPrices??[]).filter(row=>row.currency===storeCurrency));
-    const label = journeyLabel(session.id, nativeSnapshot?.orders ?? []);
-    const fullLabel = journeyLabel(session.id, nativeSnapshot?.orders ?? [], true);
-    const orderHref = journeyOrderHref(session.id, nativeSnapshot?.orders ?? []);
+    const simulatedBadge = session.events.some(event => event.simulated) ? '<s-badge tone="info">Simulated</s-badge>' : '';
+    const sessionOrders=orders.get(session.id)??[];
+    const basketCents = basketPrice(session);
+    const label = journeyLabel(session.id, sessionOrders);
+    const fullLabel = journeyLabel(session.id, sessionOrders, true);
+    const orderHref = journeyOrderHref(session.id, sessionOrders);
     const detailReference = orderHref ? `<s-link href="${escape(orderHref)}" target="_top" accessibilityLabel="Open ${escape(fullLabel)} in Shopify">${escape(fullLabel)}</s-link>` : fullLabel.match(/.{1,16}/gu)!.map(escape).join('<wbr>');
-    const detailHeader = `<s-stack direction="inline" gap="small" alignItems="center"><s-heading fontSize="large">${detailReference}</s-heading><s-badge tone="${session.completed ? 'success' : 'neutral'}">${status}</s-badge></s-stack>`;
+    const detailHeader = `<s-stack direction="inline" gap="small" alignItems="center"><s-heading fontSize="large">${detailReference}</s-heading><s-badge tone="${session.completed ? 'success' : 'neutral'}">${status}</s-badge>${simulatedBadge}</s-stack>`;
     const row = `<s-table-row data-session="${escape(session.id)}">
       <s-table-cell>${orderHref ? `<s-link href="${escape(orderHref)}" target="_top" accessibilityLabel="Open ${escape(label)} in Shopify">${escape(label)}</s-link>` : `<s-text type="strong">${escape(label)}</s-text>`}</s-table-cell>
       <s-table-cell>${escape(journeyDate(session.events[0].timestamp))}</s-table-cell>
-      <s-table-cell><s-badge tone="${session.completed ? "success" : "neutral"}">${status}</s-badge></s-table-cell>
+      <s-table-cell><s-stack direction="inline" gap="small" alignItems="center"><s-badge tone="${session.completed ? "success" : "neutral"}">${status}</s-badge>${simulatedBadge}</s-stack></s-table-cell>
       <s-table-cell>${escape(lastObservedStep(session.events))}</s-table-cell>
       <s-table-cell><s-stack direction="inline" gap="small" alignItems="center">${detail.categories.length ? detail.categories.map(category => `<s-badge tone="${category === "validation" ? "caution" : "neutral"}">${escape(categoryLabels[category])}</s-badge>`).join("") : '<s-text color="subdued">No alerts recorded</s-text>'}</s-stack></s-table-cell>
       <s-table-cell>${basketCents===undefined ? "Unavailable" : escape(money(basketCents))}</s-table-cell>
@@ -630,13 +621,12 @@ if(embeddedShopify){
 }
 let loading = false;
 let pendingEvidenceRead = false;
-async function loadEvidence(background=false) {
-  if(loading){if(!background)pendingEvidenceRead=true;return;}
-  if(background&&(fixSaving||openOverlays.size>0))return;
+async function loadEvidence() {
+  if(loading){pendingEvidenceRead=true;return;}
   const readRange=selectedRange;
   loading = true;
-  if(!background)setLoadingControls(true);
-  if(!background&&!latestEvidence){text("request-status", "Loading checkouts…");element('request-status').hidden=false;}
+  setLoadingControls(true);
+  if(!latestEvidence){text("request-status", "Loading checkouts…");element('request-status').hidden=false;}
   try {
     if(embeddedShopify&&!latestEvidence)text('shopify-status','Loading store data…');
     const response = embeddedShopify ? await shopifyRequest(`evidence?start=${dateBounds(selectedRange).start}&end=${dateBounds(selectedRange).end}`) : await fetch(`${backendOrigin}/api/test-evidence?start=${dateBounds(selectedRange).start}&end=${dateBounds(selectedRange).end}`, { cache: "no-store", signal: AbortSignal.timeout(90000) });
@@ -650,9 +640,9 @@ async function loadEvidence(background=false) {
     const previous=latestEvidence;
     const previousRange=latestEvidenceRange;
     evidenceReadFailed=false;
-    try{await fixRequest('read');fixError='';element('action-save-error').hidden=true;}catch{fixesReady=false;fixError='Saved action statuses couldn’t load. Reopen the app before changing them.';text('action-save-error',fixError);element('action-save-error').hidden=false;}
+    // One retry covers a brief network or session hiccup before blocking status changes.
+    try{await fixRequest('read').catch(()=>fixRequest('read'));fixError='';element('action-save-error').hidden=true;}catch{fixesReady=false;fixError='Saved action statuses couldn’t load. Reopen the app before changing them.';text('action-save-error',fixError);element('action-save-error').hidden=false;}
     if(readRange!==selectedRange){pendingEvidenceRead=true;return;}
-    element('alerts-error').hidden=true;
     latestEvidence=data;
     latestEvidenceRange=readRange;
     try{render(prepared);}catch(error){latestEvidence=previous;latestEvidenceRange=previousRange;throw error;}
@@ -662,7 +652,6 @@ async function loadEvidence(background=false) {
     evidenceReadFailed=true;
     if(latestEvidence){try{render(filteredEvidence(latestEvidence));}catch{renderMonitoring();}}
     else {renderMonitoring();text('summary-title','Checkout data unavailable');text('summary-description','Checkout activity couldn’t be loaded.');element('summary-description').hidden=false;text('mission-list','Findings are unavailable until checkout activity loads.');text('focused-alert-list','Alerts are unavailable until checkout activity loads.');text('fix-history-content','Fix history is unavailable until checkout activity loads.');}
-    if(background)element('alerts-error').hidden=false;
   } finally {
     loading = false;setLoadingControls(false);text("request-status", "");element("request-status").hidden=true;
     if(pendingEvidenceRead){pendingEvidenceRead=false;void loadEvidence();}
@@ -709,12 +698,3 @@ element('apply-date-range').addEventListener('click',event=>{
 },{capture:true});
 void loadEvidence();
 
-// The backend sync runs even when the merchant closes the app. This read-only
-// refresh updates an open overview without starting another Shopify sync.
-window.setInterval(()=>{
- if(document.visibilityState==='visible'&&!fixSaving)void loadEvidence(true);
-},60000);
-
-// Local freshness keeps advancing even when an overlay pauses network reads.
-window.setInterval(tickMonitoring,10000);
-document.addEventListener('visibilitychange',tickMonitoring);

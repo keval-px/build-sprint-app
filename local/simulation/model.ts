@@ -14,7 +14,7 @@ export function simulate(seed=42, options:{start?:number;firstHour?:number;hours
  for(let hour=first;hour<first+length;hour++){
   const phase=hour<6?'Normal activity':hour<12?'Shipping drop-offs':hour<18?'Mobile issues':'Recovery';
   const count=90+Math.floor(random()*31);
-  const completionRate=hour>=6&&hour<12?.09+random()*.05:hour>=12&&hour<18?.33+random()*.04:.27+random()*.08;
+  const completionRate=hour>=6&&hour<12?.09+random()*.05:hour>=12&&hour<18?.33+random()*.04:.30+random()*.02;
   const mobileCompletionRate=.05+random()*.03;
   let completed=0,shippingExits=0;
   const shuffled=Array.from({length:count},(_,i)=>i);

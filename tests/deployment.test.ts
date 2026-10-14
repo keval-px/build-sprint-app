@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {deployment,browserBackendOrigin,collectorEndpoint} from '../shared/deployment.ts';
-test('the maintained source preserves the original cloud deployment adapter',()=>{
+test('the maintained source keeps the hosted adapter the tests run against',()=>{
  assert.equal(deployment.kind,'cloud');
  assert.equal(deployment.store,'build-sprint-demo.myshopify.com');
  assert.equal(deployment.clientId,'9abd2c74381c3ec9dc1db38d568c5e4e');

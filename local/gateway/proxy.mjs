@@ -48,7 +48,7 @@ export function createSandboxGateway({assets = [], authentication, fetchUpstream
       for(const [key,value] of Object.entries(req.headers)){
         if(typeof value==='string' && (['authorization','content-type','origin','if-none-match'].includes(key)||key.startsWith('x-shopify-')))headers[key]=value;
       }
-      const response=await fetchUpstream(`http://127.0.0.1:6211${url.pathname}${url.search}`,{
+      const response=await fetchUpstream(`${identity.site}${url.pathname}${url.search}`,{
         method:req.method,headers,...(bytes.length?{body:bytes}:{}),redirect:'manual',signal:AbortSignal.timeout(95000),
       });
       if(response.status>=300&&response.status<400&&response.status!==304)return reply(502,'Unexpected upstream redirect');

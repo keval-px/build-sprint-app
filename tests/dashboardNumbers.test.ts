@@ -5,7 +5,7 @@ import {abandonedSummary} from '../shared/abandonedSummary.ts';
 import {actionValues} from '../shared/actionValues.ts';
 import {recordedFindings,stepTimings} from '../shared/dashboardInsights.ts';
 import {journeyDuration} from '../shared/journeyDuration.ts';
-import {journeyPrice} from '../shared/journeyPrice.ts';
+import {basketPricer} from '../shared/basketValue.ts';
 import {checkoutCSV,checkoutEventsCSV} from '../shared/checkoutExport.ts';
 import {fixBaseline,fixResults} from '../shared/fixTracking.ts';
 import {buildRecommendations} from '../shared/recommendations.ts';
@@ -26,7 +26,7 @@ test('golden dashboard totals reconcile completion, abandoned totals, recommenda
  assert.deepEqual(abandonedSummary(records,start,end),{count:3,totalCents:139995,averageCents:46665,unpricedCount:0,rangeStart:start,rangeEnd:end});
  const recommendations=buildRecommendations(cohort);assert.equal(recommendations.length,1);assert.equal(recommendations[0].count,2);assert.equal(Math.round(2/78*100),3);
  const actions=actionValues(cohort,null,records,[],'USD',start,end);assert.equal(actions.combined.totalCents,139995);assert.equal(actions.combined.matchedSessions,2);
- assert.equal(journeyPrice('24',false,[],'USD',[],records),77995);assert.equal(journeyPrice('26',false,[],'USD',[],records),0);
+ const price=basketPricer({currency:'USD',abandoned:records});assert.equal(price({id:'24',completed:false,events:[]}),77995);assert.equal(price({id:'26',completed:false,events:[]}),0);
  const findings=recordedFindings(cohort),form=findings.find(f=>f.category==='validation')!,shipping=findings.find(f=>f.category==='shipping_blocker')!;
  assert.equal(form.sessionIds.length,5);assert.equal(form.alerts.length,10);assert.equal(form.repeatedCheckouts,5);assert.equal(form.completedAfter,5);
  assert.equal(shipping.sessionIds.length,2);assert.equal(shipping.alerts.length,4);assert.equal(shipping.repeatedCheckouts,2);assert.equal(shipping.completedAfter,0);

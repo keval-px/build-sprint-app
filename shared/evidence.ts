@@ -1,4 +1,4 @@
-import {checkoutOutcome,type OutcomeFacts} from './checkoutOutcome.ts';
+import {outcomeResolver,type OutcomeFacts} from './checkoutOutcome.ts';
 import {appDisplayName} from './extensionApp.ts';
 import {deployment} from './deployment.ts';
 export const STORE = deployment.store;
@@ -87,7 +87,8 @@ export function summarize(events: CheckoutEvent[],facts:OutcomeFacts={}) {
     session.events.push(event);
     sessions.set(event.sessionId, session);
   }
-  const journeys = [...sessions.values()].map(session=>{const outcome=checkoutOutcome(session.id,session.events,{...facts,asOf});return {...session,completed:outcome.completed,outcome};});
+  const outcome=outcomeResolver({...facts,asOf});
+  const journeys = [...sessions.values()].map(session=>{const result=outcome(session.id,session.events);return {...session,completed:result.completed,outcome:result};});
   const groups = (["discount", "payment", "delivery", "validation", "inventory", "extension"] as const).map(category => {
     const alerts = unique.filter(event => event.category === category);
     return { category, alerts: alerts.length, sessions: new Set(alerts.map(event => event.sessionId)).size };

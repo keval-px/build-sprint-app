@@ -9,7 +9,7 @@ import {v} from 'convex/values';
 import {orderRecord,abandonedRecord} from './schema';
 import {STORE,type CheckoutEvent} from '../shared/evidence';
 import {PAGE_SIZE,REPORT_WINDOW_MS,REPORT_BYTES,readPages,ReportLimit,reportJSON,collectionGap} from '../shared/capacity';
-import {canReadShopifyEvidence} from '../shared/checkoutIdentity';
+import {canReadShopifyEvidence,mergeCheckoutEvents,publicCheckoutEvents} from '../shared/checkoutIdentity';
 import type {MonitoringEvidence} from '../shared/monitoringHealth';
 import {SYNC_FRESH_MS} from '../shared/monitoringHealth';
 import {canSaveSyncedSnapshot} from '../shared/shopifySync';
@@ -143,10 +143,8 @@ export const page=internalQuery({args:{dataset:v.union(v.literal('legacy'),v.lit
  // Never manufacture a start or split one checkout into a new denominator.
  const eventRows:Array<(typeof result.page)[number]>= [...result.page];
  const sessionIds=[...new Set(result.page.map(r=>r.sessionId))];
- for(const sessionId of sessionIds){
-  const first=args.dataset==='legacy'?await ctx.db.query('testCheckoutEvents').withIndex('by_store_session_name',q=>q.eq('store',STORE).eq('sessionId',sessionId).eq('name','checkout_started')).filter(q=>q.neq(q.field('auditOnly'),true)).first():await ctx.db.query('shopifyCheckoutEvents').withIndex('by_store_session_name',q=>q.eq('store',STORE).eq('sessionId',sessionId).eq('name','checkout_started')).first();
-  if(first&&first.timestamp<args.start&&first._creationTime<=args.asOf)eventRows.push(first);
- }
+ const firsts=await Promise.all(sessionIds.map(sessionId=>args.dataset==='legacy'?ctx.db.query('testCheckoutEvents').withIndex('by_store_session_name',q=>q.eq('store',STORE).eq('sessionId',sessionId).eq('name','checkout_started')).filter(q=>q.neq(q.field('auditOnly'),true)).first():ctx.db.query('shopifyCheckoutEvents').withIndex('by_store_session_name',q=>q.eq('store',STORE).eq('sessionId',sessionId).eq('name','checkout_started')).first()));
+ for(const first of firsts)if(first&&first.timestamp<args.start&&first._creationTime<=args.asOf)eventRows.push(first);
  return {...result,changed:false,page:eventRows.map(({eventId,sessionId,name,timestamp,category,...row})=>({eventId,sessionId,name,timestamp,category,...('simulated'in row&&row.simulated?{simulated:true as const}:{}),...(row.deviceClass?{deviceClass:row.deviceClass}:{}),...(row.expressPay?{expressPay:row.expressPay}:{}),...('discountOfferCode'in row&&row.discountOfferCode?{discountOfferCode:row.discountOfferCode}:{}),...(row.extensionAppName?{extensionAppName:row.extensionAppName}:{}),...(row.extensionAppHash?{extensionAppHash:row.extensionAppHash}:{}),...(row.shippingBlocker?{shippingBlocker:row.shippingBlocker}:{}),...('items'in row&&row.items?{items:row.items}:{}),...('subtotalCents'in row&&row.subtotalCents!==undefined?{subtotalCents:row.subtotalCents,currency:'USD' as const}:{})}))};
 }});
 export const collection=internalQuery({args:{pixel:v.boolean(),start:v.number()},handler:async(ctx,args)=>{
@@ -170,14 +168,26 @@ export async function readWindow(ctx:ActionCtx,asOf=Date.now()){
    return {...next,page:next.page as T[]};
   });
  }
- const legacy=[...new Map((await all<CheckoutEvent>('legacy')).map(e=>[e.eventId,e])).values()],pixel=[...new Map((await all<CheckoutEvent>('pixel')).map(e=>[e.eventId,e])).values()];
- const prices=await all<CheckoutPrice>('prices');
+ // The datasets are independent; read them concurrently against the same watermark and budget.
+ const generation=metadata&&'generation'in metadata?metadata.generation:undefined;
+ const [legacyRows,pixelRows,prices,orders,abandoned,legacyCollection,pixelCollection]=await Promise.all([all<CheckoutEvent>('legacy'),all<CheckoutEvent>('pixel'),all<CheckoutPrice>('prices'),generation?all<Snapshot['orders'][number]>('orders',generation):null,generation?all<Snapshot['abandoned'][number]>('abandoned',generation):null,ctx.runQuery(internal.capacity.collection,{pixel:false,start}),ctx.runQuery(internal.capacity.collection,{pixel:true,start})]);
+ const legacy=[...new Map(legacyRows.map(e=>[e.eventId,e])).values()],pixel=[...new Map(pixelRows.map(e=>[e.eventId,e])).values()];
  // Legacy snapshots remain untouched and readable during staged migration.
- const snapshot=metadata&&'generation'in metadata?{...metadata,orders:await all<Snapshot['orders'][number]>('orders',metadata.generation),abandoned:await all<Snapshot['abandoned'][number]>('abandoned',metadata.generation)}:metadata;
- const [legacyCollection,pixelCollection]=await Promise.all([ctx.runQuery(internal.capacity.collection,{pixel:false,start}),ctx.runQuery(internal.capacity.collection,{pixel:true,start})]);
+ const snapshot=metadata&&'generation'in metadata?{...metadata,orders:orders!,abandoned:abandoned!}:metadata;
  const result={legacy:{store:STORE,events:legacy,totalStored:legacy.length,truncated:false,collection:legacyCollection},pixel:{events:pixel,totalStored:pixel.length,truncated:false,collection:pixelCollection},prices,snapshot,truncated:false,historyUnavailable:false,start,asOf,syncHeader:{connectedAt:pinned.connectedAt,generation:metadata&&'generation'in metadata?metadata.generation:undefined,syncedAt:metadata?.syncedAt,periodStart:metadata?.periodStart}};
  // Include envelopes, collection metadata and fallback structures, too.
  reportJSON(result);return result;
+}
+
+// One evidence read for every route. Merchants see merged private and pixel events
+// with their server completion facts; the public demo sees only already-public
+// identities and no facts. `orphan` flags events whose start lies outside the window.
+export async function readEvidence(ctx:ActionCtx,audience:'merchant'|'public'){
+ const window=await readWindow(ctx);
+ const events=audience==='merchant'?mergeCheckoutEvents(window.legacy.events,window.pixel.events):publicCheckoutEvents(window.legacy.events,window.pixel.events);
+ const started=new Set(events.filter(e=>e.name==='checkout_started').map(e=>e.sessionId));
+ const facts=audience==='merchant'?{orders:window.snapshot?.orders??[],prices:window.prices}:{};
+ return {window,events,facts,orphan:events.some(e=>!started.has(e.sessionId))};
 }
 
 // Only derived sync caches are temporary. Original events, prices and legacy

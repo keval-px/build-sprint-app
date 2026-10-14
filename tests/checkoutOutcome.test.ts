@@ -6,7 +6,7 @@ import {buildRecommendations} from '../shared/recommendations.ts';
 import {actionValues} from '../shared/actionValues.ts';
 import {focusedAlerts} from '../shared/dashboardInsights.ts';
 import {checkoutCSV,checkoutEventsCSV} from '../shared/checkoutExport.ts';
-import {journeyPrice} from '../shared/journeyPrice.ts';
+import {basketPricer} from '../shared/basketValue.ts';
 import {filterJourneyRows} from '../shared/journeyTable.ts';
 import {recordedFindings} from '../shared/dashboardInsights.ts';
 import {fixBaseline,fixResults} from '../shared/fixTracking.ts';
@@ -27,7 +27,7 @@ test('a paid exact order reconciles a missing Thank-you event across counts, rec
  assert.equal(recommendation.count,2);assert.deepEqual(recommendation.sessionIds,ids.slice(1));
  const value=actionValues(events,null,[],[],'USD',0,5000,[order]);
  assert.equal(value.combined.eligibleSessions,2);assert.equal(value.combined.totalCents,120000);
- assert.equal(journeyPrice(ids[0],true,events,'USD',[order],[]),62000);
+ assert.equal(basketPricer({currency:'USD',orders:[order]})({id:ids[0],completed:true,events}),62000);
  const rows=summary.journeys.map(j=>({id:j.id,label:j.id,startedAt:start,completed:j.completed,outcome:j.outcome,events:j.events,categories:['delivery'],shippingBlocker:true}));
  assert.deepEqual(filterJourneyRows(rows,{query:'',status:'completed',alert:'all',shippingOnly:false,sort:'newest'}).map(r=>r.id),[ids[0]]);
  assert.ok(checkoutCSV(rows,'USD').includes('Completed · paid order'));

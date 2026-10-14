@@ -143,11 +143,10 @@
         </s-stack>
         <s-stack id="alerts" gap="base" hidden>
           <s-section heading="Checkout alerts"><s-stack gap="base">
-            <s-paragraph>Checks run while this app is open, once a minute. Alerts stay inside this app.</s-paragraph>
-            <s-stack direction="inline" gap="base"><s-checkbox id="shipping-alerts-enabled" label="Shipping unavailable" checked></s-checkbox><s-checkbox id="spike-alerts-enabled" label="More checkout alerts" checked></s-checkbox><s-button id="check-alerts" variant="secondary">Check now</s-button></s-stack>
+            <s-paragraph>Alerts stay inside this app.</s-paragraph>
+            <s-stack direction="inline" gap="base"><s-checkbox id="shipping-alerts-enabled" label="Shipping unavailable" checked></s-checkbox><s-checkbox id="spike-alerts-enabled" label="More checkout alerts" checked></s-checkbox></s-stack>
             <s-text id="alert-preference-note" color="subdued">These choices are saved in this browser. Each alert type appears at most once per hour.</s-text>
             <s-text id="alerts-checked-at" color="subdued" role="status" aria-live="polite"></s-text>
-            <s-banner id="alerts-error" tone="warning" hidden><s-paragraph>Couldn’t check for new alerts. Earlier alerts are still shown. Select Check now to try again.</s-paragraph></s-banner>
             <s-stack id="focused-alert-list" gap="small"></s-stack>
           </s-stack></s-section>
         </s-stack>
