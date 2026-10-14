@@ -441,11 +441,14 @@ function renderOrderPattern(data:EvidenceResponse){
   element('order-chart-viz').setAttribute('aria-label',`${sim?'Simulated completed checkouts':'Hourly paid orders'} today compared with the hourly average ${pattern.baselineDays?'over '+pattern.baselineDays+' previous complete days':'pending history'}, with abandoned checkouts grouped by creation hour; blank hours are unknown, in ${pattern.timeZone}`);
   element('order-chart-error').hidden=true;
   const abandoned=abandonedPattern(sim?.abandoned??snapshot?.abandoned??null,pattern);
-  void import('./orderChart').then(({renderOrderChart})=>{if(version===chartRenderVersion)renderOrderChart(element('order-chart-viz'),pattern,abandoned);}).catch(()=>{
+  void orderChartModule.then(({renderOrderChart})=>{if(version===chartRenderVersion)renderOrderChart(element('order-chart-viz'),pattern,abandoned);}).catch(()=>{
     if(version!==chartRenderVersion)return;
     text('order-chart-error','The chart could not load. Reload the page to try again.');element('order-chart-error').hidden=false;
   });
 }
+// Start downloading the chart bundle with the page instead of after the first render.
+const orderChartModule=import('./orderChart');
+orderChartModule.catch(()=>{/* Reported when the chart renders. */});
 function bySession<T extends {sessionId?:string}>(rows:T[]){
   const groups=new Map<string,T[]>();
   for(const row of rows)if(row.sessionId!==undefined){const group=groups.get(row.sessionId);if(group)group.push(row);else groups.set(row.sessionId,[row]);}
@@ -627,6 +630,8 @@ async function loadEvidence() {
   loading = true;
   setLoadingControls(true);
   if(!latestEvidence){text("request-status", "Loading checkouts…");element('request-status').hidden=false;}
+  // Saved statuses load alongside the evidence; one retry covers a brief network or session hiccup.
+  const fixesRead=fixRequest('read').catch(()=>fixRequest('read')).then(()=>true,()=>false);
   try {
     if(embeddedShopify&&!latestEvidence)text('shopify-status','Loading store data…');
     const response = embeddedShopify ? await shopifyRequest(`evidence?start=${dateBounds(selectedRange).start}&end=${dateBounds(selectedRange).end}`) : await fetch(`${backendOrigin}/api/test-evidence?start=${dateBounds(selectedRange).start}&end=${dateBounds(selectedRange).end}`, { cache: "no-store", signal: AbortSignal.timeout(90000) });
@@ -640,8 +645,7 @@ async function loadEvidence() {
     const previous=latestEvidence;
     const previousRange=latestEvidenceRange;
     evidenceReadFailed=false;
-    // One retry covers a brief network or session hiccup before blocking status changes.
-    try{await fixRequest('read').catch(()=>fixRequest('read'));fixError='';element('action-save-error').hidden=true;}catch{fixesReady=false;fixError='Saved action statuses couldn’t load. Reopen the app before changing them.';text('action-save-error',fixError);element('action-save-error').hidden=false;}
+    if(await fixesRead){fixError='';element('action-save-error').hidden=true;}else{fixesReady=false;fixError='Saved action statuses couldn’t load. Reopen the app before changing them.';text('action-save-error',fixError);element('action-save-error').hidden=false;}
     if(readRange!==selectedRange){pendingEvidenceRead=true;return;}
     latestEvidence=data;
     latestEvidenceRange=readRange;

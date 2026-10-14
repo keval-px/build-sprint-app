@@ -1,4 +1,5 @@
 import {createServer} from 'node:http';
+import {gzipSync} from 'node:zlib';
 import {identity} from './dev-identity.mjs';
 
 const business = new Map([
@@ -7,6 +8,9 @@ const business = new Map([
   ['/api/shopify/fixes','POST'], ['/api/shopify/pixel/enable','POST'],
 ]);
 const signed = '/api/shopify/webhooks';
+// Build output names carry a content hash, so a cached copy can never be stale.
+const hashedAsset = /^\/assets\/[\w.-]+-[\w-]{8}\.(?:js|css)$/;
+const compressible = /^(?:application\/(?:json|javascript)|text\/)/;
 const pixel = '/api/shopify/pixel-events';
 // Only the HTTP app port is reachable here. No admin key, target argument,
 // forwarded host, public history route or general-purpose proxy exists.
@@ -56,8 +60,14 @@ export function createSandboxGateway({assets = [], authentication, fetchUpstream
       for(const key of ['content-type','cache-control','etag','content-security-policy','access-control-allow-origin','access-control-allow-methods','access-control-allow-headers','vary','x-shopify-retry-invalid-session-request']){
         const value=response.headers.get(key);if(value)responseHeaders[key]=value;
       }
+      if(asset&&response.status===200&&hashedAsset.test(path))responseHeaders['cache-control']='public, max-age=31536000, immutable';
+      let body=req.method==='HEAD'?undefined:Buffer.from(await response.arrayBuffer());
+      // The evidence report is about 1.5MB of JSON; gzip cuts it roughly 5x over the tunnel.
+      if(body&&body.length>1024&&compressible.test(responseHeaders['content-type']??'')&&/\bgzip\b/.test(req.headers['accept-encoding']??'')){
+        body=gzipSync(body);responseHeaders['content-encoding']='gzip';responseHeaders.vary=[responseHeaders.vary,'Accept-Encoding'].filter(Boolean).join(', ');
+      }
       res.writeHead(response.status,responseHeaders);
-      res.end(req.method==='HEAD'?undefined:Buffer.from(await response.arrayBuffer()));
+      res.end(body);
     }catch{if(!res.headersSent)reply(502,'Local app is unavailable');else res.end();}
   });
 }

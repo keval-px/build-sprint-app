@@ -67,3 +67,14 @@ test('upstream redirects cannot leak localhost storage or reach other destinatio
   const {send}=await fixture(t,{fetchUpstream:async()=>new Response(null,{status:302,headers:{Location:'http://127.0.0.1:3210/admin'}})});
   const response=await send('/assets/app.js');assert.equal(response.status,502);assert.equal(response.headers.location,undefined);
 });
+test('large text responses are gzipped for clients that accept it, and hashed assets cache permanently',async t=>{
+  const big=JSON.stringify({events:Array.from({length:500},(_,i)=>({eventId:`e${i}`,name:'checkout_started'}))});
+  const {send}=await fixture(t,{assets:['/assets/index-AbC12_-z.js','/assets/app.js'],fetchUpstream:async url=>new Response(url.endsWith('.js')?'x'.repeat(4000):big,{headers:{'Content-Type':url.endsWith('.js')?'application/javascript; charset=utf-8':'application/json','Cache-Control':url.endsWith('.js')?'public, max-age=0, must-revalidate':'no-store'}})});
+  const auth={Authorization:'Bearer synthetic.session.token','Accept-Encoding':'gzip, deflate'};
+  const zipped=await send('/api/shopify/evidence','GET',auth);
+  assert.equal(zipped.headers['content-encoding'],'gzip');assert.match(zipped.headers.vary,/Accept-Encoding/);assert.equal(zipped.headers['cache-control'],'no-store');
+  const plain=await send('/api/shopify/evidence','GET',{Authorization:'Bearer synthetic.session.token'});
+  assert.equal(plain.headers['content-encoding'],undefined);assert.equal(plain.body,big);
+  assert.equal((await send('/assets/index-AbC12_-z.js','GET',{'Accept-Encoding':'gzip'})).headers['cache-control'],'public, max-age=31536000, immutable');
+  assert.equal((await send('/assets/app.js')).headers['cache-control'],'public, max-age=0, must-revalidate','unhashed names keep revalidating');
+});
