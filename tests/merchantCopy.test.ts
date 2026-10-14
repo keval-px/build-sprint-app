@@ -19,12 +19,12 @@ test('alerts after marking done do not claim a recurring issue, recovery or a ve
 });
 test('merchant overview retains exact headings and distinct cohorts without technical descriptions',()=>{
  const html=readFileSync('index.html','utf8');
- for(const name of ['Checkout completion','Insights &amp; recommendations'])assert.ok(html.includes(name));
+ for(const name of ['Checkout performance','Insights &amp; recommendations','>Recorded<','>Completed<','>Abandoned<','>Abandoned value<'])assert.ok(html.includes(name));
  const source=readFileSync('src/main.ts','utf8');assert.ok(source.includes("'Daily order pattern'"));
  assert.ok(html.includes('Abandoned checkouts are imported from your admin. Affected checkouts come from activity recorded by this app.'));
  assert.doesNotMatch(html,/Shopify abandoned|payload|signed|server-verified|backend|markers/);
  assert.ok(html.includes('Blank hours are unknown, not zero.'));
- assert.ok(source.includes('current?.count===0?"No checkouts":"Unavailable"'));
+ assert.doesNotMatch(html+source,/Average abandoned value|abandoned-average/,'the average abandoned value was removed by request');
  assert.ok(source.includes("element('demo-label').hidden=embeddedShopify"));
  assert.ok(source.includes("element('enable-pixel').hidden=data.enabled"));
 });

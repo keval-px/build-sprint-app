@@ -13,3 +13,16 @@ test('embedded requests stay on the page origin so Shopify authentication can re
  assert.equal(browserBackendOrigin({origin,hostname:'test-gateway.trycloudflare.com',pathname:'/api/shopify/app'}),origin);
  assert.equal(browserBackendOrigin({origin:'http://localhost:5173',hostname:'localhost',pathname:'/'}),deployment.siteOrigin);
 });
+test('on the hosted path the local opt-ins never block, and development-only operations are refused',async()=>{
+ const rules=await import('../convex/lib/deployment.ts');
+ const saved={...process.env};delete process.env.LOCAL_CONNECTION_ENABLED;delete process.env.LOCAL_SYNC_ENABLED;
+ try{
+  assert.equal(rules.isLocal,false);
+  assert.doesNotThrow(()=>rules.assertConnectionEnabled());
+  assert.equal(rules.syncPaused(),false);
+  assert.doesNotThrow(()=>rules.assertAppIdentity('any-hosted-client-id'));
+  assert.throws(()=>rules.assertDevelopmentOnly(),/Development-only/);
+  assert.throws(()=>rules.assertSimulationAllowed('checkout-gain-local-dev-sandbox.myshopify.com'),/restricted to the local sandbox/);
+  assert.equal(rules.reuseTunnelSubscriptions,false);assert.equal(rules.explainRejectedSubscriptions,false);
+ }finally{process.env=saved;}
+});

@@ -1,15 +1,14 @@
 import '@shopify/shopify-api/adapters/web-api';
 import {shopifyApi, ApiVersion, RequestedTokenType} from '@shopify/shopify-api';
 import {STORE} from '../../shared/evidence.ts';
-import {deployment} from '../../shared/deployment.ts';
-import {shopifyOrigin} from './deployment.ts';
+import {shopifyOrigin,assertAppIdentity} from './deployment.ts';
 
 export const REQUIRED_SCOPES = ['read_orders', 'read_customer_events', 'write_pixels'];
 export function shopifyClient() {
   const apiKey = process.env.SHOPIFY_CLIENT_ID;
   const apiSecretKey = process.env.SHOPIFY_CLIENT_SECRET;
   if (!apiKey || !apiSecretKey) throw new Error('Shopify credentials are not configured in Convex.');
-  if (deployment.kind === 'local' && apiKey !== deployment.clientId) throw new Error('Wrong development app identity.');
+  assertAppIdentity(apiKey);
   return shopifyApi({apiKey, apiSecretKey, apiVersion: ApiVersion.October26,
     scopes: REQUIRED_SCOPES, hostName: new URL(shopifyOrigin()).host,
     isEmbeddedApp: true, logger: {log: () => {}}}); // SDK errors can contain tokens: never log them.

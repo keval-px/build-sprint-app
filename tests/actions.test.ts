@@ -107,3 +107,14 @@ test('new general shipping alerts after a fix do not inherit historical blocker 
  assert.match(missionRecommendation(mission,events,5),/price or weight limits/);
  assert.equal(mission.count,2);
 });
+test("severity and payment wording count paid orders and same-moment completions as completed",()=>{
+ const id="a".repeat(64),t=Date.parse("2026-10-01T10:00:00Z");
+ const rows=[{...event("checkout_started",t,id)},{...event("alert_displayed",t+1000,id,"payment")}];
+ const payment=(facts={})=>buildMissions(rows,facts).find(m=>m.id==="payment")!;
+ assert.equal(missionSeverity(payment(),rows).label,"Critical","no completion recorded yet");
+ const paid={orders:[{sessionId:id,paid:true,createdAt:new Date(t+60000).toISOString()}],asOf:t+120000};
+ assert.match(payment(paid).description,/1 later completed/);
+ assert.equal(missionSeverity(payment(paid),rows,paid).label,"Info","a paid Shopify order counts even without a browser completion event");
+ const sameMoment=[...rows,{...event("checkout_completed",t+1000,id),eventId:"done"}];
+ assert.equal(missionSeverity(buildMissions(sameMoment).find(m=>m.id==="payment")!,sameMoment).label,"Info","a completion at the alert's moment counts");
+});

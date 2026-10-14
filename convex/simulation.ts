@@ -3,8 +3,8 @@ import {v} from 'convex/values';
 import {eventFields} from './schema';
 import {parseTestEvent,STORE} from '../shared/evidence';
 import {simulationBasketCents} from '../shared/simulationDashboard';
-import {deployment} from '../shared/deployment';
-function localOnly(){if(deployment.kind!=='local'||String(STORE)!=='checkout-gain-local-dev-sandbox.myshopify.com')throw Error('Simulation is restricted to the local sandbox.');}
+import {assertSimulationAllowed} from './lib/deployment';
+function localOnly(){assertSimulationAllowed(String(STORE));}
 export const ingest=internalMutation({args:{events:v.array(v.object(eventFields))},handler:async(ctx,{events})=>{
  localOnly();
  if(events.length>150)throw Error('Simulation chunk too large.');

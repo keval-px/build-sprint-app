@@ -1,4 +1,4 @@
-import {shopifyOrigin,frontendStorageUrl} from './lib/deployment';
+import {shopifyOrigin,frontendStorageUrl,isLocal} from './lib/deployment';
 import {ReportLimit,reportJSON,coversPeriod} from '../shared/capacity';
 import {readEvidence} from './capacity';
 import {monitoringHealth} from '../shared/monitoringHealth';
@@ -17,7 +17,6 @@ import {abandonedSummary} from '../shared/abandonedSummary';
 import { isViewerId } from "../shared/actions";
 
 import {authorizedAccess,syncStore,adminRead,enableLocalPixel} from './shopify';
-import {deployment} from '../shared/deployment';
 import {verifyMerchant,verifyLifecycle} from './lib/shopifyAuth';
 import {invalidSessionResponse} from '../shared/shopifyRequest';
 import {pixelQuery,pixelCreate} from './lib/shopifyQueries';
@@ -77,7 +76,7 @@ for(const operation of ['status','sync','evidence','pixel/enable']){
       if(operation==='sync')return privateReply(await syncStore(ctx,token));
       if(operation==='pixel/enable'){
         const access=await authorizedAccess(ctx,token);
-        if(deployment.kind==='local')return privateReply(await enableLocalPixel(ctx,access));
+        if(isLocal)return privateReply(await enableLocalPixel(ctx,access));
         const settings=JSON.stringify({endpoint:`${shopifyOrigin()}/api/shopify/pixel-events`});
         let exists=false;
         try{const current=await adminRead<{webPixel:{id:string;settings:unknown}|null}>(access,pixelQuery);exists=!!current.webPixel;}catch{/* Shopify errors when no app pixel exists. Creation below remains bounded. */}

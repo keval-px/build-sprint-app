@@ -1,4 +1,5 @@
 import { summarize } from "./evidence.ts";
+import { outcomeResolver, type OutcomeFacts } from "./checkoutOutcome.ts";
 import type { CheckoutEvent, ErrorCategory } from "./evidence.ts";
 
 export type MissionId = "payment" | "validation" | "unfinished" | "delivery" | "discount" | "inventory" | "extension";
@@ -30,8 +31,16 @@ export interface Mission {
   sessionIds: string[];
 }
 export function isViewerId(value: unknown): value is string { return typeof value === "string" && /^[a-f0-9]{32}$/.test(value); }
-export function buildMissions(events: CheckoutEvent[]): Mission[] {
-  const summary = summarize(events);
+// One rule for "did this checkout complete at or after this moment": browser completions,
+// paid Shopify orders and signed checkout completions all count, and a completion at the
+// same moment counts too.
+export function completedFrom(events: CheckoutEvent[], facts: OutcomeFacts = {}) {
+  const resolve = outcomeResolver(facts), bySession = new Map<string, CheckoutEvent[]>();
+  for (const event of events) { const rows = bySession.get(event.sessionId); if (rows) rows.push(event); else bySession.set(event.sessionId, [event]); }
+  return (id: string, at: number) => resolve(id, bySession.get(id) ?? []).completionTimes.some(time => time >= at);
+}
+export function buildMissions(events: CheckoutEvent[], facts: OutcomeFacts = {}): Mission[] {
+  const summary = summarize(events, facts), completedAt = completedFrom(events, facts);
   const matching = (category: ErrorCategory) => summary.journeys.filter(session => session.events.some(event => event.category === category)).map(session => session.id);
   const paymentIds = matching("payment");
   const validationIds = matching("validation");
@@ -39,10 +48,7 @@ export function buildMissions(events: CheckoutEvent[]): Mission[] {
   const deliveryIds=matching('delivery'),discountIds=matching('discount'),inventoryIds=matching('inventory');
   const blockedShippingIds = summary.journeys.filter(session => session.events.some(event => event.shippingBlocker === "no_shipping_available")).map(session => session.id);
   const repeatedDiscounts=summary.journeys.filter(session=>session.events.filter(event=>event.category==='discount').length>=2&&!session.completed).length;
-  const paymentRecovered = summary.journeys.filter(session => {
-    const completion = session.events.find(event => event.name === "checkout_completed");
-    return completion && session.events.some(event => event.category === "payment" && event.timestamp < completion.timestamp);
-  }).length;
+  const paymentRecovered = summary.journeys.filter(session => session.events.some(event => event.category === "payment" && completedAt(session.id, event.timestamp))).length;
   return [
     { id: "payment", title: "Investigate payment errors", count: paymentIds.length, sessionIds: paymentIds,
       description: `${paymentIds.length} checkout${paymentIds.length === 1 ? "" : "s"} had a payment alert. ${paymentRecovered} later completed. The alert alone does not identify a card decline or provider fault.`,
@@ -50,7 +56,7 @@ export function buildMissions(events: CheckoutEvent[]): Mission[] {
       next: paymentIds.length > 0 && paymentIds.every(id => {
         const alerts = events.filter(event => event.sessionId === id && event.category === "payment");
         const lastAlert = Math.max(...alerts.map(event => event.timestamp));
-        return events.some(event => event.sessionId === id && event.name === "checkout_completed" && event.timestamp > lastAlert);
+        return completedAt(id, lastAlert);
       })
         ? "These checkouts completed after their last payment alert. Review the retries before changing payment settings."
         : "Check the payment-provider record for an affected attempt. Confirm whether the card was declined or a payment service problem or incorrect settings blocked payment. Do not treat every card decline as a store fault.", },
@@ -87,29 +93,30 @@ export function buildMissions(events: CheckoutEvent[]): Mission[] {
 
 // Use the current alert period for advice after a fix, while keeping the full
 // selected-period counts intact. Without new alerts, retain the retest guidance.
-export function missionRecommendation(mission: Mission, events: CheckoutEvent[], boundary?: number): string {
+export function missionRecommendation(mission: Mission, events: CheckoutEvent[], boundary?: number, facts: OutcomeFacts = {}): string {
   if (boundary === undefined || mission.id === "unfinished" || mission.id === "extension" || mission.id === "discount") return mission.next;
-  const current = buildMissions(events.filter(event => event.timestamp >= boundary)).find(item => item.id === mission.id)!;
+  const current = buildMissions(events.filter(event => event.timestamp >= boundary), facts).find(item => item.id === mission.id)!;
   return current.count ? current.next : mission.next;
 }
 
-export function missionSeverity(mission: Mission, events: CheckoutEvent[]): {
+export function missionSeverity(mission: Mission, events: CheckoutEvent[], facts: OutcomeFacts = {}): {
   label: "Critical" | "Warning" | "Info"; tone: "critical" | "caution" | "info"; reason: string;
 } {
   if (mission.id === "unfinished" || !mission.count) return {
     label: "Info", tone: "info", reason: "No purchase was recorded.",
   };
+  const completedAt = completedFrom(events, facts);
   const unresolved = mission.sessionIds.some(id => {
     const alerts = events.filter(event => event.sessionId === id && event.category === mission.id && (!mission.discountCodes||mission.discountCodes.includes(event.discountOfferCode??'')) && (!mission.signal||event.shippingBlocker==='no_shipping_available'));
     const lastAlert = Math.max(...alerts.map(event => event.timestamp));
-    return !events.some(event => event.sessionId === id && event.name === "checkout_completed" && event.timestamp > lastAlert);
+    return !completedAt(id, lastAlert);
   });
   if (!unresolved) return {
     label: "Info", tone: "info", reason: "Affected checkouts completed after their last alert.",
   };
   if (mission.id === "delivery" && mission.sessionIds.some(id => {
     const blockers = events.filter(event => event.sessionId === id && event.category === "delivery" && event.shippingBlocker === "no_shipping_available");
-    return blockers.some(blocker => !events.some(event => event.sessionId === id && event.name === "checkout_completed" && event.timestamp > blocker.timestamp));
+    return blockers.some(blocker => !completedAt(id, blocker.timestamp));
   })) return {
     label: "Critical", tone: "critical", reason: "Shipping was unavailable for an affected basket.",
   };
@@ -123,16 +130,16 @@ export function missionSeverity(mission: Mission, events: CheckoutEvent[]): {
 
 // A fix marker separates recorded periods; it is not evidence that a problem
 // is fixed or still occurring. Include alerts from resumed older checkouts.
-export function missionSignal(mission: Mission, events: CheckoutEvent[], appliedAt?: number) {
+export function missionSignal(mission: Mission, events: CheckoutEvent[], appliedAt?: number, facts: OutcomeFacts = {}) {
   const matching = events.filter(event => matchesMissionAlert(mission,event));
   const after = appliedAt === undefined ? matching : matching.filter(event => event.timestamp >= appliedAt);
   const latestAlert = matching.length ? Math.max(...matching.map(event => event.timestamp)) : null;
   const period = appliedAt === undefined ? 'recorded' : after.length ? 'after' : 'before';
   const ids = [...new Set(after.map(event => event.sessionId))];
   const severity = appliedAt === undefined || mission.id === 'unfinished'
-    ? missionSeverity(mission, events)
+    ? missionSeverity(mission, events, facts)
     : after.length
-      ? missionSeverity({...mission, count:ids.length, sessionIds:ids}, events.filter(event => event.timestamp >= appliedAt))
+      ? missionSeverity({...mission, count:ids.length, sessionIds:ids}, events.filter(event => event.timestamp >= appliedAt), facts)
       : {label:'Info' as const, tone:'info' as const, reason:'No new matching alerts recorded. Result not verified.'};
   return {period, latestAlert, severity};
 }

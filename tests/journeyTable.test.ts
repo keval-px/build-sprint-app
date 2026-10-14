@@ -18,3 +18,14 @@ test('search, completion, category and exact finding filters intersect correctly
  assert.equal(filterJourneyRows(rows,{...filters,alert:'none'}).length,39);
  assert.equal(filterJourneyRows(rows,{...filters,sort:'value-low'}).at(-1)?.id,'checkout-0');
 });
+test('issue chips follow search and status, hide empty issues, sort by size and drop a duplicate shipping chip',async()=>{
+ const {issueChips}=await import('../shared/journeyTable.ts');
+ const row=(id:string,completed:boolean,categories:string[],shippingBlocker=false)=>({id,label:`#${id}`,startedAt:1,completed,categories,shippingBlocker});
+ const labels={payment:'Payment alerts',delivery:'Shipping alerts',validation:'Form errors'};
+ const rows=[row('a',false,['payment']),row('b',false,['delivery'],true),row('c',true,['delivery'],true),row('d',false,['payment','validation'])];
+ assert.deepEqual(issueChips(rows,{query:'',status:'all'},labels).map(c=>`${c.id}:${c.count}`),['all:4','payment:2','delivery:2','validation:1'],'every shipping alert is a blocker, so no separate chip');
+ assert.deepEqual(issueChips(rows,{query:'',status:'unfinished'},labels).map(c=>`${c.id}:${c.count}`),['all:3','payment:2','delivery:1','validation:1']);
+ assert.deepEqual(issueChips(rows,{query:' #D ',status:'all'},labels).map(c=>c.id),['all','payment','validation']);
+ const mixed=[...rows,row('e',false,['delivery'])];
+ assert.ok(issueChips(mixed,{query:'',status:'all'},labels).some(c=>c.id==='shipping_blocker'&&c.count===2),'blockers that narrow shipping alerts keep their chip');
+});

@@ -15,8 +15,7 @@ import { recordDigest} from '../shared/shopifyRecords';
 import {exchangeMerchant, refreshMerchant, verifyMerchant, REQUIRED_SCOPES} from './lib/shopifyAuth';
 import {identityQuery, abandonedQuery, ordersQuery,abandonedUpdatesQuery,ordersUpdatesQuery,checkoutSubscriptionsQuery,checkoutSubscriptionCreate,checkoutSubscriptionDelete} from './lib/shopifyQueries';
 import type {Session} from '@shopify/shopify-api';
-import {shopifyOrigin} from './lib/deployment';
-import {deployment} from '../shared/deployment';
+import {shopifyOrigin,assertConnectionEnabled,assertDevelopmentOnly,syncPaused,reuseTunnelSubscriptions,explainRejectedSubscriptions} from './lib/deployment';
 import {pixelQuery,pixelCreate,pixelUpdate,checkoutSubscriptionUpdate} from './lib/shopifyQueries';
 
 export const connection = internalQuery({args:{}, handler:ctx => ctx.db.query('shopifyConnections').withIndex('by_store',q=>q.eq('store',STORE)).unique()});
@@ -59,7 +58,7 @@ async function storeSession(ctx:ActionCtx,session:Session,issuedAt:number){
 }
 export async function authorizedAccess(ctx:ActionCtx,idToken:string):Promise<string>{
   await verifyMerchant(idToken);
-  if(deployment.kind==='local' && process.env.LOCAL_CONNECTION_ENABLED!=='true')throw Error('Development installation is not enabled yet.');
+  assertConnectionEnabled();
   const issuedAt=Date.now();
   const saved=await ctx.runQuery(internal.shopify.connection,{});
   if(saved && saved.expiresAt && saved.expiresAt>Date.now()+60000 && REQUIRED_SCOPES.every(s=>saved.scopes.includes(s)))return saved.accessToken;
@@ -98,7 +97,7 @@ async function ensureCheckoutSubscriptions(access:string){
    if(!existing.some(s=>s.includeFields.length===priceWebhookFields.length&&priceWebhookFields.every(f=>s.includeFields.includes(f))))throw Error('Checkout notification fields need attention.');
    continue;
   }
-  if(deployment.kind==='local'){
+  if(reuseTunnelSubscriptions){
    const old=result.webhookSubscriptions.nodes.filter(s=>s.topic===topic&&/^https:\/\/[a-z0-9-]+\.trycloudflare\.com\/api\/shopify\/webhooks$/.test(s.uri)&&s.includeFields.length===priceWebhookFields.length&&priceWebhookFields.every(f=>s.includeFields.includes(f)));
    if(old.length>1)throw Error('Multiple development notification destinations need attention.');
    if(old.length===1){
@@ -108,7 +107,7 @@ async function ensureCheckoutSubscriptions(access:string){
    }
   }
   const saved=await adminRead<{webhookSubscriptionCreate:{webhookSubscription:{id:string}|null;userErrors:unknown[]}}>(access,checkoutSubscriptionCreate,{topic,subscription:{uri:priceWebhookDestination(),format:'JSON',includeFields:priceWebhookFields}});
-  if(deployment.kind==='local'&&saved.webhookSubscriptionCreate.userErrors.length){
+  if(explainRejectedSubscriptions&&saved.webhookSubscriptionCreate.userErrors.length){
    // The request contains only public topic/destination/field names, no secrets.
    const reasons=saved.webhookSubscriptionCreate.userErrors.map(error=>error&&typeof error==='object'&&'message' in error?String(error.message).slice(0,350):'Request rejected').join('; ');
    throw Error(`Development checkout notifications rejected: ${reasons}`);
@@ -118,7 +117,7 @@ async function ensureCheckoutSubscriptions(access:string){
  return {topics:2,fields:priceWebhookFields.length};
 }
 export async function enableLocalPixel(ctx:ActionCtx,access:string){
- if(deployment.kind!=='local')throw Error('Development-only operation.');
+ assertDevelopmentOnly();
  const settings=JSON.stringify({endpoint:`${shopifyOrigin()}/api/shopify/pixel-events`});
  let current:{id:string;settings:unknown}|null=null;
  // An unconfigured Shopify pixel query can return an explicit not-found error.
@@ -134,7 +133,7 @@ export async function enableLocalPixel(ctx:ActionCtx,access:string){
  return {enabled:true};
 }
 export const refreshLocalDestinations=internalAction({args:{},handler:async(ctx):Promise<{status:string}>=>{
- if(deployment.kind!=='local'||process.env.LOCAL_CONNECTION_ENABLED!=='true')throw Error('Development installation is disabled.');
+ assertDevelopmentOnly();assertConnectionEnabled();
  const connection=await ctx.runQuery(internal.shopify.connection,{});
  if(!connection)return {status:'open-the-app-to-connect'};
  if(!REQUIRED_SCOPES.every(scope=>connection.scopes.includes(scope)))throw Error('Development installation permissions are incomplete.');
@@ -249,7 +248,7 @@ async function performSync(ctx:ActionCtx,access:string,startedAt:number){
 
 // Convex runs this with the existing offline installation, never browser tokens.
 export const syncAutomatically=internalAction({args:{},handler:async(ctx):Promise<{status:string}>=>{
- if(deployment.kind==='local' && process.env.LOCAL_SYNC_ENABLED!=='true')return {status:'paused'};
+ if(syncPaused())return {status:'paused'};
  const saved=await ctx.runQuery(internal.shopify.connection,{});
  if(!saved||!REQUIRED_SCOPES.every(s=>saved.scopes.includes(s)))return {status:'disconnected'};
  let access=saved.accessToken;

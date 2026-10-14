@@ -12,10 +12,10 @@ import {shopifyRequestInit} from '../shared/shopifyRequest';
 import {simulationRecords} from '../shared/simulationDashboard';
 import {prepareEvidence,prepareFixes,type EvidenceResponse} from '../shared/evidenceResponse';
 import {monitoringHealth,type MonitoringHealth} from '../shared/monitoringHealth';
-import {outcomeLabel,type OutcomeFacts,type CheckoutOutcome} from '../shared/checkoutOutcome';
+import {type OutcomeFacts} from '../shared/checkoutOutcome';
 import {actionValues} from '../shared/actionValues';
 import "./style.css";
-import {lastObservedStep,stepTimings,durationText,focusedAlerts,issueLabels} from '../shared/dashboardInsights';
+import {focusedAlerts,issueLabels} from '../shared/dashboardInsights';
 import {checkoutCSV,checkoutEventsCSV} from '../shared/checkoutExport';
 import {historyMarkup,alertsMarkup,type FixHistoryRow} from './dashboardPanels';
 import {abandonedPattern} from '../shared/abandonedPattern';
@@ -29,13 +29,11 @@ import {abandonedSummary} from "../shared/abandonedSummary";
 import {renderFunnel} from './checkoutFunnel';
 import {funnelFilters,type FunnelFilter} from '../shared/checkoutFunnel';
 let funnelFilter:FunnelFilter='all';
-import {journeyLabel,journeyOrderHref} from "../shared/journeyLabel";
-import {filterJourneyRows,paginateRows} from "../shared/journeyTable";
-import {journeyDate} from "../shared/journeyDate";
+import {checkoutRow,categoryLabels,time,type CheckoutRow} from "./checkoutRows";
+import {filterJourneyRows,paginateRows,issueChips,blockerSameAsShipping} from "../shared/journeyTable";
 import {basketPricer} from "../shared/basketValue";
-import {journeyDuration} from "../shared/journeyDuration";
 import {browserBackendOrigin,deployment} from '../shared/deployment';
-import { STORE, summarize, describeJourney } from "../shared/evidence";
+import { STORE, summarize } from "../shared/evidence";
 import type { CheckoutEvent } from "../shared/evidence";
 import { ACTION_CHECKS, ACTION_DESTINATIONS, buildMissions, missionRecommendation, missionSignal, isViewerId } from "../shared/actions";
 import type { Mission, MissionId } from "../shared/actions";
@@ -48,12 +46,6 @@ function outcomeFacts(data:EvidenceResponse|null):OutcomeFacts {
 const element = (id: string) => document.getElementById(id)!;
 const text = (id: string, value: string | number) => { element(id).textContent = String(value); };
 const escape = (value: string) => value.replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]!);
-const time = (timestamp: number) => new Date(timestamp).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit" });
-const eventLabels: Record<CheckoutEvent["name"], string> = {
-  checkout_started: "Checkout started", checkout_contact_info_submitted: "Contact information submitted",
-  checkout_address_info_submitted: "Address information submitted", checkout_shipping_info_submitted: "Shipping information submitted",
-  payment_info_submitted: "Payment information submitted", checkout_completed: "Checkout completed", alert_displayed: "Checkout alert displayed", ui_extension_errored: "Checkout app failed to load",
-};
 const backendOrigin = browserBackendOrigin(location);
 let selectedRange=recentRange(30);
 let latestEvidence:EvidenceResponse|null=null;
@@ -99,14 +91,13 @@ let filteredJourneyRows: typeof journeyRows = [];
 let selectedQuickIssue:string|null=null;
 let selectedAlertCategory='all';
 let fixHistory:FixHistoryRow[]=[];
-let journeyRows: {events:CheckoutEvent[];shippingBlocker:boolean;startedAt: number; basketCents?: number; id: string; label: string; completed: boolean; outcome:CheckoutOutcome; categories: string[]; row: string; timeline: string}[] = [];
+let journeyRows: CheckoutRow[] = [];
 let viewerId: string | null = null;
 try {
   const stored = localStorage.getItem("checkout-demo-viewer");
   viewerId = isViewerId(stored) ? stored : [...crypto.getRandomValues(new Uint8Array(16))].map(byte => byte.toString(16).padStart(2, "0")).join("");
   localStorage.setItem("checkout-demo-viewer", viewerId);
 } catch { /* Checklist remains disabled; viewing evidence still works. */ }
-const categoryLabels = { discount: "Discount or gift card", payment: "Payment", delivery: "Shipping", validation: "Form errors", inventory: "Item availability", extension: "Checkout app failed" };
 
 const dashboardViews=["overview","journeys","history","alerts"] as const;
 function activateView(view: AppPage, focus = false) {
@@ -236,7 +227,7 @@ function renderMissions(events: CheckoutEvent[]) {
   const severityRank = {Critical:0, Warning:1, Info:2};
   // Each mission's fix, state and signal are computed once rather than per sort comparison.
   const now=Date.now(),fixes=new Map(appliedFixes.map(f=>[f.missionId,f]));
-  const derived=new Map(recommendations.map(mission=>{const fix=fixes.get(mission.id),boundary=fix?.retestedAt??fix?.appliedAt;return [mission.id,{fix,boundary,status:actionState(fix,latestEvidence?.events??events,now),signal:missionSignal(mission,events,boundary),unfinished:unfinishedCount(mission)}];}));
+  const derived=new Map(recommendations.map(mission=>{const fix=fixes.get(mission.id),boundary=fix?.retestedAt??fix?.appliedAt;return [mission.id,{fix,boundary,status:actionState(fix,latestEvidence?.events??events,now),signal:missionSignal(mission,events,boundary,facts),unfinished:unfinishedCount(mission)}];}));
   const state=(mission:Mission)=>derived.get(mission.id)!.status;
   missions = recommendations.sort((a,b)=>{const x=derived.get(a.id)!,y=derived.get(b.id)!;return Number(x.status.done)-Number(y.status.done)||severityRank[x.signal.severity.label]-severityRank[y.signal.severity.label]||priority[a.id]-priority[b.id]||y.unfinished-x.unfinished;});
   const pendingCount=missions.filter(mission=>!state(mission).done).length;
@@ -251,7 +242,7 @@ function renderMissions(events: CheckoutEvent[]) {
     const destination = ACTION_DESTINATIONS[mission.id];
     const {status,fix,signal,boundary}=derived.get(mission.id)!;
     const severity = signal.severity;
-    const recommendation = missionRecommendation(mission, events, boundary);
+    const recommendation = missionRecommendation(mission, events, boundary, facts);
     const affected=new Set(mission.sessionIds);
     const shippingBlockers = new Set(events.filter(event=>event.shippingBlocker==='no_shipping_available'&&affected.has(event.sessionId)).map(event=>event.sessionId)).size;
     const estimate = recorded.actions.find(item=>item.id===mission.id);
@@ -302,7 +293,7 @@ function renderMissions(events: CheckoutEvent[]) {
 }
 function applyMissionFilter() {
   const trend=trends.find(t=>t.id===selectedTrend);
-  const mission = missions.find(item => item.id === selectedMission)??(latestEvidence?buildMissions(filteredEvidence(latestEvidence).events).find(item=>item.id===selectedMission):undefined);
+  const mission = missions.find(item => item.id === selectedMission)??(latestEvidence?buildMissions(filteredEvidence(latestEvidence).events,outcomeFacts(latestEvidence)).find(item=>item.id===selectedMission):undefined);
   const query = (element('journey-search') as HTMLElementTagNameMap['s-search-field']).value.trim().toLowerCase();
   const status = (element('journey-status-filter') as HTMLElementTagNameMap['s-select']).value;
   const alert = selectedAlertCategory;
@@ -326,13 +317,10 @@ function applyMissionFilter() {
   if(embeddedShopify&&appPageAt(location.pathname)==='journeys')window.history.replaceState(null,'',pageHref('journeys'));
 }
 function renderQuickFilters(){
- const query=(element('journey-search') as HTMLElementTagNameMap['s-search-field']).value.trim().toLowerCase();
+ const query=(element('journey-search') as HTMLElementTagNameMap['s-search-field']).value;
  const status=(element('journey-status-filter') as HTMLElementTagNameMap['s-select']).value;
  const alert=selectedAlertCategory;
- const base=journeyRows.filter(row=>(!query||row.id.toLowerCase().includes(query)||row.label.toLowerCase().includes(query))&&(status==='all'||(status==='completed'?row.completed:!row.completed)));
- const issues=[...Object.keys(categoryLabels).map(id=>({id,label:issueLabels[id],count:base.filter(row=>row.categories.includes(id)).length})),...(blockerSameAsShipping(base)?[]:[{id:'shipping_blocker',label:'Shipping unavailable',count:base.filter(row=>row.shippingBlocker).length}])];
- // Largest issues first; empty issues are hidden.
- const choices=[{id:'all',label:'All',count:base.length},...issues.filter(c=>c.count).sort((a,b)=>b.count-a.count)];
+ const choices=issueChips(journeyRows,{query,status},Object.fromEntries(Object.keys(categoryLabels).map(id=>[id,issueLabels[id]])));
  element('quick-issue-filters').setAttribute('gridTemplateColumns',`repeat(${choices.length}, max-content)`);
  element('quick-issue-filters').innerHTML=choices.map(c=>{
   const selected=selectedMission?c.id===missionChip():selectedQuickIssue?c.id===selectedQuickIssue:c.id===alert;
@@ -384,9 +372,6 @@ function missionChip(){
   return mission&&mission.id!=='unfinished'?mission.id:null;
 }
 // "Shipping unavailable" is a subset of shipping alerts; show it only when it narrows the list.
-function blockerSameAsShipping(rows:typeof journeyRows){
-  return rows.every(row=>!!row.shippingBlocker===row.categories.includes('delivery'));
-}
 function resetJourneyFilters() {
   selectedTrend=null;selectedMission = null;selectedQuickIssue=null;
   (element('journey-search') as HTMLElementTagNameMap['s-search-field']).value = '';
@@ -496,8 +481,7 @@ function render(data: EvidenceResponse) {
     const aggregate=sim?abandonedSummary(sim.abandoned,start,end):data.shopifySnapshot?abandonedSummary(data.shopifySnapshot.abandoned,start,end):data.abandonedBasketSummary;
     const current=aggregate&&aggregate.rangeStart===start&&aggregate.rangeEnd===end?aggregate:null;
     text("abandoned-value",current?.totalCents!=null?money(current.totalCents):"Unavailable");
-    text("abandoned-average",current?.averageCents!=null?money(current.averageCents):current?.count===0?"No checkouts":"Unavailable");
-    text("abandoned-value-note",!current?"Abandoned checkout data is unavailable.":current.unpricedCount?"Some abandoned checkouts have no recorded value. Total and average are unavailable.":current.count===0?"No abandoned checkouts in these dates. Total value is zero; there’s no average.":sim?"Generated test basket values saved with simulated checkouts.":"Imported totals may differ from those in your admin.");
+    text("abandoned-value-note",!current?"Abandoned checkout data is unavailable.":current.unpricedCount?"Some abandoned checkouts have no recorded value, so the total is unavailable.":current.count===0?"No abandoned checkouts in these dates. Total value is zero.":sim?"Generated test basket values saved with simulated checkouts.":"Imported totals may differ from those in your admin.");
     // The value comes from Shopify's abandoned-checkout records, a different population from
     // observed unfinished journeys. Say so whenever the two counts differ.
     const basis=current&&current.count!==summary.noCompletionObserved?`Value based on ${current.count.toLocaleString()} abandoned checkout${current.count===1?'':'s'} recorded by ${sim?'the simulation':'Shopify'}.`:'';
@@ -530,51 +514,14 @@ function render(data: EvidenceResponse) {
   element("summary-title").hidden=hasSessions;
   element("completion-summary").hidden=!hasSessions;
   element("summary-description").hidden=hasSessions;
-  text("completion-label",`${summary.completed.toLocaleString()} of ${summary.sessionCount.toLocaleString()} · ${hasSessions ? Math.round(summary.completed/summary.sessionCount*100) : 0}%`);
+  text("completion-label",`${hasSessions ? Math.round(summary.completed/summary.sessionCount*100) : 0}%`);
   element("completion-progress").setAttribute("max",String(Math.max(1,summary.sessionCount)));
   element("completion-progress").setAttribute("value",String(summary.completed));
   element("completion-progress").setAttribute("accessibilityLabel",`${summary.completed} of ${summary.sessionCount} checkouts have completion evidence`);
   // Order labels only match rows by session, so give each journey its own rows.
   const orders=bySession(nativeSnapshot?.orders??[]);
   const basketPrice=basketPricer({currency:storeCurrency,orders:nativeSnapshot?.orders,abandoned:nativeSnapshot?.abandoned,prices:latestEvidence?.checkoutPrices??data.checkoutPrices,legacy:data.abandonedCheckouts?.records});
-  journeyRows = summary.journeys.reverse().map(session => {
-    const alerts = session.events.filter(event => event.category !== null);
-    const detail = describeJourney(session.events);
-    const status = session.completed ? 'Completed' : 'Abandoned';
-    const simulatedBadge = session.events.some(event => event.simulated) ? '<s-badge tone="info">Simulated</s-badge>' : '';
-    const sessionOrders=orders.get(session.id)??[];
-    const basketCents = basketPrice(session);
-    const label = journeyLabel(session.id, sessionOrders);
-    const fullLabel = journeyLabel(session.id, sessionOrders, true);
-    const orderHref = journeyOrderHref(session.id, sessionOrders);
-    const detailReference = orderHref ? `<s-link href="${escape(orderHref)}" target="_top" accessibilityLabel="Open ${escape(fullLabel)} in Shopify">${escape(fullLabel)}</s-link>` : fullLabel.match(/.{1,16}/gu)!.map(escape).join('<wbr>');
-    const detailHeader = `<s-stack direction="inline" gap="small" alignItems="center"><s-heading fontSize="large">${detailReference}</s-heading><s-badge tone="${session.completed ? 'success' : 'neutral'}">${status}</s-badge>${simulatedBadge}</s-stack>`;
-    const row = `<s-table-row data-session="${escape(session.id)}">
-      <s-table-cell>${orderHref ? `<s-link href="${escape(orderHref)}" target="_top" accessibilityLabel="Open ${escape(label)} in Shopify">${escape(label)}</s-link>` : `<s-text type="strong">${escape(label)}</s-text>`}</s-table-cell>
-      <s-table-cell>${escape(journeyDate(session.events[0].timestamp))}</s-table-cell>
-      <s-table-cell><s-stack direction="inline" gap="small" alignItems="center"><s-badge tone="${session.completed ? "success" : "neutral"}">${status}</s-badge>${simulatedBadge}</s-stack></s-table-cell>
-      <s-table-cell>${escape(lastObservedStep(session.events))}</s-table-cell>
-      <s-table-cell><s-stack direction="inline" gap="small" alignItems="center">${detail.categories.length ? detail.categories.map(category => `<s-badge tone="${category === "validation" ? "caution" : "neutral"}">${escape(categoryLabels[category])}</s-badge>`).join("") : '<s-text color="subdued">No alerts recorded</s-text>'}</s-stack></s-table-cell>
-      <s-table-cell>${basketCents===undefined ? "Unavailable" : escape(money(basketCents))}</s-table-cell>
-      <s-table-cell><s-button variant="secondary" data-journey="${escape(session.id)}" accessibilityLabel="Show details: ${escape(label)}">Show details</s-button></s-table-cell>
-    </s-table-row>`;
-    const timing=`<s-stack gap="small"><s-heading>Time between checkout steps</s-heading><s-query-container><s-grid gridTemplateColumns="@container (inline-size > 600px) 1fr 1fr 1fr, 1fr" gap="small">${stepTimings(session.events).map(t=>`<s-stack gap="small"><s-text type="strong">${t.step}</s-text><s-text>${durationText(t.seconds)}</s-text><s-text color="subdued">${t.note}</s-text></s-stack>`).join('')}</s-grid></s-query-container><s-text color="subdued">Times show gaps between recorded steps, not time spent typing.</s-text></s-stack><s-divider></s-divider>`;
-    const outcomeNote=`<s-paragraph color="subdued">${session.completed?`${escape(outcomeLabel(session.outcome))}.`:'Abandoned means no completed checkout has been recorded yet.'}${session.outcome.serverCompleted&&!session.outcome.sources.includes('browser')?' Completion was confirmed separately. The timeline shows activity recorded in checkout.':''}${session.outcome.legacySignedCompletion?' An earlier completion record has no original time, so it cannot confirm completion.':''}${session.outcome.conflicting?' Some completion details couldn’t be verified. Only confirmed completion is counted.':''}</s-paragraph>`;
-    const timeline = detailHeader+outcomeNote+timing+`          <s-stack direction="inline" justifyContent="space-between" gap="small"><s-heading>Recorded activity</s-heading><s-text color="subdued">${journeyDuration(session.events)} · ${session.events.length} ${session.events.length === 1 ? "update" : "updates"} · ${alerts.length} alert${alerts.length === 1 ? "" : "s"}</s-text></s-stack>
-          <s-stack gap="none" accessibilityRole="ordered-list" accessibilityLabel="Recorded checkout activity, oldest first">
-            ${session.events.map((event, eventIndex) => `<s-grid gridTemplateColumns="24px 1fr auto" gap="base" accessibilityRole="list-item">
-              <s-box data-timeline-marker="${event.name === "checkout_completed" ? "completed" : "neutral"}" data-first="${eventIndex === 0}" data-last="${eventIndex === session.events.length - 1}" accessibilityVisibility="hidden"></s-box>
-              <s-stack direction="inline" gap="small" paddingBlock="small-100" alignItems="center">
-                <s-text>${escape(eventLabels[event.name])}${event.extensionAppName?` · ${escape(event.extensionAppName)}`:""}${event.discountOfferCode?` · ${escape(event.discountOfferCode)}`:""}</s-text>
-                ${event.category ? `<s-badge tone="${event.shippingBlocker ? "critical" : event.category === "validation" ? "caution" : "neutral"}">${event.shippingBlocker ? "Shipping unavailable" : escape(categoryLabels[event.category])}</s-badge>` : ""}
-              </s-stack>
-              <s-box paddingBlock="small-100">
-                <s-text color="subdued">${escape(time(event.timestamp).replaceAll(" ", "\u00a0"))}</s-text>
-              </s-box>
-            </s-grid>`).join("")}
-          </s-stack>`;
-    return {events:session.events,shippingBlocker:session.events.some(e=>e.shippingBlocker==='no_shipping_available'),startedAt:session.events[0].timestamp,basketCents,id:session.id,label,completed:session.completed,outcome:session.outcome,categories:detail.categories,row,timeline};
-  });
+  journeyRows = summary.journeys.reverse().map(session => checkoutRow(session, orders.get(session.id)??[], basketPrice(session), money));
   renderMissions(data.events);
   applyMissionFilter();
 }
@@ -688,7 +635,7 @@ element("journey-list").addEventListener("click", event => {
   const modal = element('journey-modal') as HTMLElementTagNameMap['s-modal'];
   modal.heading = journey.label.startsWith('Order ') ? 'Order details' : 'Checkout reference';
   modal.setAttribute('accessibilityLabel',`${modal.heading}: ${journey.label}`);
-  element('journey-modal-content').innerHTML = journey.timeline;
+  element('journey-modal-content').innerHTML = journey.timeline();
   modal.showOverlay();
 });
 element('journey-next').addEventListener('click', () => {

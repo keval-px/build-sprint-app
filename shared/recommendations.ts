@@ -26,7 +26,7 @@ export function buildRecommendations(events:CheckoutEvent[],facts:OutcomeFacts={
   }
   const codes=[...rejected].filter(([,ids])=>ids.size>=2).map(([code])=>code).sort();
   const discountIds=[...new Set(codes.flatMap(code=>[...rejected.get(code)!]))];
-  if(discountIds.length)results.push({...buildMissions(events).find(m=>m.id==='discount')!,count:discountIds.length,sessionIds:discountIds,discountCodes:codes,title:`Promised discount rejected: ${codes.join(', ')}`,
+  if(discountIds.length)results.push({...buildMissions(events,facts).find(m=>m.id==='discount')!,count:discountIds.length,sessionIds:discountIds,discountCodes:codes,title:`Promised discount rejected: ${codes.join(', ')}`,
     description:`We recorded rejections of ${codes.join(', ')} in ${discountIds.length} checkouts, with no later purchase recorded. This does not confirm that those baskets met the offer’s terms.`,
     next:`Try ${codes.join(', ')} on a basket that meets the promised terms. Check the code’s dates, minimum spend, eligible products and customer rules. If the valid offer is rejected, correct the mismatch and test it again.`});
   // Require the same app in two distinct unfinished checkout sessions.
@@ -48,14 +48,14 @@ export function buildRecommendations(events:CheckoutEvent[],facts:OutcomeFacts={
     }
     const appNames=[...new Set(namesByApp.values())].sort();
     const named=qualifying.size===1&&appNames.length===1;
-    results.push({...buildMissions(events).find(m=>m.id==='extension')!,count:appIds.length,sessionIds:appIds,appNames,
+    results.push({...buildMissions(events,facts).find(m=>m.id==='extension')!,count:appIds.length,sessionIds:appIds,appNames,
       title:named?`${appNames[0]} failed to load`:'Checkout apps failed to load',
       description:`We recorded checkout app errors in ${appIds.length} checkouts, with no later purchase recorded. Each flagged app failed in at least two checkouts; this does not confirm it blocked payment.`,
       ...(appNames.length?{next:`Open checkout settings and check ${appNames.join(', ')}. Retry an affected checkout. If the app still fails, contact its provider before deciding whether to remove it.`}:{})});
   }
   // Two different checkout identities, not repeated retries by one shopper.
   if(blocked.length<2)return results;
-  const mission=buildMissions(events).find(m=>m.id==='delivery')!;
+  const mission=buildMissions(events,facts).find(m=>m.id==='delivery')!;
   return [...results,{...mission,signal:'shipping_unavailable',title:'Shipping unavailable',count:blocked.length,sessionIds:blocked,
     description:`We recorded “shipping unavailable” in ${blocked.length} checkouts, with no later purchase recorded. This does not confirm that those baskets should have been eligible for shipping.`,
   }];
