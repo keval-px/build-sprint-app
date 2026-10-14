@@ -12,15 +12,6 @@ export function baselineCopy(pattern:OrderPattern){
   : `Each hour is compared with the same hour across ${pattern.baselineDays} full day${pattern.baselineDays===1?'':'s'} from the previous 30 days, including hours with no orders.`;
  return `${learning} ${scope}`;
 }
-export function baselineStateCopy(pattern:OrderPattern){
- return pattern.baselineDays===0?'Learning · waiting for a full day':pattern.baselineDays<30?`Learning · ${pattern.baselineDays} of 30 full days available`:'';
-}
-export function metricStatusCopy(health:MonitoringHealth){
- return health.state==='Healthy'?'':health.state==='Needs attention'?'Data not current · refresh needed':health.state==='Partial'?'Partial data · available records only':'Limited data · waiting for observations';
-}
-export function monitoringCopy(health:MonitoringHealth){
- return health.state==='Healthy'?'Recent data is current. Monitoring does not confirm that checkout is error-free.':`${health.reasons[0]??'Monitoring is unavailable.'} Outcomes are not assessed. See monitoring details for all collection limits and next steps.`;
-}
 export function fixOutcomeCopy(fix:AppliedFix,results:ReturnType<typeof fixResults>,returned:number,health:MonitoringHealth){
  const assessment=assessFix(fix,results,returned,health);
  const prefix=fix.retestedAt!==undefined?'Marked done · retest reported':'Marked done';

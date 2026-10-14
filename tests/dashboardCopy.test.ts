@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {baselineCopy,baselineStateCopy,metricStatusCopy,fixOutcomeCopy as outcomeCopy,monitoringCopy} from '../src/dashboardCopy.ts';
+import {baselineCopy,fixOutcomeCopy as outcomeCopy} from '../src/dashboardCopy.ts';
 import {fixResults,actionState,type AppliedFix as Fix} from '../shared/fixTracking.ts';
 import type {MonitoringHealth as Health} from '../shared/monitoringHealth.ts';
 import type {CheckoutEvent as Event} from '../shared/evidence.ts';
@@ -17,7 +17,7 @@ test('hourly copy distinguishes absent, partial and complete baseline without ch
  const zero=orderPattern([], '2026-10-08T00:00:00Z',now)!;
  assert.match(baselineCopy(zero),/average will appear when a full day/);assert.ok(zero.hours.every(h=>h.average===null));
  const partial=orderPattern([], '2026-10-05T00:00:00Z',now)!;
- assert.match(baselineCopy(partial),/3 full days/);assert.match(baselineCopy(partial),/including hours with no orders/);assert.match(baselineStateCopy(partial),/3 of 30 full days/);assert.equal(partial.hours[0].average,0);
+ assert.match(baselineCopy(partial),/3 full days/);assert.match(baselineCopy(partial),/including hours with no orders/);assert.equal(partial.hours[0].average,0);
  const full=orderPattern([], '2026-09-08T00:00:00Z',now)!;assert.match(baselineCopy(full),/30 full days from the previous 30 days/);assert.doesNotMatch(baselineCopy(full),/Learning:/);
 });
 test('collapsed marker copy exposes pending, retest, returned and expired monitoring without claiming recovery',()=>{
@@ -30,17 +30,4 @@ test('collapsed marker copy exposes pending, retest, returned and expired monito
  assert.match(fixOutcomeCopy(fix,events,now,health),/1 checkout had alerts after marking done/);
  assert.match(fixOutcomeCopy({...fix,partial:true},[],now,health),/result not verified/);
 });
-test('monitoring summary preserves first blocking reason and routes to complete safeguards',()=>{
- const limited={...health,state:'Partial' as const,canAssess:false,reasons:['History is incomplete.','Prices unavailable.']};
- assert.match(monitoringCopy(limited),/^History is incomplete/);assert.match(monitoringCopy(limited),/Outcomes are not assessed/);assert.match(monitoringCopy(limited),/monitoring details/);assert.match(monitoringCopy(health),/does not confirm/);
-});
 
-test('metric-local states retain limitations while full baseline removes methodology from the main chart',()=>{
- const full=orderPattern([], '2026-09-08T00:00:00Z',now)!;assert.equal(baselineStateCopy(full),'');
- assert.match(baselineStateCopy({...full,baselineDays:0}),/Learning/);
- assert.equal(baselineStateCopy({...full,baselineDays:8}),'Learning · 8 of 30 full days available');
- assert.equal(metricStatusCopy(health),'');
- assert.match(metricStatusCopy({...health,state:'Partial',canAssess:false}),/Partial data/);
- assert.match(metricStatusCopy({...health,state:'Needs attention',canAssess:false}),/not current/);
- assert.match(metricStatusCopy({...health,state:'Waiting',canAssess:false}),/Limited data/);
-});

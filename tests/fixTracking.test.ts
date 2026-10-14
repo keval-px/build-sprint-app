@@ -24,8 +24,8 @@ test('retest status is a team confirmation and recurrence counts distinct checko
  const fix=fixBaseline([],'delivery',at);assert.equal(retestResults(fix,[],at+100),null);
  const checked={...fix,retestedAt:at+10};
  const events=[e('old','alert_displayed',at+9,'delivery'),e('a','alert_displayed',at+11,'delivery'),e('a','alert_displayed',at+12,'delivery'),e('b','alert_displayed',at+13,'payment'),e('future','alert_displayed',at+101,'delivery')];
- assert.deepEqual(retestResults(checked,events,at+100),{returned:1,lastAlert:at+12});
- assert.deepEqual(retestResults({...checked,retestedAt:at+20},events,at+100),{returned:0,lastAlert:null});
+ assert.deepEqual(retestResults(checked,events,at+100),{returned:1});
+ assert.deepEqual(retestResults({...checked,retestedAt:at+20},events,at+100),{returned:0});
  assert.equal(checked.appliedAt,at);
 });
 
@@ -45,7 +45,7 @@ test('shipping-unavailable fix tracks the confirmed signal rather than unrelated
  assert.deepEqual(fix.baseline,{checkouts:2,affected:1,completed:0});assert.deepEqual(fix.affectedIds,['blocked']);
  const later=[...events,e('general','alert_displayed',at+1,'delivery')];
  assert.deepEqual(actionState(fix,later,at+10),{done:true,returned:0});
- assert.deepEqual(retestResults({...fix,retestedAt:at},later,at+10),{returned:0,lastAlert:null});
+ assert.deepEqual(retestResults({...fix,retestedAt:at},later,at+10),{returned:0});
  later.push({...e('blocked','alert_displayed',at+2,'delivery'),shippingBlocker:'no_shipping_available' as const});
  assert.deepEqual(actionState(fix,later,at+10),{done:false,returned:1});
 });

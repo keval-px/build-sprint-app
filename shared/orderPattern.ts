@@ -38,15 +38,15 @@ export function orderPattern(orders:PatternOrder[],periodStart:string,syncedAt:n
   for(const hour of hours)observedDays[hour]++;
  }
  const baseline=Array<number>(24).fill(0),current=Array<number>(24).fill(0),seen=new Set<string>();
- let testOrders=0,totalOrders=0;
+ let testOrders=0;
  for(const order of orders){
   const at=Date.parse(order.createdAt);
   if(!order.paid||order.cancelled||!Number.isFinite(at)||at<coverage||at>syncedAt||seen.has(order.recordHash))continue;
   const local=read(at);if(local.day!==currentClock.day&&!eligibleDays.has(local.day))continue;
-  seen.add(order.recordHash);totalOrders++;if(order.test)testOrders++;
+  seen.add(order.recordHash);if(order.test)testOrders++;
   if(local.day===currentClock.day)current[local.hour]++;else baseline[local.hour]++;
  }
- return {day:currentClock.day,timeZone,baselineDays:eligibleDays.size,syncedAt,testOrders,totalOrders,
+ return {day:currentClock.day,timeZone,baselineDays:eligibleDays.size,syncedAt,testOrders,
   hours:current.map((count,hour)=>({hour,count:hour>currentClock.hour?null:count,average:observedDays[hour]?baseline[hour]/observedDays[hour]:null}))};
 }
 export type OrderPattern=NonNullable<ReturnType<typeof orderPattern>>;

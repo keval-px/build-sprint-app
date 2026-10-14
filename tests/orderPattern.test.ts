@@ -6,7 +6,7 @@ const order=(id:string,date:string,extra:Partial<PatternOrder>={}):PatternOrder=
 test('hourly average includes all previous 30 days, including zero-order days and different weekdays',()=>{
  const rows=[order('a','2026-09-30T10:00:00Z'),order('b','2026-10-07T10:00:00Z'),order('a','2026-09-30T10:00:00Z'),order('other','2026-10-06T10:00:00Z'),order('unpaid','2026-10-07T10:00:00Z',{paid:false}),order('cancelled','2026-10-07T10:00:00Z',{cancelled:true}),order('future','2026-10-08T10:00:00Z')];
  const result=orderPattern(rows,'2026-09-07T00:00:00Z',now)!;
- assert.equal(result.baselineDays,30);assert.equal(result.hours[10].average,2/30);assert.equal(result.hours[10].count,1);assert.equal(result.hours[13].count,null);assert.equal(result.totalOrders,3);
+ assert.equal(result.baselineDays,30);assert.equal(result.hours[10].average,2/30);assert.equal(result.hours[10].count,1);assert.equal(result.hours[13].count,null);assert.equal(result.hours.reduce((n,h)=>n+(h.count??0),0)+result.hours.reduce((n,h)=>n+(h.average??0)*30,0),3);
  assert.equal(JSON.stringify(result).includes('recordHash'),false);
 });
 test('partial source coverage excludes incomplete days and does not invent an average',()=>{

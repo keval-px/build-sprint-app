@@ -7,7 +7,7 @@ import {inventoryValue} from './inventoryValue.ts';
 import {actionState,fixResults,retestResults,type AppliedFix} from './fixTracking.ts';
 import {checkoutTrends,type CheckoutTrend} from './checkoutTrends.ts';
 import type {OutcomeFacts} from './checkoutOutcome.ts';
-import type {AbandonedSnapshot} from './abandoned.ts';
+import type {AbandonedRecords} from './abandoned.ts';
 import type {CheckoutPrice} from './checkoutPrice.ts';
 import type {SavedBasket} from './basketValue.ts';
 
@@ -15,7 +15,7 @@ type Order={sessionId?:string;createdAt:string;paid:boolean;conversion?:{shopMin
 export interface InsightInput {
  events:CheckoutEvent[];// every event read, not only checkouts started in the dates
  facts:OutcomeFacts;now:number;range:{start:number;end:number};fixes:AppliedFix[];currency:string;
- values:{abandonedCheckouts:AbandonedSnapshot|null;abandoned:(SavedBasket&{recordHash:string})[];prices:CheckoutPrice[];orders:Order[];
+ values:{abandonedCheckouts:AbandonedRecords|null;abandoned:(SavedBasket&{recordHash:string})[];prices:CheckoutPrice[];orders:Order[];
   // Aggregates the public page receives instead of private Shopify records.
   shared?:ReturnType<typeof actionValues>|null;sharedInventory?:{totalMinor:number|null}|null};
  trends:{healthy:boolean;simulationMode:boolean};

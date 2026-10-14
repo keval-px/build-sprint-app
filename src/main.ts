@@ -433,8 +433,6 @@ function render(data: EvidenceResponse) {
   text("session-count", summary.sessionCount.toLocaleString());
   text("completed-count", summary.completed.toLocaleString());
   text("incomplete-count", summary.noCompletionObserved.toLocaleString());
-  text("event-count", summary.eventCount);
-  text("stored-count", data.totalStored);
   text("collection-state", data.enabled ? "Set up" : "Paused");
   text("request-status",'');element('request-status').hidden=true;
   text("coverage-note", `${data.truncated?"Some checkout activity is missing. Results are not verified.":"Checkouts are grouped by when they started. Later completions are included."} No recorded completion does not mean a customer abandoned checkout.`);

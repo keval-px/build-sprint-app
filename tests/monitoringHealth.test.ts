@@ -44,10 +44,9 @@ test('reconnection/late attempts never revive old success and successful newer r
 test('marking done and team retest cannot resolve an issue; observed timed completion requires usable monitoring',()=>{
  const fix=fixBaseline(events,'unfinished',now-5000),ret={...fix,retestedAt:now-4000};
  const completed=events.flatMap((e,i)=>[e,{...e,eventId:`done${i}`,name:'checkout_completed' as const,timestamp:now-1000}]);
- const waiting=fixAssessment(ret,[],now,{canAssess:false});assert.equal(waiting.markedDone,true);assert.equal(waiting.teamRetested,true);assert.equal(waiting.completionObserved,false);assert.equal(waiting.issueResolved,false);
- assert.equal(fixAssessment(ret,completed,now,{canAssess:false}).completionObserved,false);
- assert.equal(fixAssessment(ret,completed,now,{canAssess:true}).completionObserved,true);
- assert.equal(fixAssessment(ret,completed,now,{canAssess:true}).issueResolved,false);
+ // An assessment reports returned alerts and whether a result can be judged; it never claims a fix.
+ assert.deepEqual(fixAssessment(ret,[],now,{canAssess:false}),{returned:0,canAssess:false});
+ assert.equal(fixAssessment(ret,completed,now,{canAssess:false}).canAssess,false,'unusable monitoring never assesses a result');
  const history=historyMarkup([{...ret,active:true}],completed,true,{},monitoringHealth({...input,readFailed:true}));
  assert.match(history,/Retest reported/);assert.match(history,/Result not verified/);assert.doesNotMatch(history,/tone="success"/);
 });

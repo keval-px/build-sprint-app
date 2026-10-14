@@ -10,7 +10,7 @@ export interface AppliedFix {signal?:"shipping_unavailable";missionId:MissionId;
 export function retestResults(fix:AppliedFix,events:CheckoutEvent[],now:number){
   if(fix.retestedAt===undefined)return null;
   const alerts=events.filter(e=>matching(e,fix.missionId,fix.signal)&&e.timestamp>=fix.retestedAt!&&e.timestamp<=now);
-  return {returned:new Set(alerts.map(e=>e.sessionId)).size,lastAlert:alerts.length?Math.max(...alerts.map(e=>e.timestamp)):null};
+  return {returned:new Set(alerts.map(e=>e.sessionId)).size};
 }
 export function actionState(fix:AppliedFix|undefined,events:CheckoutEvent[],now:number){
   if(!fix)return {done:false,returned:0};
@@ -40,8 +40,5 @@ export function fixAssessment(fix:AppliedFix,events:CheckoutEvent[],now:number,h
 }
 // The same assessment from results already worked out, e.g. by the server.
 export function assessFix(fix:AppliedFix,results:ReturnType<typeof fixResults>,returned:number,health:{canAssess:boolean}) {
- return {markedDone:true,teamRetested:fix.retestedAt!==undefined,returned,
-  completionObserved:health.canAssess&&results.affectedCompleted>0,
-  canAssess:health.canAssess&&!fix.partial&&results.after.checkouts>=2,
-  issueResolved:false as const};
+ return {returned,canAssess:health.canAssess&&!fix.partial&&results.after.checkouts>=2};
 }

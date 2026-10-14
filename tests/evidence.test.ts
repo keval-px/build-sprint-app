@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { parseTestEvent, summarize, describeJourney } from "../shared/evidence.ts";
+import { parseTestEvent, summarize, alertCategories } from "../shared/evidence.ts";
 import type { CheckoutEvent } from "../shared/evidence.ts";
 
 // Synthetic unit-test fixtures only. These never enter Convex or the demo screen.
@@ -32,20 +32,10 @@ test("completion arriving before its start is grouped correctly", () => {
 });
 
 
-test("describes progress without inventing abandonment or its cause", () => {
-  const detail = describeJourney([event(), event({eventId: "f".repeat(64), name: "checkout_contact_info_submitted", timestamp: now + 1000}), event({eventId: "c".repeat(64), name: "alert_displayed", category: "validation", timestamp: now + 2000})]);
-  assert.equal(detail.lastProgress, "Contact submitted");
-  assert.equal(detail.outcome, "No completion observed");
-  assert.deepEqual(detail.categories, ["validation"]);
-});
-test("recovery requires an error before completion and ignores later progress", () => {
-  const completion = event({name: "checkout_completed", timestamp: now + 2000});
-  const latePayment = event({name: "payment_info_submitted", timestamp: now + 3000});
-  const alert = event({name: "alert_displayed", category: "payment", timestamp: now + 1000});
-  assert.equal(describeJourney([latePayment, completion, alert, event()]).outcome, "Completed after an observed error");
-  assert.equal(describeJourney([latePayment, completion, alert, event()]).lastProgress, "Checkout started");
-  assert.equal(describeJourney([completion, {...alert, timestamp: now + 4000}]).outcome, "Completion observed");
-  assert.equal(describeJourney([alert]).lastProgress, "Progress not observed");
+test("alert categories are listed once each, in the order first recorded", () => {
+  const events = [event({eventId: "c".repeat(64), name: "alert_displayed", category: "payment", timestamp: now + 2000}), event({eventId: "d".repeat(64), name: "alert_displayed", category: "validation", timestamp: now + 1000}), event({eventId: "e".repeat(64), name: "alert_displayed", category: "validation", timestamp: now + 3000}), event()];
+  assert.deepEqual(alertCategories(events), ["validation", "payment"]);
+  assert.deepEqual(alertCategories([event()]), []);
 });
 
 test('shipping blocker labels are accepted only on delivery alerts',()=>{

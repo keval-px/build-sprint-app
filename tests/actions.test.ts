@@ -59,14 +59,14 @@ test('fix marker separates past blockers without claiming that shipping is healt
  const events:CheckoutEvent[]=[event('checkout_started',1),{...event('alert_displayed',2,'a','delivery'),shippingBlocker:'no_shipping_available'}];
  const mission=buildMissions(events).find(m=>m.id==='delivery')!;
  const past=missionSignal(mission,events,3);
- assert.equal(past.period,'before');assert.equal(past.latestAlert,2);assert.equal(past.severity.label,'Info');assert.match(past.severity.reason,/Result not verified/);
+ assert.equal(past.latestAlert,2);assert.equal(past.severity.label,'Info');assert.match(past.severity.reason,/Result not verified/);
  assert.equal(missionSignal(mission,events).severity.label,'Critical');
 });
 test('a blocker returning in an older checkout after the marker is critical',()=>{
  const events:CheckoutEvent[]=[event('checkout_started',1),{...event('alert_displayed',2,'a','delivery'),shippingBlocker:'no_shipping_available'}, {...event('alert_displayed',4,'a','delivery'),shippingBlocker:'no_shipping_available'}];
  const mission=buildMissions(events).find(m=>m.id==='delivery')!;
  const returned=missionSignal(mission,events,3);
- assert.equal(returned.period,'after');assert.equal(returned.latestAlert,4);assert.equal(returned.severity.label,'Critical');
+ assert.equal(returned.latestAlert,4);assert.equal(returned.severity.label,'Critical');
  const completed=[...events,event('checkout_completed',5)];
  assert.equal(missionSignal(mission,completed,3).severity.label,'Info');
 });

@@ -1,6 +1,6 @@
 import type {OutcomeOrder} from './checkoutOutcome.ts';
 import {buildRecommendations} from './recommendations.ts';
-import type {AbandonedSnapshot} from './abandoned.ts';
+import type {AbandonedRecords} from './abandoned.ts';
 import type {CheckoutPrice} from './checkoutPrice.ts';
 import {checkoutCohort} from './dateRange.ts';
 import {summarize,type CheckoutEvent} from './evidence.ts';
@@ -9,7 +9,7 @@ import {basketPricer,type SavedBasket} from './basketValue.ts';
 // Uses the shared basket precedence. Never fill an unknown
 // basket with an average, or present a partial sum as the full affected value.
 // Public callers receive only aggregate counts and amounts, never identities.
-export function actionValues(events:CheckoutEvent[],legacy:AbandonedSnapshot|null,
+export function actionValues(events:CheckoutEvent[],legacy:AbandonedRecords|null,
  records:(SavedBasket&{recordHash:string})[],prices:CheckoutPrice[],currency:string,start:number,end:number,orders:OutcomeOrder[]=[],asOf=Date.now()){
  const facts={orders,prices,asOf};
  const cohort=checkoutCohort(events,{start,end}),journeys=new Map(summarize(cohort,facts).journeys.map(j=>[j.id,j]));

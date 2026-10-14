@@ -62,7 +62,7 @@ async function merchantEvidence(ctx:ActionCtx,params:URLSearchParams,read?:Evide
  const table=range?checkoutTable(combined,facts,range,{currency,orders:shopifySnapshot?.orders,abandoned:shopifySnapshot?.abandoned,prices:checkoutPrices,legacy:abandonedCheckouts?.records}):undefined;
  const insights=range?insightReport({events:combined,facts,now:window.asOf,range,fixes:await savedFixes(ctx,STORE),currency,
   values:{abandonedCheckouts,abandoned:shopifySnapshot?.abandoned??[],prices:checkoutPrices??[],orders:shopifySnapshot?.orders??[]},trends:trendInputs(combined,monitoring,window.asOf,range,truncated)}):undefined;
- return {...original,overview,table,insights,monitoring,events:combined,truncated,totalStored:combined.length,abandonedCheckouts,checkoutPrices,storeName:completeSnapshot?.storeName,shopifySnapshot,enabled:true,source:'Demo Shopify browser and server evidence.',sampledAt:window.asOf};
+ return {...original,overview,table,insights,monitoring,events:combined,truncated,totalStored:combined.length,abandonedCheckouts,checkoutPrices,storeName:completeSnapshot?.storeName,shopifySnapshot,enabled:true,sampledAt:window.asOf};
 }
 // The public demo's evidence. Correct categories only on identities already public in
 // the legacy demo feed; do not publish additional private sessions, prices, or Shopify records.
@@ -99,7 +99,7 @@ async function publicEvidence(ctx:ActionCtx,params:URLSearchParams,read?:Evidenc
   const viewer=params.get('viewer'),fixes=isViewerId(viewer)?await savedFixes(ctx,`demo:${viewer}`):[];
   const insights=range?insightReport({events,facts,now:window.asOf,range,fixes,currency,
    values:{abandonedCheckouts,abandoned:[],prices:[],orders:[],shared:actionBasketValue,sharedInventory:inventoryItemValue&&inventoryItemValue.rangeStart===range.start&&inventoryItemValue.rangeEnd===range.end?inventoryItemValue:null},trends:trendInputs(events,monitoring,window.asOf,range,truncated)}):undefined;
-  return { ...evidence,overview,table,insights,totalStored:events.length,truncated, monitoring, storeName, events, abandonedCheckouts, abandonedBasketSummary, inventoryItemValue, actionBasketValue, orderPatterns, enabled: process.env.SHOPIFY_TEST_COLLECTION_ENABLED === "true", source: "Unverified browser test events. No live merchant data.", sampledAt:window.asOf };
+  return { ...evidence,overview,table,insights,totalStored:events.length,truncated, monitoring, storeName, events, abandonedCheckouts, abandonedBasketSummary, inventoryItemValue, actionBasketValue, orderPatterns, enabled: process.env.SHOPIFY_TEST_COLLECTION_ENABLED === "true", sampledAt:window.asOf };
 }
 // A checkout the page is showing, read as of the same moment as its table row.
 function requestedCheckout(url:string){

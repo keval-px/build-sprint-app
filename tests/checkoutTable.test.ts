@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {summarize,describeJourney,STORE,type CheckoutEvent} from '../shared/evidence.ts';
+import {summarize,alertCategories,STORE,type CheckoutEvent} from '../shared/evidence.ts';
 import {checkoutCohort} from '../shared/dateRange.ts';
 import {checkoutTable} from '../shared/checkoutTable.ts';
 import {checkoutCSV,exportRow} from '../shared/checkoutExport.ts';
@@ -33,7 +33,7 @@ test('table rows match what the page built from events',()=>{
   const j=journeys[i],sessionOrders=orders.filter(o=>o.sessionId===j.id);
   assert.deepEqual(
    [row.label,row.label.startsWith('Order ')?row.label:`#${row.id}`,row.orderHref,row.startedAt,row.completed,row.categories,row.lastStep,row.shippingBlocker,row.basketCents,row.eventCount],
-   [journeyLabel(j.id,sessionOrders),journeyLabel(j.id,sessionOrders,true),journeyOrderHref(j.id,sessionOrders),j.events[0].timestamp,j.completed,describeJourney(j.events).categories,lastObservedStep(j.events),j.events.some(x=>x.shippingBlocker==='no_shipping_available'),price(j),j.events.length],j.id);
+   [journeyLabel(j.id,sessionOrders),journeyLabel(j.id,sessionOrders,true),journeyOrderHref(j.id,sessionOrders),j.events[0].timestamp,j.completed,alertCategories(j.events),lastObservedStep(j.events),j.events.some(x=>x.shippingBlocker==='no_shipping_available'),price(j),j.events.length],j.id);
  }
  const paid=table.rows.find(r=>r.id===id(3))!;
  assert.deepEqual([paid.label,paid.orderHref,paid.completed,paid.outcomeText],['Order #1001','shopify://admin/orders/55',true,'Completed · paid order']);

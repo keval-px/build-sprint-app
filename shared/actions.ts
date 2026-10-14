@@ -134,14 +134,13 @@ export function missionSignal(mission: Mission, events: CheckoutEvent[], applied
   const matching = events.filter(event => matchesMissionAlert(mission,event));
   const after = appliedAt === undefined ? matching : matching.filter(event => event.timestamp >= appliedAt);
   const latestAlert = matching.length ? Math.max(...matching.map(event => event.timestamp)) : null;
-  const period = appliedAt === undefined ? 'recorded' : after.length ? 'after' : 'before';
   const ids = [...new Set(after.map(event => event.sessionId))];
   const severity = appliedAt === undefined || mission.id === 'unfinished'
     ? missionSeverity(mission, events, facts)
     : after.length
       ? missionSeverity({...mission, count:ids.length, sessionIds:ids}, events.filter(event => event.timestamp >= appliedAt), facts)
       : {label:'Info' as const, tone:'info' as const, reason:'No new matching alerts recorded. Result not verified.'};
-  return {period, latestAlert, severity};
+  return {latestAlert, severity};
 }
 export function matchesMissionAlert(mission:Mission,event:CheckoutEvent){
   return mission.sessionIds.includes(event.sessionId)&&event.category===mission.id&&(!mission.discountCodes||mission.discountCodes.includes(event.discountOfferCode??''))&&(!mission.signal||event.shippingBlocker==='no_shipping_available');

@@ -6,7 +6,7 @@ import {STORE} from '../shared/evidence';
 import {matchCheckoutLinks} from './lib/checkoutMatching';
 const value=v.object(abandonedFields);
 export const saveSnapshot=internalMutation({args:{snapshot:value},handler:async(ctx,{snapshot})=>{const ids=new Set<string>();const sessions=new Set<string>();for(const r of snapshot.records){if(!/^[a-f0-9]{64}$/.test(r.recordHash)||ids.has(r.recordHash)||!Number.isSafeInteger(r.subtotalCents)||r.subtotalCents<0)throw Error('Invalid record');ids.add(r.recordHash);if(r.sessionId){if(!/^[a-f0-9]{64}$/.test(r.sessionId)||sessions.has(r.sessionId))throw Error('Ambiguous match');sessions.add(r.sessionId);}}const old=await ctx.db.query('demoAbandonedSnapshots').unique();if(old)await ctx.db.patch(old._id,snapshot);else await ctx.db.insert('demoAbandonedSnapshots',snapshot);}});
-export const read=internalQuery({args:{},returns:v.union(value,v.null()),handler:async ctx=>{const row=await ctx.db.query('demoAbandonedSnapshots').unique();if(!row)return null;const{_id,_creationTime,...snapshot}=row;return snapshot;}});
+export const read=internalQuery({args:{},returns:v.union(v.object({importedOn:abandonedFields.importedOn,records:abandonedFields.records}),v.null()),handler:async ctx=>{const row=await ctx.db.query('demoAbandonedSnapshots').unique();if(!row)return null;const{_id,_creationTime,emailSent,emailNotSent,...snapshot}=row;return snapshot;}});
 // Resolve against the latest snapshot and evidence in one transaction. Failed batches
 // preserve the entire saved snapshot, including the existing controlled audit link.
 export const applyVerifiedLinks=internalMutation({args:{links:abandonedFields.records},handler:async(ctx,{links})=>{

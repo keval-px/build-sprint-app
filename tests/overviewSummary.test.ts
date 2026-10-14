@@ -27,8 +27,8 @@ const facts={orders:[{sessionId:id(3),createdAt:new Date(start+400).toISOString(
 test('overview summary matches the browser calculation for the same dates and facts',()=>{
  const cohort=checkoutCohort(events,{start,end}),expected=summarize(cohort,facts);
  const result=overviewSummary(events,facts,{start,end});
- assert.deepEqual({sessionCount:result.sessionCount,completed:result.completed,noCompletionObserved:result.noCompletionObserved,eventCount:result.eventCount},
-  {sessionCount:expected.sessionCount,completed:expected.completed,noCompletionObserved:expected.noCompletionObserved,eventCount:expected.eventCount});
+ assert.deepEqual({sessionCount:result.sessionCount,completed:result.completed,noCompletionObserved:result.noCompletionObserved},
+  {sessionCount:expected.sessionCount,completed:expected.completed,noCompletionObserved:expected.noCompletionObserved});
  assert.equal(result.completed,7);// six browser completions plus the paid order
  for(const filter of funnelFilters){
   const browser=checkoutFunnel(cohort,facts,filter);
@@ -46,7 +46,7 @@ test('overview summary carries counts only, never session identities',()=>{
 
 test('empty dates give zero counts without NaN',()=>{
  const result=overviewSummary(events,facts,{start:end+1000,end:end+2000});
- assert.deepEqual([result.sessionCount,result.completed,result.noCompletionObserved,result.eventCount],[0,0,0,0]);
+ assert.deepEqual([result.sessionCount,result.completed,result.noCompletionObserved],[0,0,0]);
  assert.ok(result.funnels.all.rows.every(r=>r.percent===0&&r.drop===null));
 });
 

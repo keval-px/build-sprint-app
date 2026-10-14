@@ -29,27 +29,9 @@ export interface CheckoutEvent {
   currency?: "USD";
 }
 
-export function describeJourney(events: CheckoutEvent[]) {
-  const ordered = [...events].sort((a, b) => a.timestamp - b.timestamp);
-  const completion = ordered.find(event => event.name === "checkout_completed");
-  const progressLabels: Partial<Record<EventName, string>> = {
-    checkout_started: "Checkout started",
-    checkout_contact_info_submitted: "Contact submitted",
-    checkout_address_info_submitted: "Address submitted",
-    checkout_shipping_info_submitted: "Shipping submitted",
-    payment_info_submitted: "Payment submitted",
-  };
-  const progress = ordered.filter(event => progressLabels[event.name] && (!completion || event.timestamp <= completion.timestamp)).at(-1);
-  const errors = ordered.filter(event => event.category !== null);
-  const categories = [...new Set(errors.map(event => event.category!))];
-  const recovered = completion && errors.some(event => event.timestamp < completion.timestamp);
-  return {
-    lastProgress: progress ? progressLabels[progress.name]! : "Progress not observed",
-    categories,
-    errorCount: errors.length,
-    outcome: completion ? recovered ? "Completed after an observed error" : "Completion observed" : "No completion observed",
-    lastEventAt: ordered.at(-1)?.timestamp,
-  };
+// Alert types recorded in a checkout, in the order they first appeared.
+export function alertCategories(events: CheckoutEvent[]) {
+  return [...new Set([...events].sort((a, b) => a.timestamp - b.timestamp).flatMap(event => event.category === null ? [] : [event.category]))];
 }
 
 // Only accept the minimal, anonymous test contract. Never retain a raw payload.
@@ -99,7 +81,6 @@ export function summarize(events: CheckoutEvent[],facts:OutcomeFacts={}) {
     started: journeys.filter(session => session.started).length,
     completed: journeys.filter(session => session.completed).length,
     noCompletionObserved: journeys.filter(session => session.started && !session.completed).length,
-    sessionsWithoutStart: journeys.filter(session => !session.started).length,
     observations: groups,
     journeys,
   };

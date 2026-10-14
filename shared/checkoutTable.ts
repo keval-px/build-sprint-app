@@ -1,4 +1,4 @@
-import {summarize,describeJourney,type CheckoutEvent} from './evidence.ts';
+import {summarize,alertCategories,type CheckoutEvent} from './evidence.ts';
 import {checkoutCohort} from './dateRange.ts';
 import {outcomeLabel,type CheckoutOutcome,type CompletionSource,type OutcomeFacts} from './checkoutOutcome.ts';
 import {lastObservedStep} from './dashboardInsights.ts';
@@ -20,7 +20,7 @@ type Order={sessionId?:string;orderName?:string;orderId?:string};
 export function eventFields(events:CheckoutEvent[],completed:boolean,outcome?:CheckoutOutcome){
  return {
   outcomeText:outcome?outcomeLabel(outcome):completed?'Completed · recorded in checkout':'No completion recorded',
-  categories:describeJourney(events).categories as string[],
+  categories:alertCategories(events) as string[],
   shippingBlocker:events.some(e=>e.shippingBlocker==='no_shipping_available'),
   lastStep:lastObservedStep(events),
   simulated:events.some(e=>e.simulated),
