@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {orderDrop} from '../shared/orderDrop.ts';
+import {orderDrop,orderFlowStatus} from '../shared/orderDrop.ts';
 import type {OrderPattern} from '../shared/orderPattern.ts';
 // A pattern read at 15:30 UTC: hours up to 14 are complete, 15 is still running.
 const syncedAt=Date.parse('2026-10-14T15:30:00Z');
@@ -45,4 +45,11 @@ test('store-local hours decide which hour is still running',()=>{
  const p={...pattern({20:[1,20],21:[1,20],19:[1,20]}),timeZone:'Asia/Kolkata'};
  p.hours=p.hours.map(h=>({...h,count:h.hour<=21?h.count??20:null}));
  assert.deepEqual(orderDrop(p).hours.map(h=>h.hour),[19,20]);
+});
+
+test('the chart status follows the drop check and stays hidden when it cannot judge',()=>{
+ assert.deepEqual(orderFlowStatus(orderDrop(pattern({}))),{tone:'normal',text:'Normal order flow'});
+ assert.deepEqual(orderFlowStatus(orderDrop(pattern({12:[8,20],13:[10,20]}))),{tone:'drop',text:'Fewer orders than usual'});
+ assert.equal(orderFlowStatus(orderDrop(pattern({},1))),null,'one day of history is not enough');
+ assert.equal(orderFlowStatus(orderDrop(pattern(Object.fromEntries(Array.from({length:24},(_,h)=>[h,[h<=15?0:null,6]]))))),null);
 });

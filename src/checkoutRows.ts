@@ -33,13 +33,15 @@ export function timelineHeader(row:CheckoutTableRow){
     const fullLabel = row.label.startsWith('Order ') ? row.label : `#${row.id}`;
     const detailReference = row.orderHref ? `<s-link href="${escape(row.orderHref)}" target="_top" accessibilityLabel="Open ${escape(fullLabel)} in Shopify">${escape(fullLabel)}</s-link>` : fullLabel.match(/.{1,16}/gu)!.map(escape).join('<wbr>');
     const detailHeader = `<s-stack direction="inline" gap="small" alignItems="center"><s-heading fontSize="large">${detailReference}</s-heading>${statusBadges(row)}</s-stack>`;
-    const outcomeNote=`<s-paragraph color="subdued">${row.completed?`${escape(row.outcomeText)}.`:'Abandoned means no completed checkout has been recorded yet.'}${row.outcome.serverCompleted&&!row.outcome.sources.includes('browser')?' Completion was confirmed separately. The timeline shows activity recorded in checkout.':''}${row.outcome.legacySignedCompletion?' An earlier completion record has no original time, so it cannot confirm completion.':''}${row.outcome.conflicting?' Some completion details couldn’t be verified. Only confirmed completion is counted.':''}</s-paragraph>`;
-    return detailHeader+outcomeNote;
+    const note=`${row.outcome.serverCompleted&&!row.outcome.sources.includes('browser')?' Completion was confirmed separately. The timeline shows activity recorded in checkout.':''}${row.outcome.legacySignedCompletion?' An earlier completion record has no original time, so it cannot confirm completion.':''}${row.outcome.conflicting?' Some completion details couldn’t be verified. Only confirmed completion is counted.':''}`.trim();
+    return detailHeader+(note?`<s-paragraph color="subdued">${note}</s-paragraph>`:'');
 }
 export function timelineMarkup(row:CheckoutTableRow,events:CheckoutEvent[]){
     const alerts = events.filter(event => event.category !== null);
-    const timing=`<s-stack gap="small"><s-heading>Time between checkout steps</s-heading><s-query-container><s-grid gridTemplateColumns="@container (inline-size > 600px) 1fr 1fr 1fr, 1fr" gap="small">${stepTimings(events).map(t=>`<s-stack gap="small"><s-text type="strong">${t.step}</s-text><s-text>${durationText(t.seconds)}</s-text><s-text color="subdued">${t.note}</s-text></s-stack>`).join('')}</s-grid></s-query-container><s-text color="subdued">Times show gaps between recorded steps, not time spent typing.</s-text></s-stack><s-divider></s-divider>`;
-    return timelineHeader(row)+timing+`          <s-stack direction="inline" justifyContent="space-between" gap="small"><s-heading>Recorded activity</s-heading><s-text color="subdued">${journeyDuration(events)} · ${events.length} ${events.length === 1 ? "update" : "updates"} · ${alerts.length} alert${alerts.length === 1 ? "" : "s"}</s-text></s-stack>
+    // Each bar is the step's share of the recorded step time; unavailable steps get an empty track.
+    const timings=stepTimings(events),total=timings.reduce((sum,t)=>sum+(t.seconds??0),0);
+    const timing=`<s-box background="subdued" padding="base" borderRadius="base"><s-stack gap="base"><s-heading>Time between checkout steps</s-heading>${timings.map(t=>{const percent=t.seconds!==null&&total>0?Math.round(t.seconds/total*100):0;return `<s-stack gap="small-200"><s-stack direction="inline" justifyContent="space-between" gap="small"><s-text type="strong">${t.step}</s-text><s-text>${durationText(t.seconds)}</s-text></s-stack><s-box data-step-bar role="img" aria-label="${t.step}: ${t.seconds===null?'unavailable':`${percent}% of recorded step time`}" data-step-width="${percent}"></s-box></s-stack>`;}).join('')}<s-text color="subdued">Times show gaps between recorded steps, not time spent typing.</s-text></s-stack></s-box>`;
+    const activity=`<s-stack gap="small-200"><s-stack gap="small-200"><s-heading>Recorded activity</s-heading><s-text color="subdued">${journeyDuration(events)} · ${events.length} ${events.length === 1 ? "update" : "updates"} · ${alerts.length} alert${alerts.length === 1 ? "" : "s"}</s-text></s-stack>
           <s-stack gap="none" accessibilityRole="ordered-list" accessibilityLabel="Recorded checkout activity, oldest first">
             ${events.map((event, eventIndex) => `<s-grid gridTemplateColumns="24px 1fr auto" gap="base" accessibilityRole="list-item">
               <s-box data-timeline-marker="${event.name === "checkout_completed" ? "completed" : "neutral"}" data-first="${eventIndex === 0}" data-last="${eventIndex === events.length - 1}" accessibilityVisibility="hidden"></s-box>
@@ -51,5 +53,6 @@ export function timelineMarkup(row:CheckoutTableRow,events:CheckoutEvent[]){
                 <s-text color="subdued">${escape(time(event.timestamp).replaceAll(" ", "\u00a0"))}</s-text>
               </s-box>
             </s-grid>`).join("")}
-          </s-stack>`;
+          </s-stack></s-stack>`;
+    return timelineHeader(row)+`<s-query-container><s-grid gridTemplateColumns="@container (inline-size > 720px) 1.6fr 1fr, 1fr" gap="large-200">${activity}${timing}</s-grid></s-query-container>`;
 }

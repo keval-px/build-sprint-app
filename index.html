@@ -34,7 +34,7 @@
               <s-section padding="base">
                 <s-paragraph id="order-chart-empty" color="subdued">Loading order pattern…</s-paragraph>
                 <s-stack id="order-chart-content" gap="small" hidden>
-                  <s-box id="order-chart-help-anchor"><s-clickable id="order-chart-help" aria-describedby="order-chart-tooltip" aria-expanded="false"><s-heading id="order-chart-summary" fontSize="base"></s-heading></s-clickable><s-box id="order-chart-tooltip" role="tooltip" padding="base" background="base" border="base" borderRadius="base" hidden><s-text>Compare today’s paid orders by hour with the average from up to 30 previous days. The red line shows abandoned checkouts.</s-text></s-box></s-box>
+                  <s-stack direction="inline" justifyContent="space-between" alignItems="center" gap="small"><s-box id="order-chart-help-anchor"><s-clickable id="order-chart-help" aria-describedby="order-chart-tooltip" aria-expanded="false"><s-heading id="order-chart-summary" fontSize="base"></s-heading></s-clickable><s-box id="order-chart-tooltip" role="tooltip" padding="base" background="base" border="base" borderRadius="base" hidden><s-text>Compare today’s paid orders by hour with the average from up to 30 previous days. The red line shows abandoned checkouts.</s-text></s-box></s-box><s-stack id="order-flow-status" direction="inline" gap="small-200" alignItems="center" hidden><s-box id="order-flow-dot" data-flow-dot aria-hidden="true"></s-box><s-text id="order-flow-text" color="subdued"></s-text></s-stack></s-stack>
                   <s-box id="order-chart-viz" role="region" aria-label="Paid orders by hour compared with the hourly average, in UTC"></s-box>
                   <s-text id="order-chart-baseline" color="subdued" hidden></s-text><s-paragraph id="order-chart-error" tone="critical" hidden></s-paragraph>
                 </s-stack>
@@ -75,7 +75,6 @@
           <s-text id="action-save-status" accessibilityVisibility="exclusive" role="status" aria-live="polite"></s-text>
           <s-banner id="action-save-error" heading="Change wasn’t saved" tone="critical" hidden></s-banner>
           <s-stack id="mission-list" gap="base"><s-paragraph color="subdued">Loading recommendations…</s-paragraph></s-stack>
-          <s-paragraph id="recommendation-value-note" color="subdued" hidden>A checkout can appear in more than one card. These counts aren’t the same as Abandoned in Checkout performance.</s-paragraph>
           </s-stack>
           </s-stack>
           <s-section id="checkout-funnel"><s-paragraph>Loading checkout stages…</s-paragraph></s-section>

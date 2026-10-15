@@ -70,3 +70,12 @@ s-box[data-funnel-bar="4"]::before { background: #087f65; }
 
 /* Explicit chart-label colors: the embedded theme's critical text is near-black. */
 s-text[data-funnel-drop="high"] { -webkit-text-fill-color: #c52233; }
+
+/* Step-time bars in checkout details: share of recorded step time. */
+s-box[data-step-bar] { display: block; height: 8px; overflow: hidden; border-radius: 4px; background: #e3e3e3; }
+s-box[data-step-bar]::before { content: ''; display: block; height: 100%; width: var(--step-width, 0%); border-radius: inherit; background: #4a4a4a; }
+
+/* Order flow status dot beside the chart title. Static on purpose: the page does not update live. */
+s-box[data-flow-dot] { display: block; width: 8px; height: 8px; border-radius: 50%; background: #8a8a8a; }
+s-box[data-flow-dot="normal"] { background: #29845a; box-shadow: 0 0 0 3px #cdfee1; }
+s-box[data-flow-dot="drop"] { background: #b28400; box-shadow: 0 0 0 3px #ffef9d; }

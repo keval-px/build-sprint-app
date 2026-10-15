@@ -30,7 +30,7 @@ let funnelFilter:FunnelFilter='all';
 import {rowMarkup,timelineHeader,timelineMarkup,categoryLabels} from "./checkoutRows";
 import {checkoutTable,type CheckoutTable,type CheckoutTableRow} from "../shared/checkoutTable";
 import {insightCard,insightList,orderDropCard,type CardContext} from "./insightCards";
-import {orderDrop} from "../shared/orderDrop";
+import {orderDrop,orderFlowStatus} from "../shared/orderDrop";
 import {filterJourneyRows,paginateRows,issueChips,blockerSameAsShipping} from "../shared/journeyTable";
 import {browserBackendOrigin,deployment} from '../shared/deployment';
 import { STORE, summarize } from "../shared/evidence";
@@ -198,7 +198,6 @@ function renderMissions() {
   const drop=todayPattern?orderDrop(todayPattern.pattern):null,dropCard=drop?.state==='drop'?orderDropCard(drop,todayPattern!.pattern,todayPattern!.simulated):'';
   const reviewCount=report.cards.filter(card=>!card.status.done).length+trends.filter(trend=>trend.state==='review').length+(dropCard?1:0);
   text('recommendation-count',reviewCount?`${reviewCount} item${reviewCount===1?'':'s'} to review`:missions.length?'All marked as done':'');
-  element('recommendation-value-note').hidden=missions.length===0;
   const health=currentMonitoring();
   const ctx:CardContext={embedded:embeddedShopify,busy:fixSaving||loading,retestDisabled:!fixesReady||fixSaving||loading,health,truncated:!!latestEvidence?.truncated,money,storeHandle:STORE.replace('.myshopify.com','')};
   const missionCards = report.cards.map(card => ({done:card.status.done,rank:severityRank[card.signal.severity.label],
@@ -375,11 +374,14 @@ function renderOrderPattern(data:EvidenceResponse){
   element('order-chart-content').hidden=!pattern;
   element('order-chart-empty').hidden=!!pattern;
   text('order-chart-empty','Order history is unavailable for these dates.');
-  if(!pattern){text('order-chart-methodology','Order history is unavailable.');return;}
+  if(!pattern){text('order-chart-methodology','Order history is unavailable.');element('order-flow-status').hidden=true;return;}
   text('order-chart-summary','Daily order pattern');
   text('order-chart-baseline','');
   element('order-chart-baseline').hidden=true;
   text('order-chart-methodology',baselineCopy(pattern));
+  const flow=orderFlowStatus(orderDrop(pattern));
+  element('order-flow-status').hidden=!flow;
+  if(flow){element('order-flow-dot').setAttribute('data-flow-dot',flow.tone);text('order-flow-text',flow.text);}
   element('order-chart-viz').setAttribute('aria-label',`${sim?'Simulated completed checkouts':'Hourly paid orders'} today compared with the hourly average ${pattern.baselineDays?'over '+pattern.baselineDays+' previous complete days':'pending history'}, with abandoned checkouts grouped by creation hour; blank hours are unknown, in ${pattern.timeZone}`);
   element('order-chart-error').hidden=true;
   const abandoned=abandonedPattern(sim?.abandoned??snapshot?.abandoned??null,pattern);
@@ -581,7 +583,9 @@ element("journey-list").addEventListener("click", async event => {
   let content:string;
   try{content=timelineMarkup(journey,eventsBySession(await readActivity(`checkout?id=${journey.id}&asOf=${asOf}`),asOf).get(journey.id)??[]);}
   catch{content=timelineHeader(journey)+'<s-paragraph color="subdued">Recorded activity couldn’t be loaded. Close and try again.</s-paragraph>';}
-  if(openJourney===journey.id)element('journey-modal-content').innerHTML=content;
+  if(openJourney!==journey.id)return;
+  const host=element('journey-modal-content');host.innerHTML=content;
+  host.querySelectorAll<HTMLElement>('[data-step-width]').forEach(bar=>bar.style.setProperty('--step-width',`${bar.dataset.stepWidth}%`));
 });
 element('journey-next').addEventListener('click', () => {
   journeyPage++; applyMissionFilter();

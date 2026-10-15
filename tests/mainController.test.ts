@@ -261,7 +261,7 @@ test('checkout statuses use short labels while details retain the recorded evide
  assert.equal(c.get('journey-modal').heading,'Checkout reference');
  assert.match(c.get('journey-modal-content').innerHTML.replaceAll('<wbr>',''),new RegExp('#'+id));
  assert.match(c.get('journey-modal-content').innerHTML,/<s-badge tone="neutral">Abandoned<\/s-badge>/);
- assert.match(c.get('journey-modal-content').innerHTML,/Abandoned means no completed checkout has been recorded yet/);
+ assert.doesNotMatch(c.get('journey-modal-content').innerHTML,/Abandoned means/);
  assert.match(c.get('journey-list').innerHTML,/<s-badge tone="neutral">Abandoned<\/s-badge>/);
  assert.match(readFileSync('index.html','utf8'),/<s-option value="unfinished">Abandoned<\/s-option>/);
  assert.doesNotMatch(c.get('journey-modal-content').innerHTML,/<s-banner|href=/);
@@ -278,7 +278,7 @@ test('checkout statuses use short labels while details retain the recorded evide
  assert.match(c.get('journey-modal-content').innerHTML,/Order #1001/);
  assert.equal(c.get('journey-modal').heading,'Order details');
  assert.match(c.get('journey-list').innerHTML,/Order #1001/);
- assert.match(c.get('journey-modal-content').innerHTML,/Completed · paid order/);
+ assert.doesNotMatch(c.get('journey-modal-content').innerHTML,/Completed ·/);
 });
 test('a saved change uses the evidence returned with it, and reads again only when none came back',async()=>{
  const c=await controller(false,true),events=comparisonEvents(c.clock.now);

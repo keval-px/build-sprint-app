@@ -28,3 +28,10 @@ export function orderDrop(pattern:OrderPattern):OrderDrop {
  }
  return latest.length?{state:'drop',hours:latest}:{state:'normal',hours:[]};
 }
+// The chart's status line. Shown only when the order-drop check could judge today,
+// so it never claims normal flow without enough history or volume to compare.
+export function orderFlowStatus(drop:OrderDrop):{tone:'normal'|'drop';text:string}|null {
+ if(drop.state==='normal')return {tone:'normal',text:'Normal order flow'};
+ if(drop.state==='drop')return {tone:'drop',text:'Fewer orders than usual'};
+ return null;
+}
