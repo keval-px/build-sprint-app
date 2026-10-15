@@ -168,7 +168,7 @@ These existing rules in `src/style.css` and the chart code are the only other pe
 
 ### Card wording — 13 October 2026
 
-Card titles name the observed topic or alert. What we detected states the app’s recorded evidence, while What you should do next gives the merchant a concrete check; card titles use explicit bold text, while these two labels use medium weight. Only flagged comparisons appear in the review list. Missing-data explanations stay in the empty state and Data details, rather than permanent waiting cards. A rate difference, missing later activity, or rejected offer does not establish its cause. Expanded guidance distinguishes the app’s reason for flagging from the merchant’s test after a change.
+Card titles name the observed topic or alert. What we detected states the app’s recorded evidence, while What you should do next gives the merchant a concrete check; card titles use explicit bold text, while these two labels use medium weight. The two sit side by side in subdued `s-box` panels (stacking below a 500px container), each label led by a decorative icon: `view` for What we detected and `lightbulb` for What you should do next. The latest matching alert shows its label and date on separate lines. Only flagged comparisons appear in the review list. Missing-data explanations stay in the empty state and Data details, rather than permanent waiting cards. A rate difference, missing later activity, or rejected offer does not establish its cause. Expanded guidance distinguishes the app’s reason for flagging from the merchant’s test after a change.
 
 ### Contextual alert evidence — 13 October 2026
 

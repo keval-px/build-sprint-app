@@ -25,12 +25,12 @@ export function insightCard(card:InsightCard,ctx:CardContext){
         <s-query-container><s-grid gridTemplateColumns="@container (inline-size > 700px) 1.5fr 1fr, 1fr" gap="large-100" alignItems="start">
           <s-query-container data-explanation="next"><s-grid gridTemplateColumns="@container (inline-size > 500px) 1fr 1fr, 1fr" gap="base">
             <s-box background="subdued" padding="base" borderRadius="base"><s-stack gap="small">
-              <s-text type="strong" fontWeight="medium">What we detected</s-text>
+              <s-stack direction="inline" gap="small-200" alignItems="center"><s-icon type="view" aria-hidden="true"></s-icon><s-text type="strong" fontWeight="medium">What we detected</s-text></s-stack>
               <s-paragraph>${escape(mission.description)}</s-paragraph>
-              ${signal.latestAlert!==null?`<s-text color="subdued">Latest matching alert ${escape(time(signal.latestAlert))}</s-text>`:''}
+              ${signal.latestAlert!==null?`<s-stack gap="small-300"><s-text color="subdued">Latest matching alert:</s-text><s-text color="subdued">${escape(time(signal.latestAlert))}</s-text></s-stack>`:''}
             </s-stack></s-box>
             <s-box background="subdued" padding="base" borderRadius="base"><s-stack gap="small">
-              <s-text type="strong" fontWeight="medium">What you should do next</s-text>
+              <s-stack direction="inline" gap="small-200" alignItems="center"><s-icon type="lightbulb" aria-hidden="true"></s-icon><s-text type="strong" fontWeight="medium">What you should do next</s-text></s-stack>
               <s-paragraph data-recommendation-summary>${escape(recommendation)}</s-paragraph>
             </s-stack></s-box>
           </s-grid></s-query-container>
@@ -103,8 +103,8 @@ export function orderDropCard(drop:OrderDrop,pattern:OrderPattern,simulated:bool
     <s-stack direction="inline" justifyContent="space-between" alignItems="center" gap="small"><s-heading><s-text fontWeight="bold">Orders below normal</s-text></s-heading><s-badge tone="critical">Critical</s-badge></s-stack>
     <s-query-container><s-grid gridTemplateColumns="@container (inline-size > 700px) 1.5fr 1fr, 1fr" gap="large-100" alignItems="start">
      <s-query-container><s-grid gridTemplateColumns="@container (inline-size > 500px) 1fr 1fr, 1fr" gap="base">
-      <s-box background="subdued" padding="base" borderRadius="base"><s-stack gap="small"><s-text type="strong" fontWeight="medium">What we detected</s-text><s-paragraph>${simulated?'Simulated orders':'Paid orders'} were at least ${Math.round((1-ORDER_DROP.belowAverage)*100)}% below the hourly average for ${count} hours in a row today, ${pad(first)}–${pad(last+1)} (${escape(pattern.timeZone)}).</s-paragraph></s-stack></s-box>
-      <s-box background="subdued" padding="base" borderRadius="base"><s-stack gap="small"><s-text type="strong" fontWeight="medium">What you should do next</s-text><s-paragraph>Place a test order, and check that your storefront, theme, checkout apps and payment methods work. This alert only watches order flow, so it can’t tell you the cause.</s-paragraph></s-stack></s-box>
+      <s-box background="subdued" padding="base" borderRadius="base"><s-stack gap="small"><s-stack direction="inline" gap="small-200" alignItems="center"><s-icon type="view" aria-hidden="true"></s-icon><s-text type="strong" fontWeight="medium">What we detected</s-text></s-stack><s-paragraph>${simulated?'Simulated orders':'Paid orders'} were at least ${Math.round((1-ORDER_DROP.belowAverage)*100)}% below the hourly average for ${count} hours in a row today, ${pad(first)}–${pad(last+1)} (${escape(pattern.timeZone)}).</s-paragraph></s-stack></s-box>
+      <s-box background="subdued" padding="base" borderRadius="base"><s-stack gap="small"><s-stack direction="inline" gap="small-200" alignItems="center"><s-icon type="lightbulb" aria-hidden="true"></s-icon><s-text type="strong" fontWeight="medium">What you should do next</s-text></s-stack><s-paragraph>Place a test order, and check that your storefront, theme, checkout apps and payment methods work. This alert only watches order flow, so it can’t tell you the cause.</s-paragraph></s-stack></s-box>
      </s-grid></s-query-container>
      <s-stack gap="small" accessibilityRole="unordered-list" accessibilityLabel="Hours below normal">
       ${drop.hours.map(h=>`<s-grid gridTemplateColumns="1fr auto auto" gap="base" accessibilityRole="list-item"><s-text color="subdued">${pad(h.hour)}–${pad(h.hour+1)}</s-text><s-text type="strong">${h.count.toLocaleString()} of ${h.average.toLocaleString(undefined,{maximumFractionDigits:1})} usual</s-text><s-text tone="critical" type="strong">−${Math.abs(h.change)}%</s-text></s-grid>`).join('')}
