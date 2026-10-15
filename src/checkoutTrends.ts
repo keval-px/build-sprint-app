@@ -16,10 +16,10 @@ export function checkoutTrendsMarkup(trends:CheckoutTrend[],context:{start:numbe
   return `<s-section data-insight="${trend.id}"><s-stack gap="base">
     <s-stack direction="inline" justifyContent="space-between" alignItems="center" gap="small"><s-heading><s-text fontWeight="bold">${escape(trend.title)}</s-text></s-heading><s-badge tone="warning">Needs your review</s-badge></s-stack>
     <s-query-container><s-grid gridTemplateColumns="@container (inline-size > 700px) 1.5fr 1fr, 1fr" gap="large-100" alignItems="start">
-     <s-stack gap="small">
-      <s-text type="strong" fontWeight="medium">What we detected</s-text><s-paragraph>${conclusion(trend)}</s-paragraph>
-      <s-text type="strong" fontWeight="medium">What you should do next</s-text><s-paragraph>${escape(trend.next)}</s-paragraph>
-     </s-stack>
+     <s-query-container><s-grid gridTemplateColumns="@container (inline-size > 500px) 1fr 1fr, 1fr" gap="base">
+      <s-box background="subdued" padding="base" borderRadius="base"><s-stack gap="small"><s-text type="strong" fontWeight="medium">What we detected</s-text><s-paragraph>${conclusion(trend)}</s-paragraph></s-stack></s-box>
+      <s-box background="subdued" padding="base" borderRadius="base"><s-stack gap="small"><s-text type="strong" fontWeight="medium">What you should do next</s-text><s-paragraph>${escape(trend.next)}</s-paragraph></s-stack></s-box>
+     </s-grid></s-query-container>
      <s-stack gap="base">
       <s-text color="subdued">${trend.id==='shipping-drop'?'Shipping selected, with no payment or completion within 1 hour of starting checkout':'Completed within 1 hour of starting checkout'}</s-text>
       <s-grid gridTemplateColumns="1fr 1fr" gap="base">

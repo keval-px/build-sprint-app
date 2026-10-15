@@ -23,13 +23,17 @@ export function insightCard(card:InsightCard,ctx:CardContext){
           <s-badge id="mission-badge-${mission.id}" tone="${status.done?'neutral':severity.tone}">${status.done?'Marked as done':severity.label}</s-badge>
         </s-stack>
         <s-query-container><s-grid gridTemplateColumns="@container (inline-size > 700px) 1.5fr 1fr, 1fr" gap="large-100" alignItems="start">
-          <s-stack gap="small" data-explanation="next">
-            <s-text type="strong" fontWeight="medium">What we detected</s-text>
-            <s-paragraph>${escape(mission.description)}</s-paragraph>
-            ${signal.latestAlert!==null?`<s-text color="subdued">Latest matching alert ${escape(time(signal.latestAlert))}</s-text>`:''}
-            <s-text type="strong" fontWeight="medium">What you should do next</s-text>
-            <s-paragraph data-recommendation-summary>${escape(recommendation)}</s-paragraph>
-          </s-stack>
+          <s-query-container data-explanation="next"><s-grid gridTemplateColumns="@container (inline-size > 500px) 1fr 1fr, 1fr" gap="base">
+            <s-box background="subdued" padding="base" borderRadius="base"><s-stack gap="small">
+              <s-text type="strong" fontWeight="medium">What we detected</s-text>
+              <s-paragraph>${escape(mission.description)}</s-paragraph>
+              ${signal.latestAlert!==null?`<s-text color="subdued">Latest matching alert ${escape(time(signal.latestAlert))}</s-text>`:''}
+            </s-stack></s-box>
+            <s-box background="subdued" padding="base" borderRadius="base"><s-stack gap="small">
+              <s-text type="strong" fontWeight="medium">What you should do next</s-text>
+              <s-paragraph data-recommendation-summary>${escape(recommendation)}</s-paragraph>
+            </s-stack></s-box>
+          </s-grid></s-query-container>
           <s-grid gridTemplateColumns="1fr 1fr" gap="base">
             <s-stack gap="small" data-action-metric><s-text color="subdued">Checkouts affected</s-text><s-number fontSize="large-100" fontWeight="bold">${mission.count.toLocaleString()}</s-number><s-text color="subdued">${percent}% of ${summary.sessionCount.toLocaleString()} checkouts</s-text></s-stack>
             <s-stack gap="small" data-action-value><s-text color="subdued">${mission.id==='inventory'?'Item value before alert':'Affected basket value'}</s-text><s-number fontSize="large-100" fontWeight="bold" id="risk-${mission.id}">${mission.id==='inventory'?(inventory.totalMinor===null?'Unavailable':ctx.money(inventory.totalMinor)):hasAmount?ctx.money(basketCents!):'Unavailable'}</s-number><s-text color="subdued">${(mission.id==='inventory'?inventory.totalMinor===null:!hasAmount)?'Some prices weren’t recorded':'Not confirmed lost revenue'}</s-text></s-stack>
@@ -98,10 +102,10 @@ export function orderDropCard(drop:OrderDrop,pattern:OrderPattern,simulated:bool
   return `<s-section data-insight="order-drop"><s-stack gap="base">
     <s-stack direction="inline" justifyContent="space-between" alignItems="center" gap="small"><s-heading><s-text fontWeight="bold">Orders below normal</s-text></s-heading><s-badge tone="critical">Critical</s-badge></s-stack>
     <s-query-container><s-grid gridTemplateColumns="@container (inline-size > 700px) 1.5fr 1fr, 1fr" gap="large-100" alignItems="start">
-     <s-stack gap="small">
-      <s-text type="strong" fontWeight="medium">What we detected</s-text><s-paragraph>${simulated?'Simulated orders':'Paid orders'} were at least ${Math.round((1-ORDER_DROP.belowAverage)*100)}% below the hourly average for ${count} hours in a row today, ${pad(first)}–${pad(last+1)} (${escape(pattern.timeZone)}).</s-paragraph>
-      <s-text type="strong" fontWeight="medium">What you should do next</s-text><s-paragraph>Place a test order, and check that your storefront, theme, checkout apps and payment methods work. This alert only watches order flow, so it can’t tell you the cause.</s-paragraph>
-     </s-stack>
+     <s-query-container><s-grid gridTemplateColumns="@container (inline-size > 500px) 1fr 1fr, 1fr" gap="base">
+      <s-box background="subdued" padding="base" borderRadius="base"><s-stack gap="small"><s-text type="strong" fontWeight="medium">What we detected</s-text><s-paragraph>${simulated?'Simulated orders':'Paid orders'} were at least ${Math.round((1-ORDER_DROP.belowAverage)*100)}% below the hourly average for ${count} hours in a row today, ${pad(first)}–${pad(last+1)} (${escape(pattern.timeZone)}).</s-paragraph></s-stack></s-box>
+      <s-box background="subdued" padding="base" borderRadius="base"><s-stack gap="small"><s-text type="strong" fontWeight="medium">What you should do next</s-text><s-paragraph>Place a test order, and check that your storefront, theme, checkout apps and payment methods work. This alert only watches order flow, so it can’t tell you the cause.</s-paragraph></s-stack></s-box>
+     </s-grid></s-query-container>
      <s-stack gap="small" accessibilityRole="unordered-list" accessibilityLabel="Hours below normal">
       ${drop.hours.map(h=>`<s-grid gridTemplateColumns="1fr auto auto" gap="base" accessibilityRole="list-item"><s-text color="subdued">${pad(h.hour)}–${pad(h.hour+1)}</s-text><s-text type="strong">${h.count.toLocaleString()} of ${h.average.toLocaleString(undefined,{maximumFractionDigits:1})} usual</s-text><s-text tone="critical" type="strong">−${Math.abs(h.change)}%</s-text></s-grid>`).join('')}
      </s-stack>
