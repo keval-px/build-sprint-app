@@ -69,14 +69,13 @@
               <s-stack direction="inline" alignItems="center" gap="small"><s-icon type="magic" aria-hidden="true"></s-icon><s-heading id="recommendations-heading" fontSize="large">Insights &amp; recommendations</s-heading></s-stack>
               <s-text id="recommendation-count" color="subdued"></s-text>
             </s-stack>
-            <s-paragraph color="subdued">Changes we’ve detected, and what we recommend checking next.</s-paragraph>
           </s-stack>
           <s-stack gap="base">
           <s-popover id="insight-method"><s-box padding="base" maxInlineSize="400px"><s-stack gap="base"><s-heading>How comparisons work</s-heading><s-paragraph>Each checkout has one hour to progress. Newer checkouts are excluded until that hour has passed.</s-paragraph><s-paragraph>Time comparisons split the eligible period into equal halves. Mobile and desktop use the same period; unknown devices and tablets are excluded.</s-paragraph><s-paragraph>Each group needs at least 20 checkouts and current, complete tracking data. A mobile and desktop gap, or an increase in shipping stops, of 10 percentage points or more (for example, 50% of mobile checkouts completing against 60% on desktop) is flagged for review.</s-paragraph><s-paragraph color="subdued">A difference is a reason to investigate, not proof of a checkout problem.</s-paragraph><s-button variant="secondary" commandFor="insight-method" command="--hide">Close</s-button></s-stack></s-box></s-popover>
           <s-text id="action-save-status" accessibilityVisibility="exclusive" role="status" aria-live="polite"></s-text>
           <s-banner id="action-save-error" heading="Change wasn’t saved" tone="critical" hidden></s-banner>
           <s-stack id="mission-list" gap="base"><s-paragraph color="subdued">Loading recommendations…</s-paragraph></s-stack>
-          <s-paragraph id="recommendation-value-note" color="subdued" hidden>Values cover affected checkouts with no recorded completion, not confirmed lost revenue. These differ from the abandoned checkouts in Checkout performance. Groups can overlap.</s-paragraph>
+          <s-paragraph id="recommendation-value-note" color="subdued" hidden>A checkout can appear in more than one card. These counts aren’t the same as Abandoned in Checkout performance.</s-paragraph>
           </s-stack>
           </s-stack>
           <s-section id="checkout-funnel"><s-paragraph>Loading checkout stages…</s-paragraph></s-section>
